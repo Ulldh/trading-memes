@@ -1,0 +1,1044 @@
+"""
+trainer.py - Pipeline de entrenamiento de modelos de Machine Learning.
+
+Este modulo maneja el flujo completo de entrenamiento:
+1. Preparacion de datos (merge, limpieza, split).
+2. Entrenamiento de Random Forest (con SMOTE para balanceo).
+3. Entrenamiento de XGBoost (con early stopping).
+4. Guardado y carga de modelos entrenados.
+5. Versionado automatico de modelos (v1, v2, v3, etc.).
+
+Clases:
+    ModelTrainer: Orquesta el entrenamiento de multiples modelos.
+
+Dependencias:
+    - scikit-learn: Para Random Forest, metricas, y utilidades.
+    - xgboost: Para el clasificador XGBoost.
+    - imblearn: Para SMOTE (sobre-muestreo de clase minoritaria).
+    - joblib: Para serializar/deserializar modelos.
+    - pandas: Para manipulacion de datos.
+"""
+
+from pathlib import Path
+from typing import Optional
+import json
+from datetime import datetime
+import os
+
+import numpy as np
+import pandas as pd
+import joblib
+
+# Modelos de clasificacion
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+
+# Utilidades de sklearn
+from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
+from sklearn.metrics import (
+    classification_report,
+    accuracy_score,
+    f1_score,
+    roc_auc_score,
+)
+
+# Calibracion de probabilidades (Platt scaling / isotonic regression)
+from sklearn.calibration import CalibratedClassifierCV
+
+# SMOTE para balanceo de clases (sobre-muestreo sintetico)
+from imblearn.over_sampling import SMOTE
+
+from src.utils.logger import get_logger
+
+# Importar configuracion del proyecto
+try:
+    from config import ML_CONFIG, MODELS_DIR
+except ImportError:
+    # Valores por defecto si no se puede importar config
+    ML_CONFIG = {
+        "random_seed": 42,
+        "test_size": 0.2,
+        "cv_folds": 5,
+        "smote_sampling": 0.5,
+        "rf_params": {
+            "n_estimators": 300,
+            "max_depth": 15,
+            "min_samples_leaf": 5,
+            "class_weight": "balanced",
+            "random_state": 42,
+            "n_jobs": -1,
+        },
+        "xgb_params": {
+            "n_estimators": 500,
+            "max_depth": 6,
+            "learning_rate": 0.05,
+            "subsample": 0.8,
+            "colsample_bytree": 0.8,
+            "random_state": 42,
+            "eval_metric": "logloss",
+            "early_stopping_rounds": 50,
+        },
+    }
+    MODELS_DIR = Path("data/models")
+
+logger = get_logger(__name__)
+
+
+class ModelTrainer:
+    """
+    Orquesta el entrenamiento de modelos de clasificacion para detectar memecoins "gem".
+
+    Entrena dos tipos de modelos:
+    - Random Forest: Robusto, interpretable, con SMOTE para balanceo de clases.
+    - XGBoost: Alto rendimiento, con early stopping para evitar overfitting.
+
+    Ambos modelos se entrenan para clasificacion binaria por defecto
+    (1 = token exitoso, 0 = no exitoso), pero tambien soportan multiclase.
+
+    Args:
+        random_seed: Semilla para reproducibilidad de resultados.
+
+    Atributos:
+        models: Diccionario {nombre_modelo: modelo_entrenado}.
+        results: Diccionario {nombre_modelo: metricas}.
+
+    Ejemplo:
+        trainer = ModelTrainer(random_seed=42)
+
+        # Entrenar todos los modelos
+        resultados = trainer.train_all(features_df, labels_df, target="label_binary")
+
+        # Ver metricas
+        print(resultados["random_forest"])
+
+        # Guardar modelos
+        trainer.save_models(Path("data/models"))
+    """
+
+    def __init__(self, random_seed: int = 42):
+        """
+        Inicializa el trainer con una semilla aleatoria.
+
+        Args:
+            random_seed: Semilla para reproducibilidad (por defecto 42).
+        """
+        self.random_seed = random_seed
+        self.models: dict = {}        # nombre -> modelo entrenado
+        self.results: dict = {}       # nombre -> diccionario de metricas
+        self.feature_names: list = [] # nombres de las features usadas
+
+    # ============================================================
+    # PREPARACION DE DATOS
+    # ============================================================
+
+    def prepare_data(
+        self,
+        features_df: pd.DataFrame,
+        labels_df: pd.DataFrame,
+        target: str = "label_binary",
+    ) -> tuple:
+        """
+        Prepara los datos para entrenamiento: merge, limpieza, y split.
+
+        Pasos:
+        1. Merge de features y labels por token_id.
+        2. Eliminar filas donde el target es NaN.
+        3. Rellenar NaN en features con la mediana de cada columna.
+        4. Separar features (X) y target (y).
+        5. Dividir en train/test con estratificacion.
+
+        Args:
+            features_df: DataFrame con features calculados (debe tener 'token_id').
+            labels_df: DataFrame con labels (debe tener 'token_id' y la columna target).
+            target: Nombre de la columna objetivo ('label_binary' o 'label_multi').
+
+        Returns:
+            Tupla de (X_train, X_test, y_train, y_test, feature_names).
+
+        Raises:
+            ValueError: Si no hay datos suficientes o la columna target no existe.
+        """
+        logger.info(
+            f"Preparando datos: {len(features_df)} features, "
+            f"{len(labels_df)} labels, target='{target}'"
+        )
+
+        # --- Paso 1: Merge por token_id ---
+        # Asegurarnos de que token_id sea columna (no indice)
+        if "token_id" not in features_df.columns and features_df.index.name == "token_id":
+            features_df = features_df.reset_index()
+        if "token_id" not in labels_df.columns and labels_df.index.name == "token_id":
+            labels_df = labels_df.reset_index()
+
+        # Merge inner: solo tokens que estan en ambos DataFrames
+        merged_df = features_df.merge(labels_df, on="token_id", how="inner")
+        logger.info(f"Despues de merge: {len(merged_df)} tokens con features y labels")
+
+        if merged_df.empty:
+            raise ValueError(
+                "No hay tokens en comun entre features y labels. "
+                "Verifica que ambos DataFrames tengan 'token_id'."
+            )
+
+        # --- Paso 2: Verificar que la columna target existe ---
+        if target not in merged_df.columns:
+            raise ValueError(
+                f"La columna target '{target}' no existe en el DataFrame. "
+                f"Columnas disponibles: {list(merged_df.columns)}"
+            )
+
+        # Eliminar filas donde el target es NaN
+        antes = len(merged_df)
+        merged_df = merged_df.dropna(subset=[target])
+        despues = len(merged_df)
+        if antes != despues:
+            logger.info(f"Eliminadas {antes - despues} filas con target NaN")
+
+        if merged_df.empty:
+            raise ValueError("No quedan datos despues de eliminar NaN en el target.")
+
+        # --- Paso 3: Separar features (X) y target (y) ---
+        # Columnas que NO son features (son metadata o targets)
+        non_feature_cols = [
+            "token_id", "label_multi", "label_binary",
+            "max_multiple", "final_multiple", "notes",
+            "labeled_at", "computed_at",
+            # Columnas de texto/metadata que pueden venir del storage
+            "chain", "symbol", "name", "dex_id", "pool_address",
+            "first_seen", "last_updated",
+        ]
+        feature_cols = [
+            col for col in merged_df.columns
+            if col not in non_feature_cols
+        ]
+
+        # Filtrar solo columnas numericas (excluir strings, bools, objects)
+        feature_cols = [
+            col for col in feature_cols
+            if pd.api.types.is_numeric_dtype(merged_df[col])
+        ]
+
+        if not feature_cols:
+            raise ValueError("No se encontraron columnas de features.")
+
+        X = merged_df[feature_cols].copy()
+        y = merged_df[target].copy()
+
+        # --- Paso 4: Rellenar NaN en features con la mediana ---
+        # La mediana es mas robusta que la media ante valores extremos
+        nan_count = X.isna().sum().sum()
+        if nan_count > 0:
+            logger.info(f"Rellenando {nan_count} valores NaN con mediana")
+            X = X.fillna(X.median())
+            # Si aun quedan NaN (columna entera NaN), rellenar con 0
+            X = X.fillna(0)
+
+        self.feature_names = feature_cols
+        logger.info(f"Features seleccionados: {len(feature_cols)} columnas")
+
+        # --- Paso 5: Split train/test con estratificacion ---
+        test_size = ML_CONFIG.get("test_size", 0.2)
+
+        # Verificar que hay al menos 2 clases y suficientes muestras
+        unique_classes = y.nunique()
+        if unique_classes < 2:
+            raise ValueError(
+                f"Solo hay {unique_classes} clase(s) en el target. "
+                "Se necesitan al menos 2 clases para entrenar."
+            )
+
+        # Verificar que cada clase tiene suficientes muestras para estratificar
+        min_class_count = y.value_counts().min()
+        if min_class_count < 2:
+            logger.warning(
+                f"La clase minoritaria solo tiene {min_class_count} muestra(s). "
+                "Esto puede causar problemas con estratificacion."
+            )
+            # Usar split sin estratificacion si hay muy pocas muestras
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y,
+                test_size=test_size,
+                random_state=self.random_seed,
+            )
+        else:
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y,
+                test_size=test_size,
+                random_state=self.random_seed,
+                stratify=y,
+            )
+
+        logger.info(
+            f"Split: train={len(X_train)} ({(1-test_size)*100:.0f}%), "
+            f"test={len(X_test)} ({test_size*100:.0f}%)"
+        )
+        logger.info(f"Distribucion train:\n{y_train.value_counts().to_string()}")
+        logger.info(f"Distribucion test:\n{y_test.value_counts().to_string()}")
+
+        return X_train, X_test, y_train, y_test, feature_cols
+
+    # ============================================================
+    # ENTRENAMIENTO: Random Forest
+    # ============================================================
+
+    def train_random_forest(
+        self,
+        X_train: pd.DataFrame,
+        y_train: pd.Series,
+        X_val: pd.DataFrame,
+        y_val: pd.Series,
+    ) -> RandomForestClassifier:
+        """
+        Entrena un Random Forest con SMOTE para balanceo de clases.
+
+        SMOTE (Synthetic Minority Over-sampling Technique) crea ejemplos
+        sinteticos de la clase minoritaria para que el modelo no este
+        sesgado hacia la clase mayoritaria.
+
+        Tambien usa class_weight='balanced' y cross-validation de 5 folds.
+
+        Args:
+            X_train: Features de entrenamiento.
+            y_train: Labels de entrenamiento.
+            X_val: Features de validacion (para reportar metricas).
+            y_val: Labels de validacion.
+
+        Returns:
+            Modelo RandomForestClassifier entrenado.
+        """
+        logger.info("--- Entrenando Random Forest ---")
+
+        # --- Aplicar SMOTE al set de entrenamiento SOLAMENTE ---
+        # IMPORTANTE: nunca aplicar SMOTE al set de test/validacion
+        smote_ratio = ML_CONFIG.get("smote_sampling", 0.5)
+        try:
+            smote = SMOTE(
+                sampling_strategy=smote_ratio,
+                random_state=self.random_seed,
+            )
+            X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
+            logger.info(
+                f"SMOTE aplicado: {len(X_train)} -> {len(X_train_resampled)} muestras"
+            )
+            logger.info(
+                f"Distribucion post-SMOTE:\n"
+                f"{pd.Series(y_train_resampled).value_counts().to_string()}"
+            )
+        except ValueError as e:
+            # SMOTE puede fallar si hay muy pocas muestras de la clase minoritaria
+            logger.warning(
+                f"SMOTE fallo ({e}). Entrenando sin sobre-muestreo."
+            )
+            X_train_resampled = X_train
+            y_train_resampled = y_train
+
+        # --- Configurar el modelo ---
+        rf_params = ML_CONFIG.get("rf_params", {}).copy()
+        rf_params["random_state"] = self.random_seed
+        model = RandomForestClassifier(**rf_params)
+
+        # --- Cross-validation en datos de entrenamiento ---
+        cv_folds = ML_CONFIG.get("cv_folds", 5)
+        try:
+            skf = StratifiedKFold(
+                n_splits=cv_folds,
+                shuffle=True,
+                random_state=self.random_seed,
+            )
+            cv_scores = cross_val_score(
+                model, X_train_resampled, y_train_resampled,
+                cv=skf, scoring="f1", n_jobs=-1,
+            )
+            logger.info(
+                f"CV ({cv_folds} folds) F1: "
+                f"{cv_scores.mean():.4f} (+/- {cv_scores.std():.4f})"
+            )
+        except ValueError as e:
+            logger.warning(f"Cross-validation fallo ({e}). Continuando sin CV.")
+            cv_scores = np.array([0.0])
+
+        # --- Entrenar el modelo final ---
+        model.fit(X_train_resampled, y_train_resampled)
+        logger.info("Random Forest entrenado exitosamente")
+
+        # --- Evaluar en el set de validacion ---
+        y_pred_val = model.predict(X_val)
+        val_f1 = f1_score(y_val, y_pred_val, average="binary", zero_division=0)
+        val_acc = accuracy_score(y_val, y_pred_val)
+        logger.info(f"Validacion: F1={val_f1:.4f}, Accuracy={val_acc:.4f}")
+
+        # --- Guardar modelo y metricas ---
+        self.models["random_forest"] = model
+        self.results["random_forest"] = {
+            "cv_f1_mean": float(cv_scores.mean()),
+            "cv_f1_std": float(cv_scores.std()),
+            "val_f1": float(val_f1),
+            "val_accuracy": float(val_acc),
+        }
+
+        return model
+
+    # ============================================================
+    # ENTRENAMIENTO: XGBoost
+    # ============================================================
+
+    def train_xgboost(
+        self,
+        X_train: pd.DataFrame,
+        y_train: pd.Series,
+        X_val: pd.DataFrame,
+        y_val: pd.Series,
+    ) -> XGBClassifier:
+        """
+        Entrena un XGBoost con early stopping y scale_pos_weight.
+
+        XGBoost es un algoritmo de gradient boosting que construye arboles
+        secuencialmente, cada uno corrigiendo los errores del anterior.
+
+        scale_pos_weight: Ajusta el peso de la clase positiva para compensar
+        el desbalanceo. Si hay 100 negativos y 10 positivos, scale_pos_weight=10.
+
+        Early stopping: Detiene el entrenamiento si no mejora en N rondas,
+        evitando overfitting.
+
+        Args:
+            X_train: Features de entrenamiento.
+            y_train: Labels de entrenamiento.
+            X_val: Features de validacion (usado para early stopping).
+            y_val: Labels de validacion.
+
+        Returns:
+            Modelo XGBClassifier entrenado.
+        """
+        logger.info("--- Entrenando XGBoost ---")
+
+        # --- Calcular scale_pos_weight para compensar desbalanceo ---
+        # Es la proporcion de negativos a positivos
+        n_negative = int((y_train == 0).sum())
+        n_positive = int((y_train == 1).sum())
+
+        if n_positive > 0:
+            scale_pos_weight = n_negative / n_positive
+        else:
+            # Si no hay positivos, usar 1.0 como fallback
+            logger.warning("No hay muestras positivas en el set de entrenamiento")
+            scale_pos_weight = 1.0
+
+        logger.info(
+            f"Clases: {n_negative} negativos, {n_positive} positivos | "
+            f"scale_pos_weight={scale_pos_weight:.2f}"
+        )
+
+        # --- Configurar el modelo ---
+        xgb_params = ML_CONFIG.get("xgb_params", {}).copy()
+        xgb_params["random_state"] = self.random_seed
+        xgb_params["scale_pos_weight"] = scale_pos_weight
+
+        # Extraer early_stopping_rounds del dict (se pasa a .fit(), no al constructor)
+        early_stopping = xgb_params.pop("early_stopping_rounds", 50)
+
+        model = XGBClassifier(**xgb_params)
+
+        # --- Cross-validation en datos de entrenamiento ---
+        cv_folds = ML_CONFIG.get("cv_folds", 5)
+        cv_scores = np.array([0.0])
+        try:
+            skf = StratifiedKFold(
+                n_splits=cv_folds,
+                shuffle=True,
+                random_state=self.random_seed,
+            )
+            cv_scores = cross_val_score(
+                model, X_train, y_train,
+                cv=skf, scoring="f1", n_jobs=-1,
+            )
+            logger.info(
+                f"XGBoost CV ({cv_folds} folds) F1: "
+                f"{cv_scores.mean():.4f} (+/- {cv_scores.std():.4f})"
+            )
+        except ValueError as e:
+            logger.warning(f"XGBoost cross-validation fallo ({e}). Continuando sin CV.")
+            cv_scores = np.array([0.0])
+
+        # --- Entrenar con early stopping ---
+        # El eval_set permite monitorear el rendimiento en validacion
+        # Si no mejora en 'early_stopping_rounds' iteraciones, para de entrenar
+        model.fit(
+            X_train, y_train,
+            eval_set=[(X_val, y_val)],
+            verbose=False,  # No imprimir cada iteracion
+        )
+
+        # Reportar en que iteracion paro
+        best_iteration = getattr(model, "best_iteration", None)
+        if best_iteration is not None:
+            logger.info(f"XGBoost: mejor iteracion = {best_iteration}")
+        else:
+            logger.info(f"XGBoost: entreno las {xgb_params.get('n_estimators', 500)} iteraciones")
+
+        # --- Evaluar en el set de validacion ---
+        y_pred_val = model.predict(X_val)
+        val_f1 = f1_score(y_val, y_pred_val, average="binary", zero_division=0)
+        val_acc = accuracy_score(y_val, y_pred_val)
+        logger.info(f"Validacion: F1={val_f1:.4f}, Accuracy={val_acc:.4f}")
+
+        # --- Guardar modelo y metricas ---
+        self.models["xgboost"] = model
+        self.results["xgboost"] = {
+            "cv_f1_mean": float(cv_scores.mean()),
+            "cv_f1_std": float(cv_scores.std()),
+            "best_iteration": best_iteration,
+            "val_f1": float(val_f1),
+            "val_accuracy": float(val_acc),
+            "scale_pos_weight": float(scale_pos_weight),
+        }
+
+        return model
+
+    # ============================================================
+    # CALIBRACION DE PROBABILIDADES
+    # ============================================================
+
+    def calibrate_model(self, model, X_train, y_train, method="sigmoid"):
+        """
+        Calibra las probabilidades de un modelo ya entrenado.
+
+        predict_proba() de RF y XGBoost NO devuelve probabilidades calibradas.
+        Un 80% no significa realmente 80% de probabilidad de ser gem.
+        La calibracion corrige esto usando Platt scaling (sigmoid) o
+        isotonic regression.
+
+        Args:
+            model: Modelo ya entrenado (con predict y predict_proba).
+            X_train: Features de entrenamiento.
+            y_train: Labels de entrenamiento.
+            method: "sigmoid" (Platt scaling, bueno para datasets pequeños)
+                    o "isotonic" (mas flexible, necesita mas datos).
+
+        Returns:
+            Modelo calibrado con predict_proba() ajustado.
+        """
+        logger.info(f"Calibrando modelo con metodo '{method}'...")
+        calibrated = CalibratedClassifierCV(
+            model, method=method, cv=3
+        )
+        calibrated.fit(X_train, y_train)
+        logger.info("Modelo calibrado exitosamente")
+        return calibrated
+
+    # ============================================================
+    # ENTRENAMIENTO: Ensemble
+    # ============================================================
+
+    def train_ensemble(
+        self,
+        X_train: pd.DataFrame,
+        y_train: pd.Series,
+        X_val: pd.DataFrame,
+        y_val: pd.Series,
+    ):
+        """
+        Crea un VotingClassifier soft combinando RF + XGBoost.
+
+        Soft voting promedia las probabilidades de ambos modelos.
+        Requiere que RF y XGBoost ya esten entrenados.
+
+        Args:
+            X_train: Features de entrenamiento.
+            y_train: Labels de entrenamiento.
+            X_val: Features de validacion.
+            y_val: Labels de validacion.
+
+        Returns:
+            VotingClassifier entrenado, o None si falla.
+        """
+        from src.models.optimizer import ModelOptimizer
+
+        logger.info("--- Creando Ensemble (VotingClassifier) ---")
+
+        rf_model = self.models.get("random_forest")
+        xgb_model = self.models.get("xgboost")
+
+        if rf_model is None or xgb_model is None:
+            logger.warning("Ensemble requiere RF y XGBoost entrenados")
+            return None
+
+        optimizer = ModelOptimizer(random_seed=self.random_seed)
+        ensemble = optimizer.create_ensemble(
+            X_train, y_train,
+            rf_model=rf_model, xgb_model=xgb_model,
+        )
+
+        # Evaluar ensemble
+        y_pred = ensemble.predict(X_val)
+        val_f1 = f1_score(y_val, y_pred, average="binary", zero_division=0)
+        val_acc = accuracy_score(y_val, y_pred)
+
+        logger.info(f"Ensemble validacion: F1={val_f1:.4f}, Accuracy={val_acc:.4f}")
+
+        self.models["ensemble"] = ensemble
+        self.results["ensemble"] = {
+            "val_f1": float(val_f1),
+            "val_accuracy": float(val_acc),
+        }
+
+        return ensemble
+
+    # ============================================================
+    # PIPELINE COMPLETO
+    # ============================================================
+
+    def train_all(
+        self,
+        features_df: pd.DataFrame,
+        labels_df: pd.DataFrame,
+        target: str = "label_binary",
+    ) -> dict:
+        """
+        Pipeline completo: prepara datos, entrena RF + XGBoost, devuelve resultados.
+
+        Este es el metodo principal que ejecuta todo el flujo de entrenamiento:
+        1. Prepara los datos (merge, limpieza, split).
+        2. Entrena Random Forest con SMOTE.
+        3. Entrena XGBoost con early stopping.
+        4. Devuelve diccionario con todos los resultados.
+
+        Args:
+            features_df: DataFrame con features calculados.
+            labels_df: DataFrame con labels.
+            target: Columna objetivo ('label_binary' por defecto).
+
+        Returns:
+            Diccionario con estructura:
+            {
+                "random_forest": {metricas...},
+                "xgboost": {metricas...},
+                "data_info": {info del dataset...},
+            }
+        """
+        logger.info("=" * 60)
+        logger.info("INICIO DEL PIPELINE DE ENTRENAMIENTO")
+        logger.info("=" * 60)
+
+        # --- Paso 1: Preparar datos ---
+        X_train, X_test, y_train, y_test, feature_names = self.prepare_data(
+            features_df, labels_df, target=target
+        )
+
+        # Guardar datos de test para evaluacion posterior
+        self._X_test = X_test
+        self._y_test = y_test
+        self._X_train = X_train
+        self._y_train = y_train
+
+        # Extraer token_ids del merge para excluir del backtesting
+        # (evita data leakage: el backtester no debe evaluar tokens de entrenamiento)
+        if "token_id" not in features_df.columns and features_df.index.name == "token_id":
+            feat_tmp = features_df.reset_index()
+        else:
+            feat_tmp = features_df
+        if "token_id" not in labels_df.columns and labels_df.index.name == "token_id":
+            lab_tmp = labels_df.reset_index()
+        else:
+            lab_tmp = labels_df
+        merged_tmp = feat_tmp.merge(lab_tmp, on="token_id", how="inner")
+        # Indices de train en el merged DataFrame
+        all_token_ids = merged_tmp["token_id"].values
+        train_indices = X_train.index
+        self._train_token_ids = list(all_token_ids[train_indices])
+
+        # Informacion del dataset
+        data_info = {
+            "total_samples": len(X_train) + len(X_test),
+            "train_samples": len(X_train),
+            "test_samples": len(X_test),
+            "n_features": len(feature_names),
+            "feature_names": feature_names,
+            "target": target,
+            "class_distribution": y_train.value_counts().to_dict(),
+        }
+
+        # --- Paso 2: Entrenar Random Forest ---
+        try:
+            self.train_random_forest(X_train, y_train, X_test, y_test)
+        except Exception as e:
+            logger.error(f"Error entrenando Random Forest: {e}")
+            self.results["random_forest"] = {"error": str(e)}
+
+        # --- Paso 3: Entrenar XGBoost ---
+        try:
+            self.train_xgboost(X_train, y_train, X_test, y_test)
+        except Exception as e:
+            logger.error(f"Error entrenando XGBoost: {e}")
+            self.results["xgboost"] = {"error": str(e)}
+
+        # --- Paso 3b: Feature selection (eliminar features correlacionados) ---
+        if ML_CONFIG.get("remove_correlated", False):
+            try:
+                from src.models.optimizer import ModelOptimizer
+                optimizer = ModelOptimizer(random_seed=self.random_seed)
+                n_before = X_train.shape[1]
+                X_train = optimizer.remove_correlated_features(X_train, threshold=0.95)
+                # Aplicar las mismas columnas al set de test
+                X_test = X_test[X_train.columns]
+                self.feature_names = list(X_train.columns)
+                n_removed = n_before - X_train.shape[1]
+                if n_removed > 0:
+                    logger.info(f"Feature selection: eliminados {n_removed} features correlacionados")
+            except Exception as e:
+                logger.warning(f"Feature selection fallo: {e}")
+
+        # --- Paso 4: Calibrar probabilidades de ambos modelos ---
+        for name in list(self.models.keys()):
+            try:
+                logger.info(f"Calibrando modelo: {name}")
+                calibrated = self.calibrate_model(self.models[name], X_train, y_train)
+                self.models[name] = calibrated
+
+                # Re-evaluar metricas con modelo calibrado
+                y_pred_cal = calibrated.predict(X_test)
+                cal_f1 = f1_score(y_test, y_pred_cal, average="binary", zero_division=0)
+                self.results[name]["calibrated"] = True
+                self.results[name]["val_f1_calibrated"] = float(cal_f1)
+                logger.info(f"  {name} calibrado: F1={cal_f1:.4f}")
+            except Exception as e:
+                logger.warning(f"Calibracion fallo para {name}: {e}")
+                self.results[name]["calibrated"] = False
+
+        # --- Paso 5: Crear ensemble si esta habilitado ---
+        if ML_CONFIG.get("use_ensemble", False):
+            try:
+                ensemble = self.train_ensemble(X_train, y_train, X_test, y_test)
+                if ensemble is not None:
+                    logger.info("Ensemble creado exitosamente")
+            except Exception as e:
+                logger.warning(f"Ensemble fallo: {e}")
+
+        # --- Resumen ---
+        self.results["data_info"] = data_info
+        logger.info("=" * 60)
+        logger.info("PIPELINE DE ENTRENAMIENTO COMPLETADO")
+        for name, metrics in self.results.items():
+            if name != "data_info" and "error" not in metrics:
+                logger.info(f"  {name}: F1={metrics.get('val_f1', 'N/A'):.4f}")
+        logger.info("=" * 60)
+
+        return self.results
+
+    # ============================================================
+    # GUARDAR / CARGAR MODELOS
+    # ============================================================
+
+    def save_models(self, path: Optional[Path] = None):
+        """
+        Guarda todos los modelos entrenados en disco usando joblib.
+
+        joblib es mas eficiente que pickle para objetos con arrays numpy grandes,
+        como los modelos de sklearn y xgboost.
+
+        Args:
+            path: Directorio donde guardar los modelos. Por defecto usa MODELS_DIR.
+        """
+        save_dir = Path(path) if path else MODELS_DIR
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+        for name, model in self.models.items():
+            filepath = save_dir / f"{name}.joblib"
+            joblib.dump(model, filepath)
+            logger.info(f"Modelo '{name}' guardado en: {filepath}")
+
+        # Guardar tambien los nombres de features (necesarios para prediccion)
+        metadata = {
+            "feature_names": self.feature_names,
+            "results": self.results,
+        }
+        metadata_path = save_dir / "training_metadata.joblib"
+        joblib.dump(metadata, metadata_path)
+        logger.info(f"Metadata guardada en: {metadata_path}")
+
+    def load_models(self, path: Optional[Path] = None):
+        """
+        Carga modelos previamente guardados desde disco.
+
+        Args:
+            path: Directorio donde estan los modelos. Por defecto usa MODELS_DIR.
+        """
+        load_dir = Path(path) if path else MODELS_DIR
+
+        if not load_dir.exists():
+            raise FileNotFoundError(f"Directorio de modelos no encontrado: {load_dir}")
+
+        # Cargar cada archivo .joblib como modelo
+        model_files = list(load_dir.glob("*.joblib"))
+        if not model_files:
+            raise FileNotFoundError(f"No se encontraron modelos en: {load_dir}")
+
+        for filepath in model_files:
+            name = filepath.stem  # nombre sin extension
+            if name == "training_metadata":
+                # Cargar metadata en lugar de como modelo
+                metadata = joblib.load(filepath)
+                self.feature_names = metadata.get("feature_names", [])
+                self.results = metadata.get("results", {})
+                logger.info(f"Metadata cargada: {len(self.feature_names)} features")
+            else:
+                self.models[name] = joblib.load(filepath)
+                logger.info(f"Modelo '{name}' cargado desde: {filepath}")
+
+        logger.info(f"Total modelos cargados: {len(self.models)}")
+
+    # ============================================================
+    # VERSIONADO DE MODELOS
+    # ============================================================
+
+    def _get_next_version(self, base_dir: Path) -> int:
+        """
+        Encuentra el siguiente numero de version disponible.
+
+        Busca carpetas con formato v1, v2, v3, etc. y devuelve el siguiente.
+
+        Args:
+            base_dir: Directorio base donde estan las versiones.
+
+        Returns:
+            Numero de la siguiente version (ej: si existe v2, devuelve 3).
+        """
+        if not base_dir.exists():
+            return 1
+
+        # Buscar carpetas con formato v{N}
+        versions = []
+        for path in base_dir.iterdir():
+            if path.is_dir() and path.name.startswith("v"):
+                try:
+                    version_num = int(path.name[1:])  # "v2" -> 2
+                    versions.append(version_num)
+                except ValueError:
+                    continue
+
+        # Devolver siguiente version
+        return max(versions) + 1 if versions else 1
+
+    def save_models_versioned(
+        self,
+        base_path: Optional[Path] = None,
+        metadata: Optional[dict] = None,
+    ) -> Path:
+        """
+        Guarda modelos con versionado automatico (v1, v2, v3, etc.).
+
+        Estructura creada:
+            data/models/
+                v1/
+                    random_forest.joblib
+                    xgboost.joblib
+                    metadata.json          # Info completa de la version
+                v2/
+                    ...
+                random_forest.joblib  -> v2/random_forest.joblib (symlink)
+                xgboost.joblib        -> v2/xgboost.joblib (symlink)
+                latest_version.txt    # Contiene "v2"
+
+        El metadata.json contiene:
+            - version: Numero de version (ej: "v2")
+            - trained_at: Timestamp ISO del entrenamiento
+            - train_samples: Numero de tokens en entrenamiento
+            - test_samples: Numero de tokens en test
+            - feature_names: Lista de features usados
+            - results: Metricas de evaluacion (F1, accuracy, etc.)
+            - hyperparameters: Parametros de cada modelo
+
+        Args:
+            base_path: Directorio base (default: MODELS_DIR).
+            metadata: Metadata adicional para incluir en JSON.
+
+        Returns:
+            Path al directorio de la version guardada (ej: data/models/v2).
+
+        Ejemplo:
+            >>> trainer = ModelTrainer()
+            >>> trainer.train_all(features_df, labels_df)
+            >>> version_dir = trainer.save_models_versioned()
+            >>> print(f"Modelos guardados en: {version_dir}")
+        """
+        base_dir = Path(base_path) if base_path else MODELS_DIR
+        base_dir.mkdir(parents=True, exist_ok=True)
+
+        # Obtener siguiente numero de version
+        version_num = self._get_next_version(base_dir)
+        version_name = f"v{version_num}"
+        version_dir = base_dir / version_name
+
+        logger.info(f"Guardando modelos en version: {version_name}")
+        version_dir.mkdir(parents=True, exist_ok=True)
+
+        # ============================================================
+        # 1. GUARDAR MODELOS EN CARPETA VERSIONADA
+        # ============================================================
+        for name, model in self.models.items():
+            filepath = version_dir / f"{name}.joblib"
+            joblib.dump(model, filepath)
+            logger.info(f"  {name}.joblib -> {version_name}/")
+
+        # ============================================================
+        # 2. PREPARAR METADATA JSON
+        # ============================================================
+        metadata_dict = {
+            "version": version_name,
+            "trained_at": datetime.now().isoformat() + "Z",
+            "feature_names": self.feature_names,
+            "num_features": len(self.feature_names),
+            "results": {},
+            "hyperparameters": {},
+        }
+
+        # Añadir informacion de resultados (train_samples, f1, etc.)
+        for model_name, metrics in self.results.items():
+            if isinstance(metrics, dict):
+                # Filtrar valores serializables
+                clean_metrics = {}
+                for k, v in metrics.items():
+                    if isinstance(v, (int, float, str, bool, type(None))):
+                        clean_metrics[k] = v
+                    elif isinstance(v, (list, dict)):
+                        clean_metrics[k] = v
+                metadata_dict["results"][model_name] = clean_metrics
+
+        # Añadir hiperparametros de config
+        if "rf_params" in ML_CONFIG:
+            metadata_dict["hyperparameters"]["random_forest"] = ML_CONFIG["rf_params"]
+        if "xgb_params" in ML_CONFIG:
+            metadata_dict["hyperparameters"]["xgboost"] = ML_CONFIG["xgb_params"]
+
+        # Añadir train_token_ids para que el backtester pueda excluirlos
+        if hasattr(self, "_train_token_ids"):
+            metadata_dict["train_token_ids"] = self._train_token_ids
+
+        # Añadir metadata adicional si se proporciono
+        if metadata:
+            metadata_dict.update(metadata)
+
+        # Guardar metadata JSON
+        metadata_path = version_dir / "metadata.json"
+        with open(metadata_path, "w") as f:
+            json.dump(metadata_dict, f, indent=2, default=str)
+        logger.info(f"  metadata.json -> {version_name}/")
+
+        # ============================================================
+        # 3. CREAR SYMLINKS A LA VERSION ACTUAL (retrocompatibilidad)
+        # ============================================================
+        for name in self.models.keys():
+            symlink_path = base_dir / f"{name}.joblib"
+            target_path = version_dir / f"{name}.joblib"
+
+            # Eliminar symlink anterior si existe
+            if symlink_path.exists() or symlink_path.is_symlink():
+                symlink_path.unlink()
+
+            # Crear symlink relativo
+            try:
+                # Usar ruta relativa para que funcione al mover el proyecto
+                relative_target = Path(version_name) / f"{name}.joblib"
+                symlink_path.symlink_to(relative_target)
+                logger.info(f"  Symlink: {name}.joblib -> {version_name}/")
+            except OSError as e:
+                # En Windows puede fallar si no hay permisos de admin
+                logger.warning(f"No se pudo crear symlink para {name}: {e}")
+
+        # ============================================================
+        # 4. GUARDAR ARCHIVO DE VERSION ACTUAL
+        # ============================================================
+        latest_version_file = base_dir / "latest_version.txt"
+        with open(latest_version_file, "w") as f:
+            f.write(version_name)
+        logger.info(f"  latest_version.txt -> {version_name}")
+
+        logger.info(f"✅ Modelos guardados exitosamente en: {version_dir}")
+        return version_dir
+
+    def get_latest_version(self, base_path: Optional[Path] = None) -> Optional[str]:
+        """
+        Obtiene el nombre de la version mas reciente.
+
+        Args:
+            base_path: Directorio base (default: MODELS_DIR).
+
+        Returns:
+            Nombre de la version (ej: "v3"), o None si no hay versiones.
+
+        Ejemplo:
+            >>> trainer = ModelTrainer()
+            >>> latest = trainer.get_latest_version()
+            >>> print(f"Ultima version: {latest}")
+        """
+        base_dir = Path(base_path) if base_path else MODELS_DIR
+
+        # Intentar leer latest_version.txt
+        latest_file = base_dir / "latest_version.txt"
+        if latest_file.exists():
+            return latest_file.read_text().strip()
+
+        # Si no existe, buscar la version mas alta
+        version_num = self._get_next_version(base_dir) - 1
+        if version_num > 0:
+            return f"v{version_num}"
+
+        return None
+
+    def load_models_versioned(
+        self,
+        version: Optional[str] = None,
+        base_path: Optional[Path] = None,
+    ) -> dict:
+        """
+        Carga modelos de una version especifica.
+
+        Args:
+            version: Nombre de la version (ej: "v2"). Si es None, carga la ultima.
+            base_path: Directorio base (default: MODELS_DIR).
+
+        Returns:
+            Dict con metadata de la version cargada.
+
+        Raises:
+            FileNotFoundError: Si la version no existe.
+
+        Ejemplo:
+            >>> trainer = ModelTrainer()
+            >>> metadata = trainer.load_models_versioned("v2")
+            >>> print(f"Modelos v2 cargados: F1={metadata['results']['random_forest']['val_f1']}")
+        """
+        base_dir = Path(base_path) if base_path else MODELS_DIR
+
+        # Si no se especifica version, usar la ultima
+        if version is None:
+            version = self.get_latest_version(base_dir)
+            if version is None:
+                raise FileNotFoundError("No se encontraron versiones de modelos")
+
+        version_dir = base_dir / version
+
+        if not version_dir.exists():
+            raise FileNotFoundError(f"Version '{version}' no encontrada en {base_dir}")
+
+        logger.info(f"Cargando modelos desde version: {version}")
+
+        # Cargar modelos
+        self.load_models(version_dir)
+
+        # Cargar metadata
+        metadata_path = version_dir / "metadata.json"
+        if metadata_path.exists():
+            with open(metadata_path, "r") as f:
+                metadata = json.load(f)
+
+            # Asignar feature_names y results desde metadata
+            self.feature_names = metadata.get("feature_names", [])
+            self.results = metadata.get("results", {})
+
+            logger.info(f"Metadata cargada: {metadata.get('trained_at', 'N/A')}")
+            logger.info(f"Features: {len(self.feature_names)}, Results: {len(self.results)}")
+            return metadata
+        else:
+            logger.warning(f"No se encontro metadata.json en {version_dir}")
+            return {}

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.tradingmemes.backup</string>
+
+    <!-- Comando: wrapper fuera de iCloud para evitar TCC restrictions -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/ulldh/tradingmemes-runner/backup_db.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/ulldh/tradingmemes-runner</string>
+
+    <!-- Ejecutar una vez al dia a las 04:00 -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>4</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/ulldh/tradingmemes-runner/logs/backup_stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/ulldh/tradingmemes-runner/logs/backup_stderr.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin</string>
+    </dict>
+
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>

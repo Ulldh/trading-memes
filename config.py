@@ -1,0 +1,196 @@
+"""
+config.py - Configuracion central del proyecto Memecoin Gem Detector.
+
+Aqui se definen:
+- API keys (cargadas desde .env)
+- Rate limits por API
+- Umbrales para clasificacion de tokens
+- Rutas de archivos
+- Parametros de features y modelos
+"""
+
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env
+load_dotenv()
+
+# ============================================================
+# RUTAS DEL PROYECTO
+# ============================================================
+# Path.resolve() convierte la ruta relativa a absoluta
+PROJECT_ROOT = Path(__file__).parent.resolve()
+DATA_DIR = PROJECT_ROOT / "data"
+RAW_DIR = DATA_DIR / "raw"
+PROCESSED_DIR = DATA_DIR / "processed"
+MODELS_DIR = DATA_DIR / "models"
+DB_PATH = DATA_DIR / "trading_memes.db"
+CACHE_DIR = PROJECT_ROOT / ".cache"
+
+# Crear directorios si no existen
+for d in [RAW_DIR, PROCESSED_DIR, MODELS_DIR, CACHE_DIR]:
+    d.mkdir(parents=True, exist_ok=True)
+
+# ============================================================
+# API KEYS
+# ============================================================
+HELIUS_API_KEY = os.getenv("HELIUS_API_KEY", "")
+ETHERSCAN_API_KEY = os.getenv("ETHERSCAN_API_KEY", "")
+BASESCAN_API_KEY = os.getenv("BASESCAN_API_KEY", "")
+COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY", "")
+X_BEARER_TOKEN = os.getenv("X_BEARER_TOKEN", "")
+
+# ============================================================
+# RATE LIMITS (calls por minuto)
+# ============================================================
+RATE_LIMITS = {
+    "geckoterminal": 30,    # 30 calls/min, sin limite mensual documentado
+    "coingecko": 30,        # 30 calls/min, 10K calls/mes (demo)
+    "dexscreener": 300,     # 300 calls/min, sin limite mensual
+    "helius": 50,           # ~50 calls/sec free tier, usamos conservador
+    "etherscan": 5 * 60,    # 5 calls/seg = 300/min
+    "basescan": 5 * 60,     # Mismo que Etherscan
+    "twitter": 30,          # 450 calls/15min = ~30/min (Basic tier)
+}
+
+# ============================================================
+# URLs BASE DE LAS APIs
+# ============================================================
+API_URLS = {
+    "geckoterminal": "https://api.geckoterminal.com/api/v2",
+    "coingecko": "https://api.coingecko.com/api/v3",
+    "dexscreener": "https://api.dexscreener.com",
+    # Si hay key de Helius, usarla. Si no, usar RPC publico de Solana (mas lento).
+    "helius": (
+        f"https://mainnet.helius-rpc.com/?api-key={HELIUS_API_KEY}"
+        if HELIUS_API_KEY
+        else "https://api.mainnet-beta.solana.com"
+    ),
+    # Etherscan V2 API - URL unificada para todas las cadenas EVM
+    "etherscan": "https://api.etherscan.io/v2/api",
+    # X (Twitter) API v2
+    "twitter": "https://api.twitter.com/2",
+}
+
+# Chain IDs para Etherscan V2 API
+ETHERSCAN_CHAIN_IDS = {
+    "ethereum": 1,
+    "base": 8453,
+}
+
+# ============================================================
+# CADENAS SOPORTADAS
+# ============================================================
+SUPPORTED_CHAINS = {
+    "solana": {
+        "geckoterminal_id": "solana",
+        "dexscreener_id": "solana",
+        "native_token": "SOL",
+    },
+    "ethereum": {
+        "geckoterminal_id": "eth",
+        "dexscreener_id": "ethereum",
+        "native_token": "ETH",
+    },
+    "base": {
+        "geckoterminal_id": "base",
+        "dexscreener_id": "base",
+        "native_token": "ETH",
+    },
+}
+
+# ============================================================
+# UMBRALES DE CLASIFICACION (Labels)
+# ============================================================
+# Ventana de observacion: 30 dias desde lanzamiento
+LABEL_WINDOW_DAYS = 30
+
+# Clasificacion de 5 categorias
+LABELS_MULTI = {
+    "gem": {
+        "min_multiple": 10.0,       # Alcanzo 10x
+        "sustain_multiple": 5.0,    # Se mantuvo >5x
+        "sustain_days": 7,          # Por al menos 7 dias
+    },
+    "moderate_success": {
+        "min_multiple": 3.0,        # Alcanzo 3x
+        "sustain_multiple": 2.0,    # Se mantuvo >2x
+        "sustain_days": 3,          # Por al menos 3 dias
+    },
+    "neutral": {
+        "min_multiple": 0.3,        # Precio entre 0.3x y 3x
+        "max_multiple": 3.0,
+    },
+    "failure": {
+        "max_multiple": 0.1,        # Perdio 90%+
+    },
+    "rug": {
+        "max_multiple": 0.01,       # Perdio 99%+ en 72h
+        "time_hours": 72,
+        "liquidity_drop_pct": 0.9,  # O liquidez cayo 90%+
+    },
+}
+
+# Clasificacion binaria simplificada
+LABEL_BINARY_THRESHOLD = 5.0  # success = alcanzo 5x en 30 dias
+
+# ============================================================
+# PARAMETROS DE FEATURES
+# ============================================================
+# Ventanas de tiempo para price action (en horas)
+PRICE_WINDOWS = {
+    "1h": 1,
+    "6h": 6,
+    "24h": 24,
+    "48h": 48,
+    "7d": 24 * 7,
+    "14d": 24 * 14,
+    "30d": 24 * 30,
+}
+
+# Ventanas para OHLCV
+OHLCV_TIMEFRAMES = ["day", "hour"]  # GeckoTerminal soporta: day, hour, minute
+
+# ============================================================
+# PARAMETROS DE MODELOS ML
+# ============================================================
+ML_CONFIG = {
+    "random_seed": 42,
+    "test_size": 0.2,           # 20% para test
+    "cv_folds": 5,              # 5-fold cross validation
+    "smote_sampling": 0.5,      # Ratio de sobremuestreo para clase minoritaria
+    "rf_params": {
+        "n_estimators": 300,
+        "max_depth": 15,
+        "min_samples_leaf": 5,
+        "class_weight": "balanced",
+        "random_state": 42,
+        "n_jobs": -1,
+    },
+    "xgb_params": {
+        "n_estimators": 500,
+        "max_depth": 6,
+        "learning_rate": 0.05,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "random_state": 42,
+        "eval_metric": "logloss",
+        "early_stopping_rounds": 50,
+    },
+    "optimal_threshold": None,  # Se sobreescribe tras entrenamiento con threshold optimizado
+    "use_ensemble": False,      # Activar ensemble VotingClassifier (RF+XGB)
+    "remove_correlated": False, # Eliminar features con correlacion > 0.95
+}
+
+# ============================================================
+# CACHE
+# ============================================================
+CACHE_TTL_HOURS = 24  # Tiempo de vida del cache en horas
+CACHE_ENABLED = True
+
+# ============================================================
+# LOGGING
+# ============================================================
+LOG_LEVEL = "INFO"
+LOG_FORMAT = "%(asctime)s | %(name)s | %(levelname)s | %(message)s"

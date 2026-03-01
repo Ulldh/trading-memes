@@ -1,0 +1,43 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# === Environment ===
+.env
+venv/
+.venv/
+env/
+
+# === Data (keep structure, ignore large/generated files) ===
+data/raw/*.json
+data/processed/
+data/models/*.joblib
+data/models/*.json
+data/models/*.txt
+data/models/v*/
+data/trading_memes.db
+data/memecoins.db
+data/backups/
+data/seed_tokens.py
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/models/.gitkeep
+
+# === Jupyter ===
+.ipynb_checkpoints/
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# === Cache ===
+.cache/

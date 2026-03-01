@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Identificador unico del job -->
+    <key>Label</key>
+    <string>com.tradingmemes.dailycollect</string>
+
+    <!-- Comando: wrapper fuera de iCloud para evitar TCC restrictions -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/ulldh/tradingmemes-runner/daily_collect.sh</string>
+    </array>
+
+    <!-- Ejecutar todos los dias a las 03:00 -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>3</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- Logs fuera de iCloud -->
+    <key>StandardOutPath</key>
+    <string>/Users/ulldh/tradingmemes-runner/logs/dailycollect_stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/ulldh/tradingmemes-runner/logs/dailycollect_stderr.log</string>
+
+    <!-- WorkingDirectory fuera de iCloud -->
+    <key>WorkingDirectory</key>
+    <string>/Users/ulldh/tradingmemes-runner</string>
+
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+    </dict>
+</dict>
+</plist>
