@@ -39,5 +39,11 @@ data/seed_tokens.py
 *.swo
 .DS_Store
 
+# === Logs ===
+logs/
+
 # === Cache ===
 .cache/
+
+# === GGA ===
+.gga
