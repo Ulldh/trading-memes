@@ -201,12 +201,26 @@ class ModelTrainer:
         # Columnas que NO son features (son metadata o targets)
         non_feature_cols = [
             "token_id", "label_multi", "label_binary",
-            "max_multiple", "final_multiple", "notes",
+            "max_multiple", "final_multiple", "return_7d", "notes",
             "labeled_at", "computed_at",
             # Columnas de texto/metadata que pueden venir del storage
             "chain", "symbol", "name", "dex_id", "pool_address",
             "first_seen", "last_updated",
         ]
+        # Manejar sufijos _x/_y del merge (colision de nombres entre features y labels)
+        # return_7d existe en ambos DFs -> pandas genera return_7d_x (feature) y return_7d_y (label)
+        suffixed_label_cols = [f"{col}_y" for col in non_feature_cols if f"{col}_y" in merged_df.columns]
+        non_feature_cols.extend(suffixed_label_cols)
+        # Renombrar features con sufijo _x a su nombre original
+        rename_map = {}
+        for col in merged_df.columns:
+            if col.endswith("_x"):
+                base = col[:-2]
+                if base not in merged_df.columns and f"{base}_y" in merged_df.columns:
+                    rename_map[col] = base
+        if rename_map:
+            merged_df = merged_df.rename(columns=rename_map)
+            logger.info(f"Renombradas columnas con sufijo _x: {rename_map}")
         feature_cols = [
             col for col in merged_df.columns
             if col not in non_feature_cols
@@ -217,6 +231,16 @@ class ModelTrainer:
             col for col in feature_cols
             if pd.api.types.is_numeric_dtype(merged_df[col])
         ]
+
+        # Filtrar features excluidos por configuración
+        try:
+            from config import EXCLUDED_FEATURES
+            cols_to_drop = [c for c in EXCLUDED_FEATURES if c in feature_cols]
+            if cols_to_drop:
+                feature_cols = [c for c in feature_cols if c not in EXCLUDED_FEATURES]
+                logger.info(f"Eliminados {len(cols_to_drop)} features excluidos: {cols_to_drop}")
+        except ImportError:
+            pass
 
         if not feature_cols:
             raise ValueError("No se encontraron columnas de features.")

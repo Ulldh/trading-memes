@@ -49,6 +49,7 @@ def compute_liquidity_features(snapshots_df: pd.DataFrame) -> dict:
         "liq_to_mcap_ratio": None,
         "volume_to_liq_ratio_24h": None,
         "liquidity_stability": None,
+        "liquidity_to_fdv_ratio": None,
     }
 
     # Verificar que tenemos datos
@@ -92,6 +93,10 @@ def compute_liquidity_features(snapshots_df: pd.DataFrame) -> dict:
     latest_liq = safe_float(latest.get("liquidity_usd"))
     latest_mcap = safe_float(latest.get("market_cap"))
     features["liq_to_mcap_ratio"] = safe_divide(latest_liq, latest_mcap)
+
+    # --- liquidity_to_fdv_ratio: liquidez / FDV (proxy de solidez) ---
+    latest_fdv = safe_float(latest.get("fdv"))
+    features["liquidity_to_fdv_ratio"] = safe_divide(latest_liq, latest_fdv)
 
     # --- volume_to_liq_ratio_24h: volumen 24h / liquidez ---
     # Ratios muy altos pueden indicar wash trading o alta especulacion

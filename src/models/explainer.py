@@ -82,9 +82,21 @@ class SHAPExplainer:
         self.model = model
         self.X_train = X_train
 
+        # Si el modelo es CalibratedClassifierCV, extraer el estimador base
+        # porque TreeExplainer no soporta wrappers de calibracion
+        from sklearn.calibration import CalibratedClassifierCV
+        if isinstance(model, CalibratedClassifierCV):
+            base_model = model.calibrated_classifiers_[0].estimator
+            logger.info(
+                f"Modelo es CalibratedClassifierCV, extrayendo base: "
+                f"{type(base_model).__name__}"
+            )
+        else:
+            base_model = model
+
         logger.info("Inicializando SHAP TreeExplainer...")
         try:
-            self.explainer = shap.TreeExplainer(model, X_train)
+            self.explainer = shap.TreeExplainer(base_model, X_train)
             logger.info("TreeExplainer inicializado correctamente")
         except Exception as e:
             logger.error(
@@ -118,19 +130,30 @@ class SHAPExplainer:
 
         shap_values = self.explainer.shap_values(X)
 
-        # Para clasificacion binaria, shap_values puede ser una lista [clase_0, clase_1]
+        # Para clasificacion binaria, shap_values puede ser:
+        # - Una lista [clase_0, clase_1] (SHAP antiguo)
+        # - Un ndarray 3D de shape (n_samples, n_features, n_classes) (SHAP nuevo)
         # Nos interesa la clase positiva (clase 1 = "gem")
         if isinstance(shap_values, list):
-            # Si es una lista, tomar los valores de la clase positiva (indice 1)
             if len(shap_values) == 2:
                 shap_values = shap_values[1]
                 logger.info(
                     "Usando SHAP values de la clase positiva (gem)"
                 )
             else:
-                # Para multiclase, devolver todos (el usuario decide)
                 logger.info(
                     f"SHAP values multiclase: {len(shap_values)} clases"
+                )
+        elif isinstance(shap_values, np.ndarray) and shap_values.ndim == 3:
+            # ndarray 3D: (n_samples, n_features, n_classes)
+            if shap_values.shape[2] == 2:
+                shap_values = shap_values[:, :, 1]
+                logger.info(
+                    "Usando SHAP values de la clase positiva (gem) [ndarray 3D]"
+                )
+            else:
+                logger.info(
+                    f"SHAP values multiclase: {shap_values.shape[2]} clases"
                 )
 
         logger.info(f"Forma de SHAP values: {np.array(shap_values).shape}")

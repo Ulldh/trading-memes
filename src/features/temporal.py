@@ -69,11 +69,22 @@ def extract_temporal_features(
 
     try:
         # Parsear timestamp
-        # Formato esperado: "2026-02-26T15:30:00Z" o "2026-02-26T15:30:00+00:00"
-        if created_at_str.endswith("Z"):
-            created_at_str = created_at_str[:-1] + "+00:00"
+        # DexScreener envia created_at como milisegundos (ej: 1730196036000)
+        # GeckoTerminal envia ISO 8601 (ej: "2026-02-26T15:30:00Z")
+        if isinstance(created_at_str, (int, float)) or (
+            isinstance(created_at_str, str) and created_at_str.isdigit()
+        ):
+            ts_val = float(created_at_str)
+            # Si es mayor a 1e12, viene en milisegundos -> dividir por 1000
+            if ts_val > 1e12:
+                ts_val = ts_val / 1000
+            created_at = datetime.fromtimestamp(ts_val, tz=timezone.utc)
+        else:
+            # Formato esperado: "2026-02-26T15:30:00Z" o "2026-02-26T15:30:00+00:00"
+            if created_at_str.endswith("Z"):
+                created_at_str = created_at_str[:-1] + "+00:00"
 
-        created_at = datetime.fromisoformat(created_at_str)
+            created_at = datetime.fromisoformat(created_at_str)
 
         # Asegurar que tiene timezone
         if created_at.tzinfo is None:

@@ -27,12 +27,16 @@ try:
     from config import (
         LABELS_MULTI,
         LABEL_BINARY_THRESHOLD,
+        LABEL_BINARY_MODE,
+        LABEL_RETURN_7D_THRESHOLD,
         LABEL_WINDOW_DAYS,
     )
 except ImportError:
     # Valores por defecto si no se puede importar config
     LABEL_WINDOW_DAYS = 30
     LABEL_BINARY_THRESHOLD = 5.0
+    LABEL_BINARY_MODE = "return_7d"
+    LABEL_RETURN_7D_THRESHOLD = 2.0
     LABELS_MULTI = {
         "gem": {"min_multiple": 10.0, "sustain_multiple": 5.0, "sustain_days": 7},
         "moderate_success": {"min_multiple": 3.0, "sustain_multiple": 2.0, "sustain_days": 3},
@@ -147,6 +151,14 @@ class Labeler:
         final_close = safe_float(ohlcv_df.iloc[-1]["close"])
         final_multiple = safe_divide(final_close, initial_price, default=0.0)
 
+        # --- Paso 5b: Calcular return_7d ---
+        # close del dia 7 / close del dia 1
+        if len(ohlcv_df) >= 7:
+            close_day7 = safe_float(ohlcv_df.iloc[6]["close"])
+            return_7d = safe_divide(close_day7, initial_price, default=0.0)
+        else:
+            return_7d = final_multiple  # fallback si no hay 7 dias exactos
+
         # --- Paso 6: Obtener closes diarios para checks de sustain ---
         daily_closes = ohlcv_df["close"].tolist()
 
@@ -163,8 +175,11 @@ class Labeler:
         )
 
         # --- Paso 8: Clasificacion binaria ---
-        # 1 si el multiplo maximo supero el umbral (5x por defecto)
-        label_binary = 1 if max_multiple >= LABEL_BINARY_THRESHOLD else 0
+        # Segun modo configurado: return_7d (v5+) o max_multiple (v1-v4)
+        if LABEL_BINARY_MODE == "return_7d":
+            label_binary = 1 if return_7d >= LABEL_RETURN_7D_THRESHOLD else 0
+        else:
+            label_binary = 1 if max_multiple >= LABEL_BINARY_THRESHOLD else 0
 
         # --- Paso 9: Construir resultado ---
         notes = "; ".join(notes_parts) if notes_parts else ""
@@ -175,6 +190,7 @@ class Labeler:
             "label_binary": label_binary,
             "max_multiple": round(max_multiple, 4),
             "final_multiple": round(final_multiple, 4),
+            "return_7d": round(return_7d, 4),
             "notes": notes,
         }
 
@@ -183,7 +199,7 @@ class Labeler:
         logger.info(
             f"Token {token_id}: {label_multi} | "
             f"max={max_multiple:.2f}x, final={final_multiple:.2f}x, "
-            f"binario={label_binary}"
+            f"return_7d={return_7d:.2f}x, binario={label_binary}"
         )
 
         return result
@@ -293,6 +309,13 @@ class Labeler:
                 f"(< {failure_config['max_multiple']}x)"
             )
             return "failure"
+
+        # --- CHECK 2.5: Pump and Dump (subio 5x+ pero no mantuvo) ---
+        if max_multiple >= 5.0 and final_multiple < 1.5:
+            notes_parts.append(
+                f"Pump&Dump: max {max_multiple:.2f}x pero final {final_multiple:.2f}x"
+            )
+            return "pump_and_dump"
 
         # --- CHECK 3: Gem (alcanzo 10x y se mantuvo >5x por 7+ dias) ---
         gem_config = LABELS_MULTI["gem"]

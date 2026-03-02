@@ -66,6 +66,12 @@ def compute_price_action_features(ohlcv_df: pd.DataFrame) -> dict:
         "green_candle_ratio_24h": None,
         "first_hour_return": None,
         "volume_trend_slope": None,
+        "volume_concentration_ratio": None,
+        "price_recovery_ratio": None,
+        "volume_sustainability_3d": None,
+        "close_to_high_ratio_7d": None,
+        "up_days_ratio_7d": None,
+        "volume_price_divergence": None,
     }
 
     # Verificar que hay datos
@@ -214,6 +220,65 @@ def compute_price_action_features(ohlcv_df: pd.DataFrame) -> dict:
         except (np.linalg.LinAlgError, ValueError):
             # Si la regresion falla (ej: todos los valores iguales)
             features["volume_trend_slope"] = None
+
+    # ============================================================
+    # NUEVAS FEATURES v5: Sostenibilidad y concentracion
+    # ============================================================
+
+    # volume_concentration_ratio: max(vol_7d) / mean(vol_7d)
+    # Detecta spikes artificiales de volumen (ratio alto = sospechoso)
+    if not df_7d.empty:
+        vols_7d = df_7d["volume"].apply(safe_float)
+        vols_7d = vols_7d[vols_7d > 0]
+        if len(vols_7d) >= 2:
+            features["volume_concentration_ratio"] = safe_divide(
+                vols_7d.max(), vols_7d.mean()
+            )
+
+    # price_recovery_ratio: close actual / min(low_7d)
+    # Capacidad de recuperar despues de una caida
+    if not df_7d.empty:
+        min_low_7d = safe_float(df_7d["low"].min())
+        last_close = safe_float(df_7d["close"].iloc[-1])
+        if min_low_7d > 0:
+            features["price_recovery_ratio"] = safe_divide(last_close, min_low_7d)
+
+    # volume_sustainability_3d: mean(vol segunda mitad) / mean(vol primera mitad)
+    # Volumen que se mantiene vs que colapsa despues del hype inicial
+    if not df_7d.empty:
+        vols_7d_all = df_7d["volume"].apply(safe_float)
+        vols_7d_all = vols_7d_all[vols_7d_all > 0]
+        if len(vols_7d_all) >= 4:
+            mid = len(vols_7d_all) // 2
+            first_half_mean = vols_7d_all.iloc[:mid].mean()
+            second_half_mean = vols_7d_all.iloc[mid:].mean()
+            if first_half_mean > 0:
+                features["volume_sustainability_3d"] = safe_divide(
+                    second_half_mean, first_half_mean
+                )
+
+    # close_to_high_ratio_7d: close actual / max(high_7d)
+    # Posicion del precio actual vs el maximo historico en 7d
+    if not df_7d.empty:
+        max_high_7d = safe_float(df_7d["high"].max())
+        last_close_7d = safe_float(df_7d["close"].iloc[-1])
+        if max_high_7d > 0:
+            features["close_to_high_ratio_7d"] = safe_divide(
+                last_close_7d, max_high_7d
+            )
+
+    # up_days_ratio_7d: % de dias verdes (close > open) en 7d
+    if not df_7d.empty and len(df_7d) >= 2:
+        up_days = (df_7d["close"] > df_7d["open"]).sum()
+        features["up_days_ratio_7d"] = safe_divide(up_days, len(df_7d))
+
+    # volume_price_divergence: volumen sube pero precio baja = acumulacion
+    # 1.0 si slope > 0 y return_7d < 0, 0.0 en caso contrario
+    if features["volume_trend_slope"] is not None and features["return_7d"] is not None:
+        if features["volume_trend_slope"] > 0 and features["return_7d"] < 0:
+            features["volume_price_divergence"] = 1.0
+        else:
+            features["volume_price_divergence"] = 0.0
 
     return features
 

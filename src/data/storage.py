@@ -114,10 +114,11 @@ CREATE TABLE IF NOT EXISTS contract_info (
 -- Labels (clasificacion)
 CREATE TABLE IF NOT EXISTS labels (
     token_id        TEXT PRIMARY KEY,
-    label_multi     TEXT,                       -- gem, moderate_success, neutral, failure, rug
+    label_multi     TEXT,                       -- gem, moderate_success, neutral, failure, rug, pump_and_dump
     label_binary    INTEGER,                    -- 1=success, 0=failure
     max_multiple    REAL,                       -- maximo multiple alcanzado
     final_multiple  REAL,                       -- multiple al dia 30
+    return_7d       REAL,                       -- close_day7 / close_day1
     labeled_at      TEXT DEFAULT CURRENT_TIMESTAMP,
     notes           TEXT,
     FOREIGN KEY (token_id) REFERENCES tokens(token_id)
@@ -428,13 +429,14 @@ class Storage:
         sql = """
             INSERT INTO labels
                 (token_id, label_multi, label_binary, max_multiple,
-                 final_multiple, notes)
-            VALUES (?, ?, ?, ?, ?, ?)
+                 final_multiple, return_7d, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(token_id) DO UPDATE SET
                 label_multi = excluded.label_multi,
                 label_binary = excluded.label_binary,
                 max_multiple = excluded.max_multiple,
                 final_multiple = excluded.final_multiple,
+                return_7d = excluded.return_7d,
                 notes = excluded.notes,
                 labeled_at = CURRENT_TIMESTAMP
         """
@@ -444,6 +446,7 @@ class Storage:
             label.get("label_binary"),
             label.get("max_multiple"),
             label.get("final_multiple"),
+            label.get("return_7d"),
             label.get("notes"),
         ))
 

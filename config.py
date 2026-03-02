@@ -135,6 +135,33 @@ LABELS_MULTI = {
 # Clasificacion binaria simplificada
 LABEL_BINARY_THRESHOLD = 5.0  # success = alcanzo 5x en 30 dias
 
+# Modo de label binario: "max_multiple" (v1-v4) o "return_7d" (v5+)
+LABEL_BINARY_MODE = "return_7d"
+LABEL_RETURN_7D_THRESHOLD = 1.2  # close_day7 / close_day1 >= 1.2 (+20% en 7d)
+
+# Features excluidos del entrenamiento (100% null/zero en la DB actual)
+EXCLUDED_FEATURES = [
+    # Holder data: solo Solana+Helius, <5% de tokens tienen datos
+    "holder_concentration_top10",
+    "holder_concentration_top20",
+    "unique_holders",
+    "holder_growth_24h",
+    # Contract info: Etherscan solo, <5% cobertura
+    "is_verified",
+    "is_renounced",
+    # Market context: requiere precios BTC/ETH/SOL que no están en SQLite
+    "btc_return_7d",
+    "eth_return_7d",
+    "sol_return_7d",
+    "btc_volatility_7d",
+    "market_fear_greed",
+    # Social/DexScreener: buyers/sellers solo en snapshots, no en OHLCV
+    "buyer_seller_ratio_24h",
+    "unique_buyers_24h",
+    "unique_sellers_24h",
+    "net_buyer_flow_24h",
+]
+
 # ============================================================
 # PARAMETROS DE FEATURES
 # ============================================================
