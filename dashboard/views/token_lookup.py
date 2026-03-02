@@ -145,9 +145,26 @@ def add_new_token(token_address: str, chain: str):
         st.toast("🔧 Paso 5: Calculando features...", icon="🧮")
         with st.spinner("🧮 Calculando features..."):
             try:
-                builder = FeatureBuilder()
-                builder.build_features_for_token(token_address)
-                has_features = True
+                feat_storage = Storage()
+                builder = FeatureBuilder(feat_storage)
+                features_dict = builder.build_features_for_token(token_address)
+
+                if features_dict:
+                    new_row = pd.DataFrame([features_dict])
+                    if "token_id" in new_row.columns:
+                        new_row = new_row.set_index("token_id")
+                    existing_df = feat_storage.get_features_df()
+                    if not existing_df.empty:
+                        if "token_id" in existing_df.columns:
+                            existing_df = existing_df.set_index("token_id")
+                        existing_df = existing_df[existing_df.index != token_address]
+                        combined = pd.concat([existing_df, new_row])
+                    else:
+                        combined = new_row
+                    feat_storage.save_features_df(combined)
+                    has_features = True
+                else:
+                    has_features = False
                 st.toast("🔧 Features calculadas correctamente", icon="✅")
             except Exception as e:
                 st.warning(f"⚠️ Features se calcularán en el próximo ciclo: {e}")
@@ -314,7 +331,18 @@ def render():
     # Auto-buscar si viene desde el botón "Ver Predicción"
     auto_search = bool(default_address)
 
-    if not (buscar or auto_search) or not contract_address.strip():
+    # Persistir estado de busqueda: cuando "Buscar" se pulsa, guardamos
+    # en session_state para que reruns posteriores (ej: boton "Añadir")
+    # no se bloqueen en la condicion de abajo.
+    if buscar and contract_address.strip():
+        st.session_state["active_search"] = True
+
+    active_search = st.session_state.get("active_search", False)
+    is_processing = st.session_state.get("processing_new_token", False)
+
+    if not (buscar or auto_search or active_search or is_processing) or not contract_address.strip():
+        # Sin direccion, limpiar estado de busqueda
+        st.session_state.pop("active_search", None)
         # Mostrar tokens de ejemplo
         st.caption("**Tokens de ejemplo para probar:**")
         col_ex1, col_ex2, col_ex3 = st.columns(3)
@@ -400,10 +428,30 @@ def render():
                     else:
                         with st.spinner("🧮 Calculando features..."):
                             try:
-                                builder = FeatureBuilder()
-                                builder.build_features_for_token(token_to_add)
+                                feat_storage = Storage()
+                                builder = FeatureBuilder(feat_storage)
+                                features_dict = builder.build_features_for_token(token_to_add)
+
+                                if features_dict:
+                                    # Guardar features: merge con existentes
+                                    new_row = pd.DataFrame([features_dict])
+                                    if "token_id" in new_row.columns:
+                                        new_row = new_row.set_index("token_id")
+                                    existing_df = feat_storage.get_features_df()
+                                    if not existing_df.empty:
+                                        if "token_id" in existing_df.columns:
+                                            existing_df = existing_df.set_index("token_id")
+                                        existing_df = existing_df[existing_df.index != token_to_add]
+                                        combined = pd.concat([existing_df, new_row])
+                                    else:
+                                        combined = new_row
+                                    feat_storage.save_features_df(combined)
+                                    has_features = True
+                                else:
+                                    has_features = False
                             except Exception as e:
                                 st.warning(f"⚠️ Features se calcularán en el próximo ciclo: {e}")
+                                has_features = False
 
                         # Mostrar éxito
                         st.balloons()
@@ -440,11 +488,13 @@ def render():
                                 st.session_state["search_token"] = token_to_add
                                 st.session_state["search_chain"] = chain_to_add
                                 st.session_state["processing_new_token"] = False
+                                st.session_state.pop("active_search", None)
                                 st.rerun()
 
                         # Limpiar flag después de mostrar todo
                         if st.button("✅ Continuar", key="btn_continue"):
                             st.session_state["processing_new_token"] = False
+                            st.session_state.pop("active_search", None)
                             st.rerun()
 
                 except Exception as e:
@@ -452,8 +502,9 @@ def render():
                     import traceback
                     with st.expander("Ver detalles técnicos"):
                         st.code(traceback.format_exc())
-                    # Limpiar flag
+                    # Limpiar flags
                     st.session_state["processing_new_token"] = False
+                    st.session_state.pop("active_search", None)
 
             return
 
@@ -858,11 +909,17 @@ def render():
         return
 
     try:
-        feature_cols = load_feature_columns()
         feature_row = df_features.iloc[0]
 
         # Obtener la cadena del token
         token_chain = token_info.get("chain", selected_chain)
+
+        # Usar feature_names_in_ del modelo como fuente de verdad,
+        # con fallback a feature_columns.json
+        if hasattr(model, "feature_names_in_"):
+            feature_cols = list(model.feature_names_in_)
+        else:
+            feature_cols = load_feature_columns()
 
         if feature_cols:
             X = prepare_features_for_prediction(feature_row, token_chain, feature_cols)
