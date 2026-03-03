@@ -52,6 +52,9 @@ RATE_LIMITS = {
     "etherscan": 5 * 60,    # 5 calls/seg = 300/min
     "basescan": 5 * 60,     # Mismo que Etherscan
     "twitter": 30,          # 450 calls/15min = ~30/min (Basic tier)
+    "pumpfun": 30,          # API no oficial, conservador
+    "jupiter": 60,          # JSON estatico, sin rate limit documentado
+    "raydium": 60,          # JSON estatico, sin rate limit documentado
 }
 
 # ============================================================
@@ -71,6 +74,10 @@ API_URLS = {
     "etherscan": "https://api.etherscan.io/v2/api",
     # X (Twitter) API v2
     "twitter": "https://api.twitter.com/2",
+    # Fuentes de descubrimiento adicionales
+    "pumpfun": "https://frontend-api-v3.pump.fun",
+    "jupiter": "https://lite-api.jup.ag/tokens/v1",
+    "raydium": "https://api-v3.raydium.io",
 }
 
 # Chain IDs para Etherscan V2 API

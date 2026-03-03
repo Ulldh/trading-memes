@@ -300,6 +300,39 @@ class DexScreenerClient(BaseAPIClient):
         logger.info(f"Se obtuvieron {len(tokens)} tokens boosted")
         return tokens
 
+    def get_community_takeovers(self) -> list[dict]:
+        """
+        Obtiene los tokens con community takeover reciente.
+
+        Un "community takeover" ocurre cuando la comunidad toma el control
+        de un token cuyo creador original lo abandono. Estos tokens pueden
+        tener revivals interesantes.
+
+        Returns:
+            Lista de diccionarios con tokens en community takeover.
+            Mismo formato que get_token_profiles() / get_boosted_tokens().
+            Lista vacia si hay error.
+        """
+        logger.info("Obteniendo community takeovers")
+
+        respuesta = self._get("/community-takeovers/latest/v1")
+
+        if not respuesta:
+            logger.warning("No se obtuvieron community takeovers")
+            return []
+
+        # La respuesta es directamente una lista (mismo formato que profiles/boosts)
+        tokens_raw = respuesta if isinstance(respuesta, list) else []
+
+        tokens = []
+        for token_raw in tokens_raw:
+            token = self._parsear_perfil(token_raw)
+            if token:
+                tokens.append(token)
+
+        logger.info(f"Se obtuvieron {len(tokens)} community takeovers")
+        return tokens
+
     # ================================================================
     # METODOS PRIVADOS DE PARSEO
     # ================================================================

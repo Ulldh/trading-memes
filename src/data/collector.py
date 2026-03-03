@@ -32,7 +32,13 @@ import pandas as pd
 from tqdm import tqdm
 
 # Importar clientes de API del proyecto
-from src.api import CoinGeckoClient, DexScreenerClient, SolanaRPC, EtherscanClient
+from src.api import (
+    CoinGeckoClient,
+    DexScreenerClient,
+    SolanaRPC,
+    EtherscanClient,
+    SolanaDiscoveryClient,
+)
 
 # Importar almacenamiento en SQLite
 from src.data.storage import Storage
@@ -122,6 +128,9 @@ class DataCollector:
             "ethereum": EtherscanClient(chain="ethereum"),
             "base": EtherscanClient(chain="base"),
         }
+
+        # Cliente de descubrimiento Solana (Pump.fun, Jupiter, Raydium)
+        self.solana_discovery = SolanaDiscoveryClient()
 
         logger.info("DataCollector inicializado con todos los clientes de API")
 
@@ -1105,6 +1114,83 @@ class DataCollector:
                 continue
 
         logger.info("Contexto de mercado completado")
+
+    # ================================================================
+    # ENRICHMENT: POOL ADDRESSES PARA TOKENS DE SOLANA
+    # ================================================================
+
+    def enrich_solana_pool_addresses(self, tokens: list[dict]) -> None:
+        """
+        Busca pool_address via DexScreener para tokens Solana que no la tienen.
+
+        Tokens descubiertos desde Jupiter, Raydium o Pump.fun no traen
+        pool_address. Sin pool_address no podemos obtener OHLCV de
+        GeckoTerminal. Este metodo usa DexScreener para encontrar el
+        par con mayor liquidez y actualizar el token en la base de datos.
+
+        Args:
+            tokens: Lista de tokens. Se procesan solo los que tienen
+                chain == "solana" y pool_address vacio.
+        """
+        # Filtrar tokens de Solana sin pool_address
+        sin_pool = [
+            t for t in tokens
+            if t.get("chain") == "solana"
+            and not t.get("pool_address")
+        ]
+
+        if not sin_pool:
+            logger.info("No hay tokens Solana sin pool_address para enriquecer")
+            return
+
+        logger.info(f"Enriqueciendo pool addresses para {len(sin_pool)} tokens Solana")
+
+        exitos = 0
+        errores = 0
+
+        for token in tqdm(sin_pool, desc="Pool addr", unit="token"):
+            try:
+                token_id = token.get("token_address") or token.get("token_id", "")
+                if not token_id:
+                    continue
+
+                # Buscar pares en DexScreener (devuelve ordenados por liquidez)
+                pares = self.dex.get_token_pairs("solana", token_id)
+
+                if not pares:
+                    errores += 1
+                    time.sleep(0.1)
+                    continue
+
+                # Tomar el par con mayor liquidez (primer resultado)
+                par = pares[0]
+                pool_address = par.get("pair_address", "")
+                dex = par.get("dex", "")
+
+                if pool_address:
+                    # Actualizar en la base de datos
+                    self.storage.upsert_token({
+                        "token_id": token_id,
+                        "chain": "solana",
+                        "pool_address": pool_address,
+                        "dex": dex,
+                    })
+                    # Actualizar el dict en memoria para los siguientes pasos
+                    token["pool_address"] = pool_address
+                    token["dex"] = dex
+                    token["token_id"] = token_id
+                    exitos += 1
+
+            except Exception as e:
+                logger.debug(f"Error enriqueciendo pool address: {e}")
+                errores += 1
+
+            # Respetar rate limits de DexScreener (300/min)
+            time.sleep(0.2)
+
+        logger.info(
+            f"Pool addresses enriquecidas: {exitos} exitos, {errores} sin par"
+        )
 
     # ================================================================
     # METODOS PRIVADOS DE UTILIDAD

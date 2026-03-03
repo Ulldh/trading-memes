@@ -54,7 +54,7 @@ def discover_from_all_sources(collector: DataCollector, pages_new: int = 10, pag
     seen_ids = set()
 
     def add_tokens(tokens: list[dict], source: str):
-        """Agrega tokens evitando duplicados."""
+        """Agrega tokens evitando duplicados y los guarda en BD."""
         added = 0
         for t in tokens:
             tid = t.get("token_address") or t.get("token_id")
@@ -62,6 +62,20 @@ def discover_from_all_sources(collector: DataCollector, pages_new: int = 10, pag
                 seen_ids.add(tid)
                 all_tokens.append(t)
                 added += 1
+                # Guardar en BD si tiene los campos minimos
+                try:
+                    chain = t.get("chain", "")
+                    if chain and tid:
+                        collector.storage.upsert_token({
+                            "token_id": tid,
+                            "chain": chain,
+                            "name": t.get("name", ""),
+                            "symbol": t.get("symbol", ""),
+                            "pool_address": t.get("pool_address", ""),
+                            "dex": t.get("dex", ""),
+                        })
+                except Exception:
+                    pass  # No fallar por errores de storage
         logger.info(f"  [{source}] {added} nuevos (de {len(tokens)} encontrados)")
 
     chains = list(SUPPORTED_CHAINS.keys())
@@ -131,6 +145,70 @@ def discover_from_all_sources(collector: DataCollector, pages_new: int = 10, pag
     except Exception as e:
         logger.warning(f"Error obteniendo boosted: {e}")
 
+    # --- Fuente 6: Community takeovers (DexScreener) ---
+    logger.info("=== FUENTE 6: DexScreener Community Takeovers ===")
+    try:
+        takeovers = collector.dex.get_community_takeovers()
+        for t in takeovers:
+            chain_id = (t.get("chain") or t.get("chain_id", "")).lower()
+            chain_map = {"solana": "solana", "ethereum": "ethereum", "base": "base"}
+            chain = chain_map.get(chain_id)
+            if chain and t.get("token_address"):
+                t["chain"] = chain
+        takeovers_filtered = [t for t in takeovers if t.get("chain") in chains]
+        add_tokens(takeovers_filtered, "dex_takeovers")
+    except Exception as e:
+        logger.warning(f"Error obteniendo community takeovers: {e}")
+
+    # --- Fuente 7: CoinGecko categorias meme (5 categorias x 2 paginas) ---
+    logger.info("=== FUENTE 7: CoinGecko Meme Categories ===")
+    meme_categories = [
+        "meme-token",
+        "dog-themed-coins",
+        "cat-themed-coins",
+        "frog-themed-coins",
+        "political-meme-coins",
+    ]
+    for cat in meme_categories:
+        for page in range(1, 3):  # 2 paginas por categoria
+            try:
+                coins = collector.gecko.get_category_coins(cat, per_page=250, page=page)
+                add_tokens(coins, f"cg_{cat}_p{page}")
+                # Respetar rate limit compartido con GeckoTerminal (30/min)
+                time.sleep(2)
+            except Exception as e:
+                logger.warning(f"Error obteniendo categoria {cat} p{page}: {e}")
+
+    # --- Fuente 8: Pump.fun latest + top (Solana) ---
+    logger.info("=== FUENTE 8: Pump.fun Latest + Top ===")
+    for offset in range(0, 250, 50):  # 5 paginas de latest
+        try:
+            pf_latest = collector.solana_discovery.get_pumpfun_latest(limit=50, offset=offset)
+            add_tokens(pf_latest, f"pumpfun_latest_off{offset}")
+        except Exception as e:
+            logger.warning(f"Error obteniendo Pump.fun latest offset={offset}: {e}")
+    try:
+        pf_top = collector.solana_discovery.get_pumpfun_top(limit=50)
+        add_tokens(pf_top, "pumpfun_top")
+    except Exception as e:
+        logger.warning(f"Error obteniendo Pump.fun top: {e}")
+
+    # --- Fuente 9: Jupiter Token List (Solana) ---
+    logger.info("=== FUENTE 9: Jupiter Verified Tokens ===")
+    try:
+        jupiter_tokens = collector.solana_discovery.get_jupiter_tokens()
+        add_tokens(jupiter_tokens, "jupiter_verified")
+    except Exception as e:
+        logger.warning(f"Error obteniendo tokens de Jupiter: {e}")
+
+    # --- Fuente 10: Raydium Token List (Solana) ---
+    logger.info("=== FUENTE 10: Raydium Token List ===")
+    try:
+        raydium_tokens = collector.solana_discovery.get_raydium_tokens()
+        add_tokens(raydium_tokens, "raydium_list")
+    except Exception as e:
+        logger.warning(f"Error obteniendo tokens de Raydium: {e}")
+
     logger.info(f"\n>>> TOTAL DESCUBIERTOS: {len(all_tokens)} tokens unicos <<<")
     return all_tokens
 
@@ -166,6 +244,10 @@ def enrich_tokens(collector: DataCollector, tokens: list[dict]):
     if not tokens_sin_ohlcv:
         logger.info("Todos los tokens ya tienen OHLCV.")
         return
+
+    # Enriquecer pool addresses para tokens Solana (Jupiter/Raydium/Pump.fun)
+    logger.info("--- Enriqueciendo pool addresses (Solana) ---")
+    collector.enrich_solana_pool_addresses(tokens_sin_ohlcv)
 
     # Pipeline de enriquecimiento (solo tokens sin datos)
     logger.info("--- Enriqueciendo con DexScreener ---")

@@ -552,6 +552,83 @@ class CoinGeckoClient(BaseAPIClient):
         return resultado
 
     # ================================================================
+    # COINGECKO DEMO API - Descubrimiento por categorias
+    # ================================================================
+
+    def get_category_coins(
+        self, category: str, per_page: int = 250, page: int = 1
+    ) -> list[dict]:
+        """
+        Obtiene coins de una categoria especifica de CoinGecko.
+
+        Util para descubrir memecoins agrupadas por tematica:
+        meme-token, dog-themed-coins, cat-themed-coins, etc.
+
+        La API devuelve monedas con sus contract addresses por chain,
+        lo que nos permite filtrar por cadenas soportadas (solana, ethereum, base).
+
+        Args:
+            category: Slug de la categoria en CoinGecko. Ejemplos:
+                - "meme-token"
+                - "dog-themed-coins"
+                - "cat-themed-coins"
+                - "frog-themed-coins"
+                - "political-meme-coins"
+            per_page: Resultados por pagina (max 250).
+            page: Numero de pagina (empieza en 1).
+
+        Returns:
+            Lista de diccionarios con tokens descubiertos. Cada dict tiene:
+            token_address, chain, name, symbol.
+            Lista vacia si hay error.
+        """
+        logger.info(
+            f"Obteniendo coins de categoria '{category}' (pagina {page})"
+        )
+
+        respuesta = self._cg_get(
+            "/coins/markets",
+            params={
+                "vs_currency": "usd",
+                "category": category,
+                "per_page": per_page,
+                "page": page,
+            },
+        )
+
+        if not respuesta or not isinstance(respuesta, list):
+            logger.warning(f"Sin resultados para categoria '{category}'")
+            return []
+
+        # Mapeo de platform IDs de CoinGecko a nuestras chains
+        platform_map = {
+            "solana": "solana",
+            "ethereum": "ethereum",
+            "base": "base",
+        }
+
+        tokens = []
+        for coin in respuesta:
+            # El campo "platforms" contiene las addresses por chain
+            # Ejemplo: {"solana": "abc123...", "ethereum": "0xabc..."}
+            platforms = coin.get("platforms", {}) or {}
+
+            for platform_id, address in platforms.items():
+                chain = platform_map.get(platform_id.lower())
+                if chain and address:
+                    tokens.append({
+                        "token_address": address,
+                        "chain": chain,
+                        "name": coin.get("name", ""),
+                        "symbol": (coin.get("symbol") or "").upper(),
+                    })
+
+        logger.info(
+            f"Categoria '{category}': {len(tokens)} tokens en chains soportadas"
+        )
+        return tokens
+
+    # ================================================================
     # METODO PRIVADO DE PARSEO
     # ================================================================
 
