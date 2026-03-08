@@ -39,9 +39,11 @@ class RateLimiter:
         # Ej: 30 calls/min = 0.5 tokens/segundo
         self.tokens_per_second = calls_per_minute / 60.0
 
-        # El cubo empieza lleno (permite una rafaga inicial)
-        self.max_tokens = calls_per_minute
-        self.tokens = float(calls_per_minute)
+        # Limitar rafaga inicial para evitar 429 en APIs estrictas.
+        # Un burst de 30 calls instantaneas dispara rate limits aunque
+        # el promedio sea correcto. Limitamos a 5 tokens de burst.
+        self.max_tokens = min(calls_per_minute, 5)
+        self.tokens = float(self.max_tokens)
 
         # Timestamp de la ultima vez que recargamos tokens
         self.last_refill = time.monotonic()

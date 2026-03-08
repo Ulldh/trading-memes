@@ -986,10 +986,16 @@ def render():
             st.progress(float(proba[1]))
 
         # Advertencia de limitaciones
+        # Obtener numero de labels para advertencia dinamica
+        try:
+            n_labels = len(storage.query("SELECT COUNT(*) as n FROM labels"))
+            n_labels = storage.query("SELECT COUNT(*) as n FROM labels").iloc[0]["n"]
+        except Exception:
+            n_labels = 0
         st.warning(
-            "**Ojo**: Esta prediccion se basa en solo 25 tokens de entrenamiento, "
-            "lo cual es insuficiente para resultados confiables. Usalo como referencia, "
-            "no como consejo financiero. Nunca inviertas mas de lo que puedas perder."
+            f"**Ojo**: Esta prediccion se basa en {n_labels} tokens etiquetados. "
+            "Usalo como referencia, no como consejo financiero. "
+            "Nunca inviertas mas de lo que puedas perder."
         )
 
     except Exception as e:

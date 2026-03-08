@@ -146,8 +146,10 @@ LABEL_BINARY_THRESHOLD = 5.0  # success = alcanzo 5x en 30 dias
 LABEL_BINARY_MODE = "return_7d"
 LABEL_RETURN_7D_THRESHOLD = 1.2  # close_day7 / close_day1 >= 1.2 (+20% en 7d)
 
-# Features excluidos del entrenamiento (100% null/zero en la DB actual)
+# Features excluidos del entrenamiento
 EXCLUDED_FEATURES = [
+    # Target leakage: return_7d ES el target (close_day7/close_day1)
+    "return_7d",
     # Holder data: solo Solana+Helius, <5% de tokens tienen datos
     "holder_concentration_top10",
     "holder_concentration_top20",

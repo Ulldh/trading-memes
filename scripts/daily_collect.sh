@@ -75,8 +75,20 @@ log "Ejecutando recopilacion diaria..."
 python -m src.data.collector 2>&1 | tee -a "${LOG_FILE}"
 
 # ============================================================
-# PASO 2: Contexto de mercado (ya se ejecuta dentro de collector.__main__)
-# Pero lo dejamos explicito por si se cambia en el futuro
+# PASO 2: Actualizar OHLCV de tokens existentes
+# Tokens descubiertos dias anteriores necesitan candles nuevos
+# para alcanzar los 7 dias minimos de OHLCV para labeling
+# ============================================================
+log "Actualizando OHLCV de tokens existentes..."
+python -c "
+from src.data.collector import DataCollector
+collector = DataCollector()
+stats = collector.update_existing_ohlcv(max_tokens=200, timeframe='day', limit=14)
+print(f'OHLCV update: {stats[\"tokens_processed\"]} tokens, {stats[\"candles_added\"]} velas, {stats[\"errors\"]} errores')
+" 2>&1 | tee -a "${LOG_FILE}"
+
+# ============================================================
+# PASO 3: Contexto de mercado
 # ============================================================
 log "Verificando contexto de mercado..."
 python -c "
@@ -87,7 +99,7 @@ print('Contexto de mercado actualizado')
 " 2>&1 | tee -a "${LOG_FILE}"
 
 # ============================================================
-# PASO 3: Mostrar estadisticas
+# PASO 4: Mostrar estadisticas
 # ============================================================
 log "Estadisticas de la base de datos:"
 python -c "
@@ -99,7 +111,7 @@ for k, v in stats.items():
 " 2>&1 | tee -a "${LOG_FILE}"
 
 # ============================================================
-# PASO 4: Generar senales (si hay modelo entrenado)
+# PASO 5: Generar senales (si hay modelo entrenado)
 # ============================================================
 if [ -f "${PROJECT_DIR}/data/models/random_forest.joblib" ] || [ -f "${PROJECT_DIR}/data/models/random_forest_v1.joblib" ]; then
     log "Generando senales diarias..."

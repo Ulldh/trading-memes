@@ -361,10 +361,15 @@ def render():
 
     st.subheader("Conclusion")
 
-    st.success(
-        "**Hallazgo principal**: Las features de actividad social/trading "
-        "(makers, buyers, sellers, transacciones) son las mas importantes para "
-        "detectar gems. Esto tiene sentido: los memecoins exitosos se caracterizan "
-        "por tener comunidades activas que tradean mucho. Las metricas de precio "
-        "(retornos, volatilidad) importan menos en la deteccion temprana."
-    )
+    # Generar conclusion dinamica basada en las top features reales
+    if top_10_for_interp:
+        top_3_names = top_10_for_interp[:3]
+        st.success(
+            f"**Hallazgo principal**: Las features mas influyentes son: "
+            f"**{', '.join(top_3_names)}**. "
+            "Estas caracteristicas tienen el mayor impacto en la prediccion del modelo. "
+            "A medida que se reentrenan los modelos con mas datos, "
+            "esta clasificacion puede cambiar."
+        )
+    else:
+        st.info("No hay datos de importancia de features disponibles.")

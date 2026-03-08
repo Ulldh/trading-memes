@@ -132,7 +132,7 @@ def render_current_signals():
             "No hay senales generadas todavia. Las senales se crean "
             "automaticamente con el script diario, o puedes generarlas "
             "manualmente ejecutando:\n\n"
-            "```bash\npython scripts/daily_signals.sh\n```"
+            "```bash\nbash scripts/daily_signals.sh\n```"
         )
         return
 
@@ -162,7 +162,7 @@ def render_current_signals():
                 max_value=1.0,
                 value=0.5,
                 step=0.05,
-                format="%.0f%%",
+                format="%.0f",
                 help="Muestra solo tokens con probabilidad igual o mayor a este valor."
             )
         else:
@@ -618,7 +618,12 @@ def render_token_comparator():
         return
 
     # Merge para obtener symbols
-    tokens_with_features = tokens_df[tokens_df['token_id'].isin(features_df.index)]
+    # Determinar la columna de token_id en features (puede ser index o columna)
+    if 'token_id' in features_df.columns:
+        feature_token_ids = features_df['token_id'].values
+    else:
+        feature_token_ids = features_df.index.values
+    tokens_with_features = tokens_df[tokens_df['token_id'].isin(feature_token_ids)]
 
     if len(tokens_with_features) < 2:
         st.info("Se necesitan al menos 2 tokens con features para comparar.")
@@ -661,26 +666,32 @@ def render_token_comparator():
         st.warning("Selecciona 2 tokens diferentes para comparar.")
         return
 
-    # Obtener features de ambos tokens
-    features_a = features_df.loc[token_a_id].to_dict() if token_a_id in features_df.index else {}
-    features_b = features_df.loc[token_b_id].to_dict() if token_b_id in features_df.index else {}
+    # Obtener features de ambos tokens (manejar token_id como columna o index)
+    if 'token_id' in features_df.columns:
+        row_a = features_df[features_df['token_id'] == token_a_id]
+        row_b = features_df[features_df['token_id'] == token_b_id]
+        features_a = row_a.iloc[0].to_dict() if not row_a.empty else {}
+        features_b = row_b.iloc[0].to_dict() if not row_b.empty else {}
+    else:
+        features_a = features_df.loc[token_a_id].to_dict() if token_a_id in features_df.index else {}
+        features_b = features_df.loc[token_b_id].to_dict() if token_b_id in features_df.index else {}
 
     if not features_a or not features_b:
         st.error("No se pudieron obtener features para uno o ambos tokens.")
         return
 
-    # Features clave para comparar
+    # Features clave para comparar (solo features que realmente existen en la DB)
     key_features = [
-        "top1_holder_pct",
-        "top5_holder_pct",
-        "lp_usd",
-        "lp_change_pct_24h",
+        "initial_liquidity_usd",
+        "liquidity_growth_7d",
         "return_24h",
         "return_7d",
-        "volatility",
-        "volume_change_pct_24h",
-        "buyer_seller_ratio_24h",
-        "is_verified",
+        "volatility_7d",
+        "volume_to_liq_ratio_24h",
+        "volume_trend_slope",
+        "green_candle_ratio_24h",
+        "tx_count_24h",
+        "contract_age_hours",
         "days_since_deployment",
     ]
 

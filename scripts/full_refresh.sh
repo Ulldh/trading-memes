@@ -103,10 +103,54 @@ if not labels_df.empty:
 " 2>&1 | tee -a "${LOG_FILE}"
 
 # ============================================================
-# PASO 4: Re-entrenar modelos (ejecuta retrain.sh internamente)
+# PASO 4: Re-entrenar modelos (directamente, sin llamar retrain.sh
+#          que repetiria features+labels)
 # ============================================================
 log "Re-entrenando modelos..."
-bash "${PROJECT_DIR}/scripts/retrain.sh" 2>&1 | tee -a "${LOG_FILE}"
+python -c "
+import json
+import pandas as pd
+from pathlib import Path
+from src.data.storage import Storage
+from src.models.trainer import ModelTrainer
+
+storage = Storage()
+features_df = storage.get_features_df()
+labels_df = storage.query('SELECT * FROM labels')
+
+if features_df.empty or labels_df.empty:
+    print('ERROR: No hay suficientes datos para entrenar')
+    exit(1)
+
+print(f'Features: {features_df.shape}, Labels: {labels_df.shape}')
+
+trainer = ModelTrainer()
+results = trainer.train_all(features_df, labels_df, target='label_binary')
+
+version_dir = trainer.save_models_versioned(
+    metadata={'script': 'full_refresh.sh', 'trigger': 'manual'}
+)
+print(f'Modelos guardados en {version_dir}')
+
+# Guardar resultados y feature columns
+eval_results = {}
+for name, metrics in results.items():
+    if isinstance(metrics, dict):
+        eval_results[name] = {k: v for k, v in metrics.items()
+                               if isinstance(v, (int, float, str, list, dict, type(None)))}
+eval_path = Path('data/models/evaluation_results.json')
+with open(eval_path, 'w') as f:
+    json.dump(eval_results, f, indent=2, default=str)
+
+feature_cols_path = Path('data/models/feature_columns.json')
+with open(feature_cols_path, 'w') as f:
+    json.dump(trainer.feature_names, f)
+
+if hasattr(trainer, '_X_train'):
+    trainer._X_train.to_csv('data/processed/X_train.csv', index=False)
+    trainer._y_train.to_csv('data/processed/y_train.csv', index=False)
+print('Training completado')
+" 2>&1 | tee -a "${LOG_FILE}"
 
 # ============================================================
 # PASO 5: Stats DESPUES + comparacion

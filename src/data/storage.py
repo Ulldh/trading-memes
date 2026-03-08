@@ -199,8 +199,10 @@ class Storage:
         logger.info(f"Storage inicializado: {self.db_path}")
 
     def _init_db(self):
-        """Crea las tablas si no existen."""
+        """Crea las tablas si no existen y activa WAL mode."""
         with self._connect() as conn:
+            # WAL mode permite lecturas concurrentes mientras se escribe
+            conn.execute("PRAGMA journal_mode=WAL")
             conn.executescript(SCHEMA_SQL)
 
     @contextmanager
@@ -335,7 +337,9 @@ class Storage:
 
     def insert_ohlcv_batch(self, rows: list[dict]):
         """
-        Inserta multiples filas de OHLCV de una vez.
+        Inserta multiples filas de OHLCV de una vez, con validacion.
+
+        Descarta filas con precios negativos, high < low, o close = 0.
 
         Args:
             rows: Lista de dicts con keys: token_id, chain, pool_address,
@@ -347,6 +351,25 @@ class Storage:
                  open, high, low, close, volume)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
+        valid_rows = []
+        skipped = 0
+        for r in rows:
+            o, h, l, c = r.get("open"), r.get("high"), r.get("low"), r.get("close")
+            # Validar: precios deben ser positivos, high >= low, close != 0
+            if any(v is not None and v < 0 for v in [o, h, l, c]):
+                skipped += 1
+                continue
+            if h is not None and l is not None and h < l:
+                skipped += 1
+                continue
+            if c is not None and c == 0 and o is not None and o > 0:
+                skipped += 1
+                continue
+            valid_rows.append(r)
+
+        if skipped > 0:
+            logger.warning(f"OHLCV: {skipped} filas descartadas por validacion")
+
         params = [
             (
                 r.get("token_id"), r.get("chain"), r.get("pool_address"),
@@ -354,7 +377,7 @@ class Storage:
                 r.get("open"), r.get("high"), r.get("low"),
                 r.get("close"), r.get("volume"),
             )
-            for r in rows
+            for r in valid_rows
         ]
         self.execute_many(sql, params)
 

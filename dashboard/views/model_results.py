@@ -45,8 +45,8 @@ def render():
         "**Que es esto?** Aqui evaluamos que tan bien predicen nuestros modelos de "
         "Machine Learning. Entrenamos dos modelos diferentes (Random Forest y XGBoost) "
         "y los comparamos para ver cual detecta mejor las 'gems' (memecoins exitosos).\n\n"
-        "**Importante**: Tenemos solo 25 tokens de ejemplo, lo cual es muy poco para "
-        "resultados confiables. Con 300+ tokens los numeros seran mas realistas."
+        "**Importante**: Los resultados dependen de la cantidad de datos etiquetados. "
+        "Con mas tokens las metricas seran mas estables y representativas."
     )
 
     results = load_evaluation_results()

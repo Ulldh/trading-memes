@@ -92,9 +92,13 @@ class GemScorer:
         # Cargar columnas de features esperadas
         self.feature_columns = self._load_feature_columns()
 
+        # Cargar threshold optimo desde metadata del entrenamiento
+        self.optimal_threshold = self._load_optimal_threshold(model_name)
+
         logger.info(
             f"GemScorer inicializado: modelo={model_name}, "
-            f"features={len(self.feature_columns)}"
+            f"features={len(self.feature_columns)}, "
+            f"threshold={self.optimal_threshold:.2f}"
         )
 
     def _load_model(self, name: str):
@@ -136,6 +140,29 @@ class GemScorer:
         logger.warning("No se encontraron columnas de features. Usando features del modelo.")
         return []
 
+    def _load_optimal_threshold(self, model_name: str) -> float:
+        """Carga el threshold optimo desde metadata del entrenamiento."""
+        import json
+
+        # Buscar en la version mas reciente
+        latest_file = self._models_dir / "latest_version.txt"
+        if latest_file.exists():
+            version = latest_file.read_text().strip()
+            meta_path = self._models_dir / version / "metadata.json"
+            if meta_path.exists():
+                with open(meta_path) as f:
+                    metadata = json.load(f)
+                results = metadata.get("results", {})
+                model_results = results.get(model_name, {})
+                threshold = model_results.get("optimal_threshold")
+                if threshold is not None:
+                    logger.info(f"Threshold optimo cargado: {threshold}")
+                    return float(threshold)
+
+        # Fallback al threshold por defecto
+        logger.info("Usando threshold por defecto: 0.50")
+        return 0.50
+
     # ============================================================
     # PREPARAR FEATURES PARA PREDICCION
     # ============================================================
@@ -174,8 +201,8 @@ class GemScorer:
             # Seleccionar solo las columnas del modelo, en el orden correcto
             df = df[self.feature_columns]
 
-        # Rellenar NaN con 0
-        df = df.fillna(0)
+        # Rellenar NaN con 0 y convertir tipos explicitamente
+        df = df.infer_objects(copy=False).fillna(0)
 
         return df
 
@@ -225,9 +252,9 @@ class GemScorer:
         # Preparar para prediccion
         X = self._prepare_features(features)
 
-        # Predecir
-        prediction = int(self.model.predict(X)[0])
+        # Predecir usando threshold optimo en lugar del 0.50 por defecto
         probability = float(self.model.predict_proba(X)[0][1])
+        prediction = int(probability >= self.optimal_threshold)
 
         # Determinar senal
         signal = "NONE"

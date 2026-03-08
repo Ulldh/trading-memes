@@ -768,6 +768,9 @@ class DataCollector:
         # --- Paso 5: Verificar contratos ---
         self.collect_contract_info(tokens)
 
+        # --- Paso 6: Actualizar OHLCV de tokens existentes ---
+        ohlcv_update_stats = self.update_existing_ohlcv(max_tokens=200)
+
         # Calcular duracion total
         duracion = time.time() - inicio
 
@@ -1114,6 +1117,136 @@ class DataCollector:
                 continue
 
         logger.info("Contexto de mercado completado")
+
+    # ================================================================
+    # PASO 6: ACTUALIZAR OHLCV DE TOKENS EXISTENTES
+    # ================================================================
+
+    def update_existing_ohlcv(
+        self,
+        max_tokens: int = 500,
+        timeframe: str = "day",
+        limit: int = 14,
+    ) -> dict:
+        """
+        Actualiza OHLCV para tokens existentes que ya tienen pool_address.
+
+        El pipeline diario solo recopila OHLCV para tokens NUEVOS descubiertos
+        en esa sesion. Este metodo complementa eso actualizando candles para
+        tokens que ya estan en la BD pero pueden tener datos desactualizados.
+
+        Prioriza tokens que:
+        1. Tienen pool_address (necesario para GeckoTerminal)
+        2. No tienen OHLCV todavia, o
+        3. Su ultimo OHLCV tiene mas de 1 dia de antiguedad
+
+        Args:
+            max_tokens: Maximo de tokens a procesar (para controlar rate limits).
+            timeframe: Periodo de cada vela ("day", "hour").
+            limit: Numero de velas a pedir por token (14 dias cubre bien).
+
+        Returns:
+            Dict con estadisticas: tokens_processed, candles_added, errors.
+        """
+        logger.info("=" * 60)
+        logger.info("PASO 6: Actualizando OHLCV de tokens existentes...")
+        logger.info("=" * 60)
+
+        # Buscar tokens con pool_address que necesitan OHLCV actualizado
+        # Prioridad 1: tokens sin ningun OHLCV
+        # Prioridad 2: tokens cuyo ultimo OHLCV tiene >1 dia
+        tokens_df = self.storage.query("""
+            SELECT t.token_id, t.chain, t.pool_address,
+                   MAX(DATE(o.timestamp)) as last_ohlcv_date,
+                   COUNT(o.id) as ohlcv_count
+            FROM tokens t
+            LEFT JOIN ohlcv o ON t.token_id = o.token_id
+            WHERE t.pool_address IS NOT NULL AND t.pool_address != ''
+            GROUP BY t.token_id
+            HAVING ohlcv_count = 0
+                OR last_ohlcv_date < DATE('now', '-1 day')
+            ORDER BY ohlcv_count ASC, last_ohlcv_date ASC
+            LIMIT ?
+        """, (max_tokens,))
+
+        if tokens_df.empty:
+            logger.info("Todos los tokens con pool_address tienen OHLCV actualizado")
+            return {"tokens_processed": 0, "candles_added": 0, "errors": 0}
+
+        logger.info(
+            f"Actualizando OHLCV para {len(tokens_df)} tokens "
+            f"({timeframe}, hasta {limit} velas cada uno)"
+        )
+
+        exitos = 0
+        errores = 0
+        total_velas = 0
+
+        for _, row in tqdm(tokens_df.iterrows(), total=len(tokens_df),
+                           desc="OHLCV update", unit="token"):
+            try:
+                chain = row["chain"]
+                chain_config = SUPPORTED_CHAINS.get(chain, {})
+                gecko_chain_id = chain_config.get("geckoterminal_id", chain)
+                pool_address = row["pool_address"]
+                token_id = row["token_id"]
+
+                velas = self.gecko.get_pool_ohlcv(
+                    chain=gecko_chain_id,
+                    pool_address=pool_address,
+                    timeframe=timeframe,
+                    limit=limit,
+                )
+
+                if not velas:
+                    errores += 1
+                    continue
+
+                ohlcv_rows = []
+                for vela in velas:
+                    ts_valor = vela.get("timestamp", 0)
+                    if ts_valor:
+                        ts_iso = datetime.fromtimestamp(
+                            ts_valor, tz=timezone.utc
+                        ).isoformat()
+                    else:
+                        ts_iso = ""
+
+                    ohlcv_rows.append({
+                        "token_id": token_id,
+                        "chain": chain,
+                        "pool_address": pool_address,
+                        "timeframe": timeframe,
+                        "timestamp": ts_iso,
+                        "open": safe_float(vela.get("open")),
+                        "high": safe_float(vela.get("high")),
+                        "low": safe_float(vela.get("low")),
+                        "close": safe_float(vela.get("close")),
+                        "volume": safe_float(vela.get("volume")),
+                    })
+
+                if ohlcv_rows:
+                    self.storage.insert_ohlcv_batch(ohlcv_rows)
+                    exitos += 1
+                    total_velas += len(ohlcv_rows)
+
+            except Exception as e:
+                logger.warning(
+                    f"Error actualizando OHLCV para {row['token_id'][:10]}...: {e}"
+                )
+                errores += 1
+
+        stats = {
+            "tokens_processed": exitos,
+            "candles_added": total_velas,
+            "errors": errores,
+        }
+
+        logger.info(
+            f"OHLCV update completado: {exitos} tokens, "
+            f"{total_velas} velas nuevas, {errores} errores"
+        )
+        return stats
 
     # ================================================================
     # ENRICHMENT: POOL ADDRESSES PARA TOKENS DE SOLANA

@@ -34,7 +34,7 @@ from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 
 # Utilidades de sklearn
-from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
+from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score, cross_val_predict
 from sklearn.metrics import (
     classification_report,
     accuracy_score,
@@ -47,6 +47,7 @@ from sklearn.calibration import CalibratedClassifierCV
 
 # SMOTE para balanceo de clases (sobre-muestreo sintetico)
 from imblearn.over_sampling import SMOTE
+from imblearn.pipeline import Pipeline as ImbPipeline
 
 from src.utils.logger import get_logger
 
@@ -248,19 +249,10 @@ class ModelTrainer:
         X = merged_df[feature_cols].copy()
         y = merged_df[target].copy()
 
-        # --- Paso 4: Rellenar NaN en features con la mediana ---
-        # La mediana es mas robusta que la media ante valores extremos
-        nan_count = X.isna().sum().sum()
-        if nan_count > 0:
-            logger.info(f"Rellenando {nan_count} valores NaN con mediana")
-            X = X.fillna(X.median())
-            # Si aun quedan NaN (columna entera NaN), rellenar con 0
-            X = X.fillna(0)
-
         self.feature_names = feature_cols
         logger.info(f"Features seleccionados: {len(feature_cols)} columnas")
 
-        # --- Paso 5: Split train/test con estratificacion ---
+        # --- Paso 4: Split train/test con estratificacion ---
         test_size = ML_CONFIG.get("test_size", 0.2)
 
         # Verificar que hay al menos 2 clases y suficientes muestras
@@ -278,7 +270,6 @@ class ModelTrainer:
                 f"La clase minoritaria solo tiene {min_class_count} muestra(s). "
                 "Esto puede causar problemas con estratificacion."
             )
-            # Usar split sin estratificacion si hay muy pocas muestras
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y,
                 test_size=test_size,
@@ -291,6 +282,16 @@ class ModelTrainer:
                 random_state=self.random_seed,
                 stratify=y,
             )
+
+        # --- Paso 5: Rellenar NaN con mediana de TRAIN (evita data leakage) ---
+        # IMPORTANTE: la mediana se calcula SOLO en train y se aplica a ambos
+        nan_train = X_train.isna().sum().sum()
+        nan_test = X_test.isna().sum().sum()
+        if nan_train > 0 or nan_test > 0:
+            logger.info(f"NaN encontrados: {nan_train} en train, {nan_test} en test")
+            train_medians = X_train.median()
+            X_train = X_train.fillna(train_medians).fillna(0)
+            X_test = X_test.fillna(train_medians).fillna(0)
 
         logger.info(
             f"Split: train={len(X_train)} ({(1-test_size)*100:.0f}%), "
@@ -332,36 +333,14 @@ class ModelTrainer:
         """
         logger.info("--- Entrenando Random Forest ---")
 
-        # --- Aplicar SMOTE al set de entrenamiento SOLAMENTE ---
-        # IMPORTANTE: nunca aplicar SMOTE al set de test/validacion
-        smote_ratio = ML_CONFIG.get("smote_sampling", 0.5)
-        try:
-            smote = SMOTE(
-                sampling_strategy=smote_ratio,
-                random_state=self.random_seed,
-            )
-            X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
-            logger.info(
-                f"SMOTE aplicado: {len(X_train)} -> {len(X_train_resampled)} muestras"
-            )
-            logger.info(
-                f"Distribucion post-SMOTE:\n"
-                f"{pd.Series(y_train_resampled).value_counts().to_string()}"
-            )
-        except ValueError as e:
-            # SMOTE puede fallar si hay muy pocas muestras de la clase minoritaria
-            logger.warning(
-                f"SMOTE fallo ({e}). Entrenando sin sobre-muestreo."
-            )
-            X_train_resampled = X_train
-            y_train_resampled = y_train
-
         # --- Configurar el modelo ---
         rf_params = ML_CONFIG.get("rf_params", {}).copy()
         rf_params["random_state"] = self.random_seed
-        model = RandomForestClassifier(**rf_params)
+        smote_ratio = ML_CONFIG.get("smote_sampling", 0.5)
 
-        # --- Cross-validation en datos de entrenamiento ---
+        # --- Cross-validation con SMOTE DENTRO de cada fold ---
+        # IMPORTANTE: SMOTE se aplica dentro de cada fold para que las
+        # muestras sinteticas no contaminen la validacion del fold.
         cv_folds = ML_CONFIG.get("cv_folds", 5)
         try:
             skf = StratifiedKFold(
@@ -369,19 +348,42 @@ class ModelTrainer:
                 shuffle=True,
                 random_state=self.random_seed,
             )
+            smote_rf_pipeline = ImbPipeline([
+                ("smote", SMOTE(
+                    sampling_strategy=smote_ratio,
+                    random_state=self.random_seed,
+                )),
+                ("classifier", RandomForestClassifier(**rf_params)),
+            ])
             cv_scores = cross_val_score(
-                model, X_train_resampled, y_train_resampled,
+                smote_rf_pipeline, X_train, y_train,
                 cv=skf, scoring="f1", n_jobs=-1,
             )
             logger.info(
-                f"CV ({cv_folds} folds) F1: "
+                f"CV ({cv_folds} folds, SMOTE por fold) F1: "
                 f"{cv_scores.mean():.4f} (+/- {cv_scores.std():.4f})"
             )
         except ValueError as e:
             logger.warning(f"Cross-validation fallo ({e}). Continuando sin CV.")
             cv_scores = np.array([0.0])
 
+        # --- Aplicar SMOTE al set completo de train para el modelo final ---
+        try:
+            smote = SMOTE(
+                sampling_strategy=smote_ratio,
+                random_state=self.random_seed,
+            )
+            X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
+            logger.info(
+                f"SMOTE final: {len(X_train)} -> {len(X_train_resampled)} muestras"
+            )
+        except ValueError as e:
+            logger.warning(f"SMOTE fallo ({e}). Entrenando sin sobre-muestreo.")
+            X_train_resampled = X_train
+            y_train_resampled = y_train
+
         # --- Entrenar el modelo final ---
+        model = RandomForestClassifier(**rf_params)
         model.fit(X_train_resampled, y_train_resampled)
         logger.info("Random Forest entrenado exitosamente")
 
@@ -728,6 +730,59 @@ class ModelTrainer:
             except Exception as e:
                 logger.warning(f"Calibracion fallo para {name}: {e}")
                 self.results[name]["calibrated"] = False
+
+        # --- Paso 4b: Calcular threshold optimo via CV en TRAIN ---
+        # IMPORTANTE: usar out-of-fold predictions en train (no X_test)
+        # para evitar optimizar el threshold sobre datos de evaluacion.
+        for name in list(self.models.keys()):
+            try:
+                # Crear estimador fresco para OOF predictions
+                if name == "random_forest":
+                    rf_p = ML_CONFIG.get("rf_params", {}).copy()
+                    rf_p["random_state"] = self.random_seed
+                    smote_ratio_t = ML_CONFIG.get("smote_sampling", 0.5)
+                    cv_est = ImbPipeline([
+                        ("smote", SMOTE(
+                            sampling_strategy=smote_ratio_t,
+                            random_state=self.random_seed,
+                        )),
+                        ("clf", RandomForestClassifier(**rf_p)),
+                    ])
+                elif name == "xgboost":
+                    xgb_p = ML_CONFIG.get("xgb_params", {}).copy()
+                    xgb_p["random_state"] = self.random_seed
+                    n_neg = int((y_train == 0).sum())
+                    n_pos = int((y_train == 1).sum())
+                    xgb_p["scale_pos_weight"] = n_neg / n_pos if n_pos > 0 else 1.0
+                    xgb_p.pop("early_stopping_rounds", None)
+                    cv_est = XGBClassifier(**xgb_p)
+                else:
+                    continue
+
+                skf_t = StratifiedKFold(
+                    n_splits=5, shuffle=True,
+                    random_state=self.random_seed,
+                )
+                y_prob_oof = cross_val_predict(
+                    cv_est, X_train, y_train,
+                    cv=skf_t, method="predict_proba",
+                )[:, 1]
+
+                best_t, best_f1 = 0.5, 0.0
+                for t in np.arange(0.10, 0.91, 0.05):
+                    y_pred_t = (y_prob_oof >= t).astype(int)
+                    f1_t = f1_score(y_train, y_pred_t, zero_division=0)
+                    if f1_t > best_f1:
+                        best_f1 = f1_t
+                        best_t = round(float(t), 2)
+                self.results[name]["optimal_threshold"] = best_t
+                self.results[name]["optimal_threshold_f1"] = float(best_f1)
+                logger.info(
+                    f"  {name} threshold optimo (CV en train): {best_t:.2f} "
+                    f"(F1_oof={best_f1:.4f})"
+                )
+            except Exception as e:
+                logger.warning(f"Threshold optimization fallo para {name}: {e}")
 
         # --- Paso 5: Crear ensemble si esta habilitado ---
         if ML_CONFIG.get("use_ensemble", False):
