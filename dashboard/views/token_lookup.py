@@ -48,6 +48,8 @@ def load_model():
         return None, None
 
     model_files = [
+        ("random_forest.joblib", "Random Forest"),
+        ("xgboost.joblib", "XGBoost"),
         ("random_forest_v1.joblib", "Random Forest"),
         ("xgboost_v1.joblib", "XGBoost"),
         ("random_forest_model.joblib", "Random Forest"),
@@ -771,7 +773,7 @@ def render():
         # Dimensiones clave para el radar (subconjunto legible)
         RADAR_FEATURES = {
             "liquidity_growth_7d": "Liquidez 7d",
-            "return_7d": "Retorno 7d",
+            "return_24h": "Retorno 24h",
             "volatility_7d": "Volatilidad 7d",
             "buyer_seller_ratio_24h": "Ratio B/S",
             "volume_to_liq_ratio_24h": "Vol/Liq",

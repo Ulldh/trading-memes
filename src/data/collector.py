@@ -323,8 +323,6 @@ class DataCollector:
                     "sellers_24h": sellers,
                     # Makers = buyers + sellers unicos
                     "makers_24h": buyers + sellers,
-                    # Total de transacciones en 24h
-                    "tx_count_24h": buyers + sellers,
                     "source": "dexscreener",
                 }
 
@@ -881,7 +879,6 @@ class DataCollector:
                     "buyers_24h": buyers,
                     "sellers_24h": sellers,
                     "makers_24h": buyers + sellers,
-                    "tx_count_24h": buyers + sellers,
                     "source": "dexscreener",
                 }
                 self.storage.insert_pool_snapshot(snapshot)

@@ -95,6 +95,9 @@ class GemScorer:
         # Cargar threshold optimo desde metadata del entrenamiento
         self.optimal_threshold = self._load_optimal_threshold(model_name)
 
+        # Cargar medianas de training para imputacion consistente
+        self.train_medians = self._load_train_medians()
+
         logger.info(
             f"GemScorer inicializado: modelo={model_name}, "
             f"features={len(self.feature_columns)}, "
@@ -163,6 +166,35 @@ class GemScorer:
         logger.info("Usando threshold por defecto: 0.50")
         return 0.50
 
+    def _load_train_medians(self) -> dict:
+        """Carga las medianas de training para imputacion consistente."""
+        import json
+
+        # Buscar en la version mas reciente
+        latest_file = self._models_dir / "latest_version.txt"
+        if latest_file.exists():
+            version = latest_file.read_text().strip()
+            # Intentar archivo separado primero
+            medians_path = self._models_dir / version / "train_medians.json"
+            if medians_path.exists():
+                with open(medians_path) as f:
+                    medians = json.load(f)
+                logger.info(f"Medianas de training cargadas: {len(medians)} features")
+                return medians
+
+            # Fallback a metadata.json
+            meta_path = self._models_dir / version / "metadata.json"
+            if meta_path.exists():
+                with open(meta_path) as f:
+                    metadata = json.load(f)
+                medians = metadata.get("train_medians", {})
+                if medians:
+                    logger.info(f"Medianas de training cargadas desde metadata: {len(medians)} features")
+                    return medians
+
+        logger.info("No se encontraron medianas de training, usando fillna(0)")
+        return {}
+
     # ============================================================
     # PREPARAR FEATURES PARA PREDICCION
     # ============================================================
@@ -201,7 +233,14 @@ class GemScorer:
             # Seleccionar solo las columnas del modelo, en el orden correcto
             df = df[self.feature_columns]
 
-        # Rellenar NaN con 0 y convertir tipos explicitamente
+        # Reemplazar infinitos con NaN para que las medianas los manejen
+        df = df.replace([np.inf, -np.inf], np.nan)
+
+        # Rellenar NaN con medianas de training (consistencia train/inference)
+        if self.train_medians:
+            df = df.fillna(self.train_medians)
+
+        # Fallback: rellenar restantes con 0 y convertir tipos
         df = df.infer_objects(copy=False).fillna(0)
 
         return df

@@ -22,6 +22,11 @@ try:
 except ImportError:
     MODELS_DIR = Path("data/models")
 
+try:
+    from src.models.scorer import SIGNAL_THRESHOLDS
+except ImportError:
+    SIGNAL_THRESHOLDS = {"STRONG": 0.80, "MEDIUM": 0.65, "WEAK": 0.50}
+
 SIGNALS_DIR = Path("signals")
 
 # Colores para niveles de senal
@@ -88,9 +93,9 @@ def render():
         "Machine Learning considera con mayor probabilidad de ser 'gems' (10x+). "
         "Las senales se generan automaticamente cada dia despues de la recopilacion.\n\n"
         "**Niveles de senal:**\n"
-        "- **STRONG** (>80%): Alta confianza. El modelo esta muy seguro.\n"
-        "- **MEDIUM** (>65%): Confianza moderada. Vale la pena investigar.\n"
-        "- **WEAK** (>50%): Baja confianza. Monitorear pero no actuar.\n\n"
+        f"- **STRONG** (>{SIGNAL_THRESHOLDS['STRONG']:.0%}): Alta confianza. El modelo esta muy seguro.\n"
+        f"- **MEDIUM** (>{SIGNAL_THRESHOLDS['MEDIUM']:.0%}): Confianza moderada. Vale la pena investigar.\n"
+        f"- **WEAK** (>{SIGNAL_THRESHOLDS['WEAK']:.0%}): Baja confianza. Monitorear pero no actuar.\n\n"
         "**IMPORTANTE**: Esto NO es consejo financiero. Los memecoins son "
         "extremadamente riesgosos. Nunca inviertas mas de lo que puedas perder."
     )
@@ -162,7 +167,7 @@ def render_current_signals():
                 max_value=1.0,
                 value=0.5,
                 step=0.05,
-                format="%.0f",
+                format="%.2f",
                 help="Muestra solo tokens con probabilidad igual o mayor a este valor."
             )
         else:
@@ -241,13 +246,13 @@ def render_current_signals():
             labels={"probability": "Probabilidad de Gem", "count": "Cantidad de tokens"},
             color_discrete_sequence=["#3498db"],
         )
-        # Agregar lineas verticales para los umbrales
-        fig.add_vline(x=0.80, line_dash="dash", line_color="green",
-                       annotation_text="STRONG (80%)")
-        fig.add_vline(x=0.65, line_dash="dash", line_color="orange",
-                       annotation_text="MEDIUM (65%)")
-        fig.add_vline(x=0.50, line_dash="dash", line_color="blue",
-                       annotation_text="WEAK (50%)")
+        # Agregar lineas verticales para los umbrales (dinamicos desde scorer)
+        fig.add_vline(x=SIGNAL_THRESHOLDS["STRONG"], line_dash="dash", line_color="green",
+                       annotation_text=f"STRONG ({SIGNAL_THRESHOLDS['STRONG']:.0%})")
+        fig.add_vline(x=SIGNAL_THRESHOLDS["MEDIUM"], line_dash="dash", line_color="orange",
+                       annotation_text=f"MEDIUM ({SIGNAL_THRESHOLDS['MEDIUM']:.0%})")
+        fig.add_vline(x=SIGNAL_THRESHOLDS["WEAK"], line_dash="dash", line_color="blue",
+                       annotation_text=f"WEAK ({SIGNAL_THRESHOLDS['WEAK']:.0%})")
         fig.update_layout(height=350)
         st.plotly_chart(fig, use_container_width=True)
 
@@ -582,7 +587,7 @@ def render_ohlcv_section(df_signals: pd.DataFrame):
         latest = ohlcv_df.iloc[-1]
         first = ohlcv_df.iloc[0]
 
-        price_change = ((latest['close'] - first['open']) / first['open']) * 100
+        price_change = ((latest['close'] - first['open']) / first['open']) * 100 if first['open'] > 0 else 0
         avg_volume = ohlcv_df['volume'].mean()
         max_high = ohlcv_df['high'].max()
         min_low = ohlcv_df['low'].min()
@@ -685,7 +690,7 @@ def render_token_comparator():
         "initial_liquidity_usd",
         "liquidity_growth_7d",
         "return_24h",
-        "return_7d",
+        "return_48h",
         "volatility_7d",
         "volume_to_liq_ratio_24h",
         "volume_trend_slope",

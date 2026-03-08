@@ -116,7 +116,7 @@ print(monitor.get_summary())
 sys.exit(0 if status['healthy'] else 1)
 " 2>&1 | tee -a "$LOG_FILE"
 
-EXIT_CODE=$?
+EXIT_CODE=${PIPESTATUS[0]}
 
 # Leer el status JSON para enviar alertas
 if [ -f "$STATUS_FILE" ]; then

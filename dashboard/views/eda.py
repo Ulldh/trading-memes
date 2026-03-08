@@ -65,6 +65,10 @@ def load_features_and_labels():
 
     df = df_features.copy()
 
+    # Asegurar que token_id es columna (puede venir como index)
+    if "token_id" not in df.columns and df.index.name == "token_id":
+        df = df.reset_index()
+
     if not df_labels.empty:
         df = df.merge(df_labels, on="token_id", how="left")
     else:

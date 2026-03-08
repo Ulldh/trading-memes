@@ -42,8 +42,8 @@ cd "${PROJECT_DIR}"
 
 # Verificar que hay un modelo entrenado
 if [ ! -f "data/models/random_forest.joblib" ] && [ ! -f "data/models/random_forest_v1.joblib" ]; then
-    log "WARNING: No hay modelo entrenado. Ejecuta retrain.sh primero."
-    exit 0
+    log "ERROR: No hay modelo entrenado. Ejecuta retrain.sh primero."
+    exit 1
 fi
 
 # Generar senales

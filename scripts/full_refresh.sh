@@ -127,6 +127,15 @@ print(f'Features: {features_df.shape}, Labels: {labels_df.shape}')
 trainer = ModelTrainer()
 results = trainer.train_all(features_df, labels_df, target='label_binary')
 
+# Validar que al menos un modelo tiene F1 >= 0.3 antes de guardar
+rf_f1 = results.get('random_forest', {}).get('val_f1', 0) or 0
+xgb_f1 = results.get('xgboost', {}).get('val_f1', 0) or 0
+best_f1 = max(rf_f1, xgb_f1)
+if best_f1 < 0.3:
+    print(f'ERROR: Mejor F1={best_f1:.4f} < 0.3. Modelos NO guardados.')
+    print('Los datos pueden ser insuficientes o el pipeline tiene un problema.')
+    exit(1)
+
 version_dir = trainer.save_models_versioned(
     metadata={'script': 'full_refresh.sh', 'trigger': 'manual'}
 )

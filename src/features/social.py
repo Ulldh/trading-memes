@@ -193,7 +193,7 @@ def compute_temporal_social_features(snapshots_df: pd.DataFrame) -> dict:
         if len(volumes) >= 2:
             mean_vol = volumes.mean()
             std_vol = volumes.std()
-            features["volume_consistency"] = safe_divide(std_vol, max(mean_vol, 1))
+            features["volume_consistency"] = safe_divide(std_vol, mean_vol)
 
     # --- tx_acceleration: Cambio en velocidad de transacciones (segunda derivada) ---
     if "tx_count_24h" in df.columns:

@@ -150,25 +150,33 @@ LABEL_RETURN_7D_THRESHOLD = 1.2  # close_day7 / close_day1 >= 1.2 (+20% en 7d)
 EXCLUDED_FEATURES = [
     # Target leakage: return_7d ES el target (close_day7/close_day1)
     "return_7d",
+    # Quasi-leakage: usan datos de la ventana de 7 dias (misma que el target)
+    "max_return_7d",           # usa max(high) de ventana 7d
+    "close_to_high_ratio_7d",  # usa last close de ventana 7d
+    "price_recovery_ratio",    # usa last close de ventana 7d
+    # Leakage temporal: cambia con datetime.now(), no reproducible
+    "days_since_launch",
+    # Duplicado: tx_count_24h == makers_24h == buyers + sellers
+    "tx_count_24h",
+    # Colineal: makers_24h == buyers + sellers (r=1.0)
+    "makers_24h",
+    # Categoricos no numericos (is_numeric_dtype los filtra, pero por seguridad)
+    "launch_hour_category",    # string categorico
+    "chain",                   # string categorico
+    "dex",                     # string categorico
     # Holder data: solo Solana+Helius, <5% de tokens tienen datos
-    "holder_concentration_top10",
-    "holder_concentration_top20",
-    "unique_holders",
-    "holder_growth_24h",
+    "top10_holder_pct",
+    "top20_holder_pct",
     # Contract info: Etherscan solo, <5% cobertura
     "is_verified",
     "is_renounced",
-    # Market context: requiere precios BTC/ETH/SOL que no están en SQLite
-    "btc_return_7d",
-    "eth_return_7d",
-    "sol_return_7d",
-    "btc_volatility_7d",
+    # Market context: requiere precios BTC/ETH/SOL que no estan en SQLite
+    "btc_return_7d_at_launch",
+    "eth_return_7d_at_launch",
+    "sol_return_7d_at_launch",
     "market_fear_greed",
     # Social/DexScreener: buyers/sellers solo en snapshots, no en OHLCV
     "buyer_seller_ratio_24h",
-    "unique_buyers_24h",
-    "unique_sellers_24h",
-    "net_buyer_flow_24h",
 ]
 
 # ============================================================

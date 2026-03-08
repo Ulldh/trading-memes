@@ -190,7 +190,7 @@ result = {
 }
 
 print(json.dumps(result, default=str))
-" 2>&1)
+" 2>>"${LOG_FILE}")
 
 # Verificar si el comando fallo
 if [[ $? -ne 0 ]]; then
@@ -199,9 +199,9 @@ if [[ $? -ne 0 ]]; then
     exit 1
 fi
 
-# Parsear resultado JSON
-NEEDS_RETRAIN=$(echo "${DRIFT_RESULT}" | grep -o '"needs_retraining": *[^,}]*' | sed 's/.*: *//')
-REASONS=$(echo "${DRIFT_RESULT}" | grep -o '"reasons": *\[[^\]]*\]' | sed 's/.*: *//')
+# Parsear resultado JSON con Python (robusto vs grep/sed)
+NEEDS_RETRAIN=$(echo "${DRIFT_RESULT}" | python3 -c "import json,sys; print(json.loads(sys.stdin.read())['needs_retraining'])" 2>/dev/null || echo "false")
+REASONS=$(echo "${DRIFT_RESULT}" | python3 -c "import json,sys; print(json.loads(sys.stdin.read())['reasons'])" 2>/dev/null || echo "[]")
 
 log "Resultado de drift detection:"
 echo "${DRIFT_RESULT}" | python -m json.tool 2>&1 | tee -a "${LOG_FILE}"

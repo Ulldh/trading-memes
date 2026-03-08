@@ -105,6 +105,10 @@ class FeatureBuilder:
         # Diccionario donde acumulamos todos los features
         all_features = {"token_id": token_id}
 
+        # Contadores de modulos exitosos/fallidos
+        modules_ok = 0
+        modules_fail = 0
+
         # ============================================================
         # 1. OBTENER INFORMACION BASICA DEL TOKEN
         # ============================================================
@@ -138,8 +142,10 @@ class FeatureBuilder:
 
             tokenomics = compute_tokenomics_features(holders_df, contract_info)
             all_features.update(tokenomics)
+            modules_ok += 1
         except Exception as e:
             logger.error(f"Error en tokenomics para {token_id}: {e}")
+            modules_fail += 1
 
         # ============================================================
         # 2b. FEATURES DE MOVIMIENTO DE BALLENAS
@@ -148,12 +154,17 @@ class FeatureBuilder:
             all_holders_df = self._get_all_holder_snapshots(token_id)
             whale_features = compute_whale_movement_features(all_holders_df)
             all_features.update(whale_features)
+            modules_ok += 1
         except Exception as e:
             logger.error(f"Error en whale_movement para {token_id}: {e}")
+            modules_fail += 1
 
         # ============================================================
         # 3. FEATURES DE LIQUIDEZ
         # ============================================================
+        # Inicializar snapshots_df antes del try/except para que esté
+        # disponible en el paso 5b (temporal_social) aunque liquidez falle
+        snapshots_df = pd.DataFrame()
         try:
             # Obtener todos los pool snapshots ordenados por tiempo
             snapshots_df = self.storage.query(
@@ -165,8 +176,10 @@ class FeatureBuilder:
 
             liquidity = compute_liquidity_features(snapshots_df)
             all_features.update(liquidity)
+            modules_ok += 1
         except Exception as e:
             logger.error(f"Error en liquidity para {token_id}: {e}")
+            modules_fail += 1
 
         # ============================================================
         # 4. FEATURES DE PRICE ACTION (OHLCV)
@@ -181,8 +194,10 @@ class FeatureBuilder:
 
             price_action = compute_price_action_features(ohlcv_df)
             all_features.update(price_action)
+            modules_ok += 1
         except Exception as e:
             logger.error(f"Error en price_action para {token_id}: {e}")
+            modules_fail += 1
 
         # ============================================================
         # 5. FEATURES SOCIALES (buyers, sellers, txs)
@@ -192,8 +207,10 @@ class FeatureBuilder:
             latest_snapshot = self._get_latest_snapshot(token_id)
             social = compute_social_features(latest_snapshot)
             all_features.update(social)
+            modules_ok += 1
         except Exception as e:
             logger.error(f"Error en social para {token_id}: {e}")
+            modules_fail += 1
 
         # ============================================================
         # 5b. FEATURES SOCIALES TEMPORALES (tendencias en snapshots)
@@ -202,8 +219,10 @@ class FeatureBuilder:
             # Reutilizamos snapshots_df del paso 3 (liquidez)
             temporal_social = compute_temporal_social_features(snapshots_df)
             all_features.update(temporal_social)
+            modules_ok += 1
         except Exception as e:
             logger.error(f"Error en temporal_social para {token_id}: {e}")
+            modules_fail += 1
 
         # ============================================================
         # 6. FEATURES DE CONTRATO
@@ -214,8 +233,10 @@ class FeatureBuilder:
                 contract_info, created_at, created_at
             )
             all_features.update(contract)
+            modules_ok += 1
         except Exception as e:
             logger.error(f"Error en contract para {token_id}: {e}")
+            modules_fail += 1
 
         # ============================================================
         # 6b. FEATURES DE RIESGO DEL CONTRATO (solo EVM con source verificado)
@@ -226,8 +247,10 @@ class FeatureBuilder:
                 if contract_source:
                     risk_features = compute_contract_risk_features(contract_source)
                     all_features.update(risk_features)
+                    modules_ok += 1
         except Exception as e:
             logger.error(f"Error en contract_risk para {token_id}: {e}")
+            modules_fail += 1
 
         # ============================================================
         # 7. FEATURES DE CONTEXTO DE MERCADO
@@ -247,8 +270,10 @@ class FeatureBuilder:
                 dex=dex
             )
             all_features.update(market)
+            modules_ok += 1
         except Exception as e:
             logger.error(f"Error en market_context para {token_id}: {e}")
+            modules_fail += 1
 
         # ============================================================
         # 8. FEATURES TEMPORALES (timing del lanzamiento)
@@ -256,8 +281,10 @@ class FeatureBuilder:
         try:
             temporal = extract_temporal_features(token_info)
             all_features.update(temporal)
+            modules_ok += 1
         except Exception as e:
             logger.error(f"Error en temporal para {token_id}: {e}")
+            modules_fail += 1
 
         # ============================================================
         # 9. FEATURES DE VOLATILIDAD AVANZADA
@@ -272,8 +299,10 @@ class FeatureBuilder:
 
             volatility = compute_volatility_advanced_features(ohlcv_df)
             all_features.update(volatility)
+            modules_ok += 1
         except Exception as e:
             logger.error(f"Error en volatility_advanced para {token_id}: {e}")
+            modules_fail += 1
 
         # ============================================================
         # 10. FEATURES DE SENTIMIENTO SOCIAL (X / Twitter)
@@ -283,11 +312,21 @@ class FeatureBuilder:
             if mention_data:
                 sentiment = compute_sentiment_features(mention_data)
                 all_features.update(sentiment)
+                modules_ok += 1
         except Exception as e:
             logger.error(f"Error en sentiment para {token_id}: {e}")
+            modules_fail += 1
+
+        # Reportar si hubo modulos fallidos
+        if modules_fail > 0:
+            logger.warning(
+                f"Token {token_id}: {modules_fail} modulos fallaron, "
+                f"{modules_ok} exitosos"
+            )
 
         logger.info(
-            f"Features calculados para {token_id}: {len(all_features)} columnas"
+            f"Features calculados para {token_id}: {len(all_features)} columnas "
+            f"({modules_ok} ok, {modules_fail} fail)"
         )
         return all_features
 
@@ -346,6 +385,20 @@ class FeatureBuilder:
             f"Feature matrix: {features_df.shape[0]} tokens x "
             f"{features_df.shape[1]} features"
         )
+
+        # Loguear features con <50% cobertura (muchos NaN = feature poco util)
+        if not features_df.empty:
+            total_tokens = len(features_df)
+            coverage = features_df.notna().sum() / total_tokens
+            low_coverage = coverage[coverage < 0.5]
+            if not low_coverage.empty:
+                logger.warning(
+                    f"Features con <50% cobertura ({len(low_coverage)}):\n"
+                    + "\n".join(
+                        f"  {col}: {pct:.1%}"
+                        for col, pct in low_coverage.sort_values().items()
+                    )
+                )
 
         return features_df
 

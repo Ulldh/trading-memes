@@ -60,8 +60,8 @@ backup_sqlite() {
         return 1
     fi
 
-    # Usar cp para copiar (SQLite soporta hot backup)
-    cp "$DB_PATH" "$BACKUP_PATH/trading_memes_$BACKUP_TIMESTAMP.db"
+    # Usar sqlite3 .backup para copia consistente (safe con WAL mode)
+    sqlite3 "$DB_PATH" ".backup '$BACKUP_PATH/trading_memes_$BACKUP_TIMESTAMP.db'"
 
     # Crear symlink a ultimo backup
     ln -sf "$BACKUP_PATH/trading_memes_$BACKUP_TIMESTAMP.db" "$BACKUP_PATH/trading_memes.db"

@@ -15,7 +15,7 @@ Conceptos clave:
     - Regresion lineal: Para detectar tendencia en el volumen
 
 Features que calcula:
-    - return_24h, return_48h, return_7d, return_30d: Retornos por ventana
+    - return_24h, return_48h, return_30d: Retornos por ventana
     - max_return_7d: Maximo multiple alcanzado en 7 dias
     - drawdown_from_peak_7d: Caida maxima desde el pico en 7 dias
     - volatility_24h: Volatilidad (desviacion std) en 24h
@@ -53,10 +53,11 @@ def compute_price_action_features(ohlcv_df: pd.DataFrame) -> dict:
     """
 
     # Inicializar todos los features con None
+    # NOTA: return_7d fue eliminado porque es target leakage (correlacion directa
+    # con el label binario que usa close_day7/close_day1).
     features = {
         "return_24h": None,
         "return_48h": None,
-        "return_7d": None,
         "return_30d": None,
         "max_return_7d": None,
         "drawdown_from_peak_7d": None,
@@ -102,9 +103,6 @@ def compute_price_action_features(ohlcv_df: pd.DataFrame) -> dict:
     )
     features["return_48h"] = _compute_return_at_window(
         df, first_time, close_0, hours=48
-    )
-    features["return_7d"] = _compute_return_at_window(
-        df, first_time, close_0, hours=24 * 7
     )
     features["return_30d"] = _compute_return_at_window(
         df, first_time, close_0, hours=24 * 30
@@ -165,12 +163,15 @@ def compute_price_action_features(ohlcv_df: pd.DataFrame) -> dict:
             features["volatility_7d"] = float(returns_7d.std())
 
     # ============================================================
-    # VOLUME SPIKE RATIO
+    # VOLUME SPIKE RATIO (ventana 7d)
     # ============================================================
-    # Compara el volumen maximo contra el promedio
+    # Compara el volumen maximo contra el promedio en ventana de 7 dias
     # Un ratio alto indica un pico anormal de volumen (hype o manipulacion)
-    volumes = df["volume"].apply(safe_float)
-    volumes = volumes[volumes > 0]
+    if not df_7d.empty:
+        volumes = df_7d["volume"].apply(safe_float)
+        volumes = volumes[volumes > 0]
+    else:
+        volumes = pd.Series(dtype=float)
 
     if len(volumes) >= 2:
         max_vol = volumes.max()
@@ -203,11 +204,12 @@ def compute_price_action_features(ohlcv_df: pd.DataFrame) -> dict:
             features["first_hour_return"] = (close_1h / close_0) - 1.0
 
     # ============================================================
-    # TENDENCIA DEL VOLUMEN (regresion lineal)
+    # TENDENCIA DEL VOLUMEN (regresion lineal, ventana 7d)
     # ============================================================
     # Usamos numpy polyfit para ajustar una linea recta al volumen
-    # Pendiente positiva = volumen creciendo (buena señal)
-    # Pendiente negativa = volumen cayendo (señal de desinteres)
+    # Pendiente positiva = volumen creciendo (buena senal)
+    # Pendiente negativa = volumen cayendo (senal de desinteres)
+    # Normalizado por media para que sea comparable entre tokens
     if len(volumes) >= 3:
         try:
             # x = indices (0, 1, 2, ...), y = volumen
@@ -216,6 +218,9 @@ def compute_price_action_features(ohlcv_df: pd.DataFrame) -> dict:
 
             # polyfit grado 1 devuelve [pendiente, intercepto]
             slope, _ = np.polyfit(x, y, 1)
+            # Normalizar por media de volumen para comparabilidad
+            vol_mean = volumes.mean()
+            slope = slope / vol_mean if vol_mean > 0 else 0
             features["volume_trend_slope"] = float(slope)
         except (np.linalg.LinAlgError, ValueError):
             # Si la regresion falla (ej: todos los valores iguales)
@@ -273,9 +278,9 @@ def compute_price_action_features(ohlcv_df: pd.DataFrame) -> dict:
         features["up_days_ratio_7d"] = safe_divide(up_days, len(df_7d))
 
     # volume_price_divergence: volumen sube pero precio baja = acumulacion
-    # 1.0 si slope > 0 y return_7d < 0, 0.0 en caso contrario
-    if features["volume_trend_slope"] is not None and features["return_7d"] is not None:
-        if features["volume_trend_slope"] > 0 and features["return_7d"] < 0:
+    # 1.0 si slope > 0 y return_30d < 0, 0.0 en caso contrario
+    if features["volume_trend_slope"] is not None and features["return_30d"] is not None:
+        if features["volume_trend_slope"] > 0 and features["return_30d"] < 0:
             features["volume_price_divergence"] = 1.0
         else:
             features["volume_price_divergence"] = 0.0

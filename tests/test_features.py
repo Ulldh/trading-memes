@@ -181,7 +181,7 @@ class TestPriceActionFeatures:
         result = compute_price_action_features(ohlcv_df)
 
         assert isinstance(result, dict)
-        assert "return_7d" in result
+        assert "return_7d" not in result  # return_7d eliminado (target leakage)
         assert "volatility_7d" in result
         assert "green_candle_ratio_24h" in result
 

@@ -49,7 +49,7 @@ def load_feature_values():
                     if fn.endswith(".parquet"):
                         return pd.read_parquet(path)
                     else:
-                        return pd.read_csv(path, index_col=0)
+                        return pd.read_csv(path)
                 except Exception:
                     continue
     return None

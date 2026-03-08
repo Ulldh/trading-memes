@@ -58,7 +58,7 @@ def render():
         st.info("Ejecuta el pipeline de entrenamiento para generar los resultados.")
         return
 
-    models_data = results.get("models", {})
+    models_data = results.get("models", results)
     if not models_data:
         st.warning("El archivo de resultados esta vacio.")
         return

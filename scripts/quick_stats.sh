@@ -161,8 +161,8 @@ with open('$MODELS_DIR/evaluation_results.json', 'r') as f:
     results = json.load(f)
     rf = results.get('random_forest', {})
     xgb = results.get('xgboost', {})
-    print(f'  Random Forest F1: {rf.get(\"f1_score\", 0):.3f}')
-    print(f'  XGBoost F1:       {xgb.get(\"f1_score\", 0):.3f}')
+    print(f'  Random Forest F1: {rf.get(\"val_f1\", rf.get(\"f1_score\", rf.get(\"f1\", 0))):.3f}')
+    print(f'  XGBoost F1:       {xgb.get(\"val_f1\", xgb.get(\"f1_score\", xgb.get(\"f1\", 0))):.3f}')
 " 2>/dev/null || echo "  Error leyendo métricas"
     fi
 else

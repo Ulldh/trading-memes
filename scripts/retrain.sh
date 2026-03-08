@@ -130,6 +130,17 @@ print(f'Features: {features_df.shape}, Labels: {labels_df.shape}')
 trainer = ModelTrainer()
 results = trainer.train_all(features_df, labels_df, target='label_binary')
 
+# Validar F1 minimo antes de guardar
+rf_results = results.get('random_forest', {})
+xgb_results = results.get('xgboost', {})
+rf_f1 = rf_results.get('cv_f1', rf_results.get('val_f1', 0))
+xgb_f1 = xgb_results.get('cv_f1', xgb_results.get('val_f1', 0))
+best_f1 = max(rf_f1, xgb_f1)
+print(f'Mejor F1: {best_f1:.3f} (RF={rf_f1:.3f}, XGB={xgb_f1:.3f})')
+if best_f1 < 0.10:
+    print(f'ERROR: F1 demasiado bajo ({best_f1:.3f}). Abortando guardado.')
+    exit(1)
+
 # Guardar modelos con versionado
 version_dir = trainer.save_models_versioned(
     metadata={

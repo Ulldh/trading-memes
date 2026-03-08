@@ -62,12 +62,12 @@ def compute_market_context_features(
     """
 
     # Inicializar todos los features con None
+    # NOTA: launch_day_of_week y launch_hour_utc se calculan en temporal.py
+    # (eliminados aqui para evitar duplicacion)
     features = {
         "btc_return_7d_at_launch": None,
         "eth_return_7d_at_launch": None,
         "sol_return_7d_at_launch": None,
-        "launch_day_of_week": None,
-        "launch_hour_utc": None,
         "chain": chain,
         "dex": dex,
     }
@@ -76,13 +76,6 @@ def compute_market_context_features(
     launch_dt = _parse_launch_time(launch_time)
     if launch_dt is None:
         return features
-
-    # --- launch_day_of_week: Dia de la semana ---
-    # weekday() devuelve 0=Lunes, 6=Domingo
-    features["launch_day_of_week"] = launch_dt.weekday()
-
-    # --- launch_hour_utc: Hora UTC del lanzamiento ---
-    features["launch_hour_utc"] = launch_dt.hour
 
     # --- Retornos de BTC/ETH/SOL en la ventana de 7 dias ---
     # Calculamos el retorno del activo en los 7 dias centrados

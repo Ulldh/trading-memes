@@ -283,15 +283,21 @@ class ModelTrainer:
                 stratify=y,
             )
 
-        # --- Paso 5: Rellenar NaN con mediana de TRAIN (evita data leakage) ---
+        # --- Paso 5: Reemplazar infinitos y rellenar NaN ---
+        # Primero reemplazar inf/-inf con NaN para que la mediana los maneje
+        X_train = X_train.replace([np.inf, -np.inf], np.nan)
+        X_test = X_test.replace([np.inf, -np.inf], np.nan)
+
         # IMPORTANTE: la mediana se calcula SOLO en train y se aplica a ambos
+        train_medians = X_train.median()
+        self._train_medians = train_medians  # Guardar para scorer
+
         nan_train = X_train.isna().sum().sum()
         nan_test = X_test.isna().sum().sum()
         if nan_train > 0 or nan_test > 0:
             logger.info(f"NaN encontrados: {nan_train} en train, {nan_test} en test")
-            train_medians = X_train.median()
-            X_train = X_train.fillna(train_medians).fillna(0)
-            X_test = X_test.fillna(train_medians).fillna(0)
+        X_train = X_train.fillna(train_medians).fillna(0)
+        X_test = X_test.fillna(train_medians).fillna(0)
 
         logger.info(
             f"Split: train={len(X_train)} ({(1-test_size)*100:.0f}%), "
@@ -367,25 +373,18 @@ class ModelTrainer:
             logger.warning(f"Cross-validation fallo ({e}). Continuando sin CV.")
             cv_scores = np.array([0.0])
 
-        # --- Aplicar SMOTE al set completo de train para el modelo final ---
-        try:
-            smote = SMOTE(
+        # --- Entrenar el modelo final con ImbPipeline (misma config que CV) ---
+        # IMPORTANTE: usar el mismo pipeline que CV para consistencia.
+        # El modelo guardado es el pipeline completo (funciona con predict/predict_proba).
+        model = ImbPipeline([
+            ("smote", SMOTE(
                 sampling_strategy=smote_ratio,
                 random_state=self.random_seed,
-            )
-            X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
-            logger.info(
-                f"SMOTE final: {len(X_train)} -> {len(X_train_resampled)} muestras"
-            )
-        except ValueError as e:
-            logger.warning(f"SMOTE fallo ({e}). Entrenando sin sobre-muestreo.")
-            X_train_resampled = X_train
-            y_train_resampled = y_train
-
-        # --- Entrenar el modelo final ---
-        model = RandomForestClassifier(**rf_params)
-        model.fit(X_train_resampled, y_train_resampled)
-        logger.info("Random Forest entrenado exitosamente")
+            )),
+            ("classifier", RandomForestClassifier(**rf_params)),
+        ])
+        model.fit(X_train, y_train)
+        logger.info("Random Forest (ImbPipeline) entrenado exitosamente")
 
         # --- Evaluar en el set de validacion ---
         y_pred_val = model.predict(X_val)
@@ -460,22 +459,26 @@ class ModelTrainer:
         xgb_params["random_state"] = self.random_seed
         xgb_params["scale_pos_weight"] = scale_pos_weight
 
-        # Extraer early_stopping_rounds del dict (se pasa a .fit(), no al constructor)
-        early_stopping = xgb_params.pop("early_stopping_rounds", 50)
+        # early_stopping_rounds es parametro del constructor en XGBoost >= 2.0
+        xgb_params.setdefault("early_stopping_rounds", 50)
 
         model = XGBClassifier(**xgb_params)
 
         # --- Cross-validation en datos de entrenamiento ---
+        # Modelo sin early_stopping para CV (cross_val_score no pasa eval_set)
         cv_folds = ML_CONFIG.get("cv_folds", 5)
         cv_scores = np.array([0.0])
         try:
+            xgb_cv_params = {k: v for k, v in xgb_params.items()
+                             if k != "early_stopping_rounds"}
+            cv_model = XGBClassifier(**xgb_cv_params)
             skf = StratifiedKFold(
                 n_splits=cv_folds,
                 shuffle=True,
                 random_state=self.random_seed,
             )
             cv_scores = cross_val_score(
-                model, X_train, y_train,
+                cv_model, X_train, y_train,
                 cv=skf, scoring="f1", n_jobs=-1,
             )
             logger.info(
@@ -525,7 +528,7 @@ class ModelTrainer:
     # CALIBRACION DE PROBABILIDADES
     # ============================================================
 
-    def calibrate_model(self, model, X_train, y_train, method="sigmoid"):
+    def calibrate_model(self, model, X_cal, y_cal, method="sigmoid"):
         """
         Calibra las probabilidades de un modelo ya entrenado.
 
@@ -534,10 +537,13 @@ class ModelTrainer:
         La calibracion corrige esto usando Platt scaling (sigmoid) o
         isotonic regression.
 
+        IMPORTANTE: X_cal/y_cal deben ser datos NO vistos por el modelo
+        (ej: X_test, y_test) para que la calibracion sea honesta.
+
         Args:
             model: Modelo ya entrenado (con predict y predict_proba).
-            X_train: Features de entrenamiento.
-            y_train: Labels de entrenamiento.
+            X_cal: Features para calibracion (datos NO vistos por el modelo).
+            y_cal: Labels para calibracion.
             method: "sigmoid" (Platt scaling, bueno para datasets pequeños)
                     o "isotonic" (mas flexible, necesita mas datos).
 
@@ -545,10 +551,14 @@ class ModelTrainer:
             Modelo calibrado con predict_proba() ajustado.
         """
         logger.info(f"Calibrando modelo con metodo '{method}'...")
+        # FrozenEstimator evita que CalibratedClassifierCV re-entrene el modelo.
+        # Solo ajusta la funcion de calibracion sobre los datos proporcionados.
+        # (reemplaza cv="prefit" que fue eliminado en sklearn 1.6+)
+        from sklearn.frozen import FrozenEstimator
         calibrated = CalibratedClassifierCV(
-            model, method=method, cv=3
+            FrozenEstimator(model), method=method, cv=3
         )
-        calibrated.fit(X_train, y_train)
+        calibrated.fit(X_cal, y_cal)
         logger.info("Modelo calibrado exitosamente")
         return calibrated
 
@@ -715,10 +725,12 @@ class ModelTrainer:
                 logger.warning(f"Feature selection fallo: {e}")
 
         # --- Paso 4: Calibrar probabilidades de ambos modelos ---
+        # IMPORTANTE: calibrar con X_test/y_test (datos NO vistos) para
+        # que las probabilidades sean realistas, no optimistas.
         for name in list(self.models.keys()):
             try:
                 logger.info(f"Calibrando modelo: {name}")
-                calibrated = self.calibrate_model(self.models[name], X_train, y_train)
+                calibrated = self.calibrate_model(self.models[name], X_test, y_test)
                 self.models[name] = calibrated
 
                 # Re-evaluar metricas con modelo calibrado
@@ -992,6 +1004,18 @@ class ModelTrainer:
         # Añadir train_token_ids para que el backtester pueda excluirlos
         if hasattr(self, "_train_token_ids"):
             metadata_dict["train_token_ids"] = self._train_token_ids
+
+        # Guardar medianas de training para consistencia train/inference
+        if hasattr(self, "_train_medians"):
+            metadata_dict["train_medians"] = {
+                k: float(v) if pd.notna(v) else 0.0
+                for k, v in self._train_medians.to_dict().items()
+            }
+            # Guardar tambien como archivo separado para facil acceso
+            medians_path = version_dir / "train_medians.json"
+            with open(medians_path, "w") as f:
+                json.dump(metadata_dict["train_medians"], f, indent=2)
+            logger.info(f"  train_medians.json -> {version_name}/")
 
         # Añadir metadata adicional si se proporciono
         if metadata:

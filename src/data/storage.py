@@ -634,6 +634,13 @@ class Storage:
             try:
                 df = self.query(f"SELECT COUNT(*) as n FROM {table}")
                 counts[table] = int(df["n"].iloc[0])
-            except Exception:
-                counts[table] = 0
+            except Exception as e:
+                error_msg = str(e)
+                if "no such table" in error_msg:
+                    # Tabla no existe todavia, es normal (count=0)
+                    counts[table] = 0
+                else:
+                    # Error real de SQLite (permisos, corrupcion, etc.)
+                    logger.warning(f"Error consultando tabla '{table}': {e}")
+                    counts[table] = 0
         return counts

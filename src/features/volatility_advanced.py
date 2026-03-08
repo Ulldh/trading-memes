@@ -130,8 +130,8 @@ def compute_volatility_advanced_features(ohlcv_df: pd.DataFrame) -> dict:
             bb_upper = sma + (2 * std)
             features["bb_upper_7d"] = float(bb_upper)
 
-            # Banda inferior = SMA - 2*std
-            bb_lower = sma - (2 * std)
+            # Banda inferior = SMA - 2*std (clamped a 0, precios no pueden ser negativos)
+            bb_lower = max(0, sma - (2 * std))
             features["bb_lower_7d"] = float(bb_lower)
 
             # %B = (precio_actual - banda_inferior) / (banda_superior - banda_inferior)

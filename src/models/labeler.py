@@ -143,9 +143,15 @@ class Labeler:
             return None
 
         # --- Paso 5: Calcular multiples ---
-        # max_multiple = el pico mas alto relativo al precio inicial
+        # max_multiple = el pico mas alto relativo al precio inicial (usa high = wicks)
         max_high = ohlcv_df["high"].max()
         max_multiple = safe_divide(max_high, initial_price, default=0.0)
+
+        # close_max_multiple = maximo close relativo al precio inicial
+        # Complementa max_multiple: high captura wicks momentaneos,
+        # close captura precios de cierre confirmados.
+        max_close = ohlcv_df["close"].max()
+        close_max_multiple = safe_divide(max_close, initial_price, default=0.0)
 
         # final_multiple = precio actual relativo al precio inicial
         final_close = safe_float(ohlcv_df.iloc[-1]["close"])
@@ -153,9 +159,26 @@ class Labeler:
 
         # --- Paso 5b: Calcular return_7d ---
         # close del dia 7 / close del dia 1
+        # Validamos que el candle en iloc[6] realmente corresponda a ~7 dias
+        # (tolerancia de +-2 dias para gaps en datos OHLCV)
         if len(ohlcv_df) >= 7:
-            close_day7 = safe_float(ohlcv_df.iloc[6]["close"])
-            return_7d = safe_divide(close_day7, initial_price, default=0.0)
+            try:
+                ts_0 = pd.to_datetime(ohlcv_df.iloc[0]["timestamp"])
+                ts_6 = pd.to_datetime(ohlcv_df.iloc[6]["timestamp"])
+                delta_days = (ts_6 - ts_0).days
+                if delta_days >= 5:  # tolerancia: 7 dias - 2 = 5 minimo
+                    close_day7 = safe_float(ohlcv_df.iloc[6]["close"])
+                    return_7d = safe_divide(close_day7, initial_price, default=0.0)
+                else:
+                    # Gap demasiado corto, no es un return real de 7 dias
+                    logger.debug(
+                        f"Token {token_id}: iloc[6] solo cubre {delta_days} dias, "
+                        f"usando final_multiple como fallback"
+                    )
+                    return_7d = final_multiple
+            except Exception:
+                close_day7 = safe_float(ohlcv_df.iloc[6]["close"])
+                return_7d = safe_divide(close_day7, initial_price, default=0.0)
         else:
             return_7d = final_multiple  # fallback si no hay 7 dias exactos
 
@@ -189,6 +212,7 @@ class Labeler:
             "label_multi": label_multi,
             "label_binary": label_binary,
             "max_multiple": round(max_multiple, 4),
+            "close_max_multiple": round(close_max_multiple, 4),
             "final_multiple": round(final_multiple, 4),
             "return_7d": round(return_7d, 4),
             "notes": notes,
