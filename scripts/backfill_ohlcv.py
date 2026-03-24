@@ -32,7 +32,7 @@ project_root = Path(__file__).parent.parent.resolve()
 sys.path.insert(0, str(project_root))
 
 from src.api.birdeye_client import BirdeyeClient
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage
 from src.utils.logger import get_logger
 from src.utils.helpers import safe_float
 
@@ -58,7 +58,7 @@ def backfill_ohlcv(
     Returns:
         Dict con estadisticas: tokens_processed, candles_added, errors, skipped.
     """
-    storage = Storage()
+    storage = get_storage()
     birdeye = BirdeyeClient()
 
     stats = {
@@ -89,9 +89,9 @@ def backfill_ohlcv(
         FROM tokens t
         LEFT JOIN ohlcv o ON t.token_id = o.token_id
         WHERE t.chain = 'solana'
-        GROUP BY t.token_id
-        HAVING ohlcv_count < ?
-        ORDER BY ohlcv_count ASC
+        GROUP BY t.token_id, t.created_at
+        HAVING COUNT(CASE WHEN o.timeframe = 'day' THEN 1 END) < ?
+        ORDER BY COUNT(CASE WHEN o.timeframe = 'day' THEN 1 END) ASC
         LIMIT ?
     """, (min_ohlcv, max_tokens))
 
@@ -127,6 +127,9 @@ def backfill_ohlcv(
             now = int(datetime.now(timezone.utc).timestamp())
             created_unix = now - (180 * 86400)
             stats["skipped_no_date"] += 1
+
+        # Respetar rate limit de Birdeye (1 RPS en tier gratuito)
+        time.sleep(1.2)
 
         try:
             velas = birdeye.get_token_ohlcv_full(

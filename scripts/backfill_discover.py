@@ -25,7 +25,7 @@ sys.path.insert(0, str(project_root))
 
 from src.api.solana_discovery_client import SolanaDiscoveryClient
 from src.api.dexscreener_client import DexScreenerClient
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage
 from src.utils.logger import get_logger
 from src.utils.helpers import safe_float
 
@@ -51,7 +51,7 @@ def discover_historical_tokens(
     Returns:
         Dict con estadisticas: tokens_discovered, tokens_new, pool_enriched.
     """
-    storage = Storage()
+    storage = get_storage()
     discovery = SolanaDiscoveryClient()
     dex = DexScreenerClient()
 
