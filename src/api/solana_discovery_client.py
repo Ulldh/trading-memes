@@ -247,6 +247,80 @@ class SolanaDiscoveryClient(BaseAPIClient):
             return None
 
     # ================================================================
+    # PUMP.FUN - Descubrimiento historico (tokens antiguos)
+    # ================================================================
+
+    def get_pumpfun_historical(
+        self,
+        offset: int = 0,
+        limit: int = 50,
+        max_pages: int = 10,
+    ) -> list[dict]:
+        """
+        Descubre tokens historicos de Pump.fun paginando con offset alto.
+
+        A diferencia de get_pumpfun_latest (tokens nuevos), este metodo
+        ordena por created_timestamp ASC para obtener tokens antiguos
+        (3-6+ meses atras) que ya tienen historial OHLCV maduro.
+
+        Args:
+            offset: Offset inicial para empezar a paginar (ej: 5000).
+            limit: Tokens por pagina (max 50 segun Pump.fun API).
+            max_pages: Paginas maximas a recorrer desde el offset.
+
+        Returns:
+            Lista acumulada de tokens historicos. Cada dict tiene:
+            token_address, chain, name, symbol, dex, market_cap.
+            Lista vacia si circuit breaker abierto o error.
+        """
+        if self._pumpfun_circuit_open:
+            logger.debug("Pump.fun circuit breaker abierto, saltando historicos")
+            return []
+
+        logger.info(
+            f"Descubriendo tokens historicos de Pump.fun "
+            f"(offset={offset}, limit={limit}, max_pages={max_pages})"
+        )
+
+        all_tokens = []
+        current_offset = offset
+
+        for page in range(max_pages):
+            respuesta = self._pumpfun_request(
+                "/coins",
+                params={
+                    "sort": "created_timestamp",
+                    "order": "ASC",
+                    "limit": limit,
+                    "offset": current_offset,
+                    "includeNsfw": "false",
+                },
+            )
+
+            if respuesta is None:
+                logger.warning(f"Pump.fun historicos: respuesta None en offset={current_offset}")
+                break
+
+            items = respuesta if isinstance(respuesta, list) else []
+            if not items:
+                logger.info(f"Pump.fun historicos: sin mas tokens en offset={current_offset}")
+                break
+
+            for coin in items:
+                parsed = self._parsear_pumpfun_coin(coin)
+                if parsed:
+                    all_tokens.append(parsed)
+
+            current_offset += limit
+            logger.info(
+                f"Pump.fun historicos pagina {page + 1}/{max_pages}: "
+                f"{len(items)} tokens (acumulado: {len(all_tokens)})"
+            )
+
+        logger.info(f"Pump.fun historicos: {len(all_tokens)} tokens descubiertos total")
+        return all_tokens
+
+    # ================================================================
     # JUPITER TOKEN LIST (JSON estatico)
     # ================================================================
 

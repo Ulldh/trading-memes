@@ -39,6 +39,7 @@ HELIUS_API_KEY = os.getenv("HELIUS_API_KEY", "")
 ETHERSCAN_API_KEY = os.getenv("ETHERSCAN_API_KEY", "")
 BASESCAN_API_KEY = os.getenv("BASESCAN_API_KEY", "")
 COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY", "")
+BIRDEYE_API_KEY = os.getenv("BIRDEYE_API_KEY", "")
 X_BEARER_TOKEN = os.getenv("X_BEARER_TOKEN", "")
 
 # ============================================================
@@ -53,6 +54,7 @@ RATE_LIMITS = {
     "basescan": 5 * 60,     # Mismo que Etherscan
     "twitter": 30,          # 450 calls/15min = ~30/min (Basic tier)
     "pumpfun": 30,          # API no oficial, conservador
+    "birdeye": 60,          # Free tier: 1 rps = 60/min. Lite: 15 rps = 900/min
     "jupiter": 60,          # JSON estatico, sin rate limit documentado
     "raydium": 60,          # JSON estatico, sin rate limit documentado
 }
@@ -78,6 +80,7 @@ API_URLS = {
     "pumpfun": "https://frontend-api-v3.pump.fun",
     "jupiter": "https://lite-api.jup.ag/tokens/v1",
     "raydium": "https://api-v3.raydium.io",
+    "birdeye": "https://public-api.birdeye.so",
 }
 
 # Chain IDs para Etherscan V2 API
@@ -226,6 +229,20 @@ ML_CONFIG = {
     "use_ensemble": False,      # Activar ensemble VotingClassifier (RF+XGB)
     "remove_correlated": False, # Eliminar features con correlacion > 0.95
 }
+
+# ============================================================
+# STORAGE BACKEND
+# ============================================================
+# "sqlite" (local, default) o "supabase" (cloud)
+STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "sqlite")
+
+# Supabase config (solo necesario si STORAGE_BACKEND == "supabase")
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")
+# Credenciales directas de DB (alternativa a service_role para psycopg2)
+SUPABASE_DB_USER = os.getenv("SUPABASE_DB_USER", "trading_app")
+SUPABASE_DB_PASSWORD = os.getenv("SUPABASE_DB_PASSWORD", "")
 
 # ============================================================
 # CACHE
