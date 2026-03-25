@@ -40,8 +40,8 @@ from src.api import (
     SolanaDiscoveryClient,
 )
 
-# Importar almacenamiento en SQLite
-from src.data.storage import Storage
+# Importar almacenamiento (factory que elige SQLite o Supabase segun config)
+from src.data.supabase_storage import get_storage
 
 # Importar helpers para conversiones seguras
 from src.utils.helpers import safe_float, safe_int
@@ -104,15 +104,15 @@ class DataCollector:
         data = collector.collect_single_token("abc123...", "solana")
     """
 
-    def __init__(self, storage: Optional[Storage] = None):
+    def __init__(self, storage=None):
         """
         Inicializa todos los clientes de API y el almacenamiento.
 
         Se crean instancias de cada cliente de API. Cada uno ya tiene
         rate limiting, retries y cache integrados (heredados de BaseAPIClient).
         """
-        # Almacenamiento en SQLite (crear uno nuevo si no se pasa)
-        self.storage = storage or Storage()
+        # Almacenamiento (factory elige SQLite o Supabase segun STORAGE_BACKEND)
+        self.storage = storage or get_storage()
 
         # Cliente unificado para GeckoTerminal + CoinGecko Demo
         self.gecko = CoinGeckoClient()

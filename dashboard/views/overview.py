@@ -12,7 +12,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage as _get_storage
 
 # Colores consistentes para las labels en todo el dashboard
 LABEL_COLORS = {
@@ -34,7 +34,7 @@ CHAIN_COLORS = {
 @st.cache_resource
 def get_storage():
     """Crea una instancia de Storage cacheada para no reconectar cada vez."""
-    return Storage()
+    return _get_storage()
 
 
 def render():

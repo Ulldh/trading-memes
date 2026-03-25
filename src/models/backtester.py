@@ -26,7 +26,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage
 from src.models.scorer import GemScorer
 from src.utils.logger import get_logger
 from src.utils.helpers import safe_divide
@@ -64,10 +64,10 @@ class Backtester:
 
     def __init__(
         self,
-        storage: Optional[Storage] = None,
+        storage=None,
         scorer: Optional[GemScorer] = None,
     ):
-        self.storage = storage or Storage()
+        self.storage = storage or get_storage()
         self.scorer = scorer or GemScorer(storage=self.storage)
 
     # ============================================================

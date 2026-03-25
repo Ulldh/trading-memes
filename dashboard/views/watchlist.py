@@ -9,7 +9,7 @@ Permite al usuario:
 import streamlit as st
 import pandas as pd
 
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage as _get_storage
 from src.utils.helpers import truncate_address
 
 # Colores para labels
@@ -24,7 +24,7 @@ LABEL_COLORS = {
 
 @st.cache_resource
 def get_storage():
-    return Storage()
+    return _get_storage()
 
 
 def render():

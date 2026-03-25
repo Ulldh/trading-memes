@@ -23,7 +23,7 @@ from pathlib import Path
 # Agregar raiz del proyecto al path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage
 from src.data.collector import DataCollector
 from src.features.builder import FeatureBuilder
 from src.models.labeler import Labeler
@@ -86,7 +86,7 @@ def main():
         return
 
     # Inicializar componentes
-    storage = Storage()
+    storage = get_storage()
     collector = DataCollector(storage)
     builder = FeatureBuilder(storage)
     labeler = Labeler(storage)

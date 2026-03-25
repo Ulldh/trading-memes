@@ -58,8 +58,8 @@ cd "${PROJECT_DIR}"
 # ============================================================
 log "--- ESTADISTICAS ANTES ---"
 python -c "
-from src.data.storage import Storage
-s = Storage()
+from src.data.supabase_storage import get_storage
+s = get_storage()
 stats = s.stats()
 for k, v in stats.items():
     print(f'  {k}: {v}')
@@ -70,10 +70,10 @@ for k, v in stats.items():
 # ============================================================
 log "Calculando features para todos los tokens..."
 python -c "
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage
 from src.features.builder import FeatureBuilder
 
-storage = Storage()
+storage = get_storage()
 builder = FeatureBuilder(storage)
 
 # Calcular features para todos
@@ -91,10 +91,10 @@ print('Features guardados en DB y parquet')
 # ============================================================
 log "Re-etiquetando tokens con datos suficientes..."
 python -c "
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage
 from src.models.labeler import Labeler
 
-storage = Storage()
+storage = get_storage()
 labeler = Labeler(storage)
 
 labels_df = labeler.label_all_tokens()
@@ -111,10 +111,10 @@ python -c "
 import json
 import pandas as pd
 from pathlib import Path
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage
 from src.models.trainer import ModelTrainer
 
-storage = Storage()
+storage = get_storage()
 
 # Cargar features y labels
 features_df = storage.get_features_df()
@@ -181,11 +181,11 @@ print(f'Feature columns guardados en {feature_cols_path}')
 # ============================================================
 log "Ejecutando sensitivity analysis del labeler..."
 python -c "
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage
 from src.models.labeler import Labeler
 import pandas as pd
 
-storage = Storage()
+storage = get_storage()
 labeler = Labeler(storage)
 
 # Ejecutar sensitivity analysis si el metodo existe
@@ -256,8 +256,8 @@ except Exception as e:
 # ============================================================
 log "--- ESTADISTICAS DESPUES ---"
 python -c "
-from src.data.storage import Storage
-s = Storage()
+from src.data.supabase_storage import get_storage
+s = get_storage()
 stats = s.stats()
 for k, v in stats.items():
     print(f'  {k}: {v}')

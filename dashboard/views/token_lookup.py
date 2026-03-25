@@ -20,7 +20,7 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage as _get_storage
 from src.utils.helpers import detect_chain
 from config import MODELS_DIR, SUPPORTED_CHAINS
 
@@ -36,7 +36,7 @@ LABEL_COLORS = {
 
 @st.cache_resource
 def get_storage():
-    return Storage()
+    return _get_storage()
 
 
 @st.cache_resource
@@ -147,7 +147,7 @@ def add_new_token(token_address: str, chain: str):
         st.toast("🔧 Paso 5: Calculando features...", icon="🧮")
         with st.spinner("🧮 Calculando features..."):
             try:
-                feat_storage = Storage()
+                feat_storage = _get_storage()
                 builder = FeatureBuilder(feat_storage)
                 features_dict = builder.build_features_for_token(token_address)
 
@@ -181,7 +181,7 @@ def add_new_token(token_address: str, chain: str):
             st.success("### 🎉 ¡Token añadido exitosamente!")
 
             # Mostrar resumen de lo que se recopiló
-            storage = Storage()
+            storage = _get_storage()
             try:
                 # Verificar datos recopilados
                 df_token = storage.query(
@@ -430,7 +430,7 @@ def render():
                     else:
                         with st.spinner("🧮 Calculando features..."):
                             try:
-                                feat_storage = Storage()
+                                feat_storage = _get_storage()
                                 builder = FeatureBuilder(feat_storage)
                                 features_dict = builder.build_features_for_token(token_to_add)
 
@@ -460,7 +460,7 @@ def render():
                         st.success("### 🎉 ¡Token añadido exitosamente!")
 
                         # Mostrar resumen
-                        storage = Storage()
+                        storage = _get_storage()
                         df_token_new = storage.query(
                             "SELECT * FROM tokens WHERE token_id = ? AND chain = ?",
                             (token_to_add, chain_to_add)

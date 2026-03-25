@@ -31,7 +31,7 @@ sys.path.insert(0, str(ROOT))
 
 from src.api import CoinGeckoClient, DexScreenerClient, SolanaRPC, EtherscanClient
 from src.data.collector import DataCollector
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage
 from src.utils.logger import get_logger
 from config import SUPPORTED_CHAINS
 
@@ -263,7 +263,7 @@ def enrich_tokens(collector: DataCollector, tokens: list[dict]):
     collector.collect_contract_info(tokens_sin_ohlcv)
 
 
-def rebuild_features(storage: Storage):
+def rebuild_features(storage):
     """Recalcula features para TODOS los tokens."""
     from src.features.builder import FeatureBuilder
 
@@ -278,7 +278,7 @@ def rebuild_features(storage: Storage):
         logger.warning("No se pudieron calcular features")
 
 
-def print_stats(storage: Storage):
+def print_stats(storage):
     """Imprime estadisticas actuales de la BD."""
     stats = storage.stats()
     tokens_by_chain = storage.query("SELECT chain, COUNT(*) as cnt FROM tokens GROUP BY chain")
@@ -308,7 +308,7 @@ def main():
     parser.add_argument("--wait", type=int, default=120, help="Segundos de espera entre rondas")
     args = parser.parse_args()
 
-    storage = Storage()
+    storage = get_storage()
     collector = DataCollector()
 
     print_stats(storage)

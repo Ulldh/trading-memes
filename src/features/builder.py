@@ -11,10 +11,10 @@ Para cada token en la base de datos:
 Esto es lo que se usa para alimentar los modelos de Machine Learning.
 
 Uso:
-    from src.data.storage import Storage
+    from src.data.supabase_storage import get_storage
     from src.features.builder import FeatureBuilder
 
-    storage = Storage()
+    storage = get_storage()
     builder = FeatureBuilder(storage)
 
     # Features para un solo token
@@ -28,6 +28,7 @@ import pandas as pd
 from typing import Optional
 
 from src.data.storage import Storage
+from src.data.supabase_storage import get_storage
 from src.utils.logger import get_logger
 
 # Importar todos los modulos de features
@@ -58,7 +59,7 @@ class FeatureBuilder:
         storage: Referencia a la instancia de Storage.
 
     Ejemplo:
-        >>> storage = Storage()
+        >>> storage = get_storage()
         >>> builder = FeatureBuilder(storage)
         >>> df = builder.build_all_features()
         >>> print(df.shape)

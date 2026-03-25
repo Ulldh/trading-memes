@@ -35,7 +35,7 @@ import numpy as np
 import pandas as pd
 import joblib
 
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage
 from src.features.builder import FeatureBuilder
 from src.utils.logger import get_logger
 
@@ -77,11 +77,11 @@ class GemScorer:
 
     def __init__(
         self,
-        storage: Optional[Storage] = None,
+        storage=None,
         model_name: str = "random_forest",
         models_dir: Optional[Path] = None,
     ):
-        self.storage = storage or Storage()
+        self.storage = storage or get_storage()
         self.builder = FeatureBuilder(self.storage)
         self.model_name = model_name
         self._models_dir = Path(models_dir) if models_dir else MODELS_DIR

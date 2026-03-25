@@ -28,7 +28,7 @@ from typing import Dict, List, Any
 import numpy as np
 import pandas as pd
 
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage
 from src.api import CoinGeckoClient, DexScreenerClient, SolanaRPC, EtherscanClient
 from src.utils.logger import get_logger
 
@@ -70,7 +70,7 @@ class HealthMonitor:
 
     def __init__(
         self,
-        storage: Storage = None,
+        storage=None,
         min_disk_gb: float = 1.0,
         max_hours_since_collection: int = 26,  # 24h + margen de 2h
     ):
@@ -82,7 +82,7 @@ class HealthMonitor:
             min_disk_gb: Espacio minimo requerido en disco (GB).
             max_hours_since_collection: Horas maximas desde ultima recoleccion.
         """
-        self.storage = storage or Storage()
+        self.storage = storage or get_storage()
         self.min_disk_gb = min_disk_gb
         self.max_hours_since_collection = max_hours_since_collection
 

@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 import json
 import subprocess
 
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage as _get_storage
 
 # Constantes
 LOGS_DIR = Path("logs")
@@ -34,7 +34,7 @@ API_LIMITS = {
 @st.cache_resource
 def get_storage():
     """Crea una instancia de Storage cacheada para no reconectar cada vez."""
-    return Storage()
+    return _get_storage()
 
 
 def render():

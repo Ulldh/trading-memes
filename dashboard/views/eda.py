@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage as _get_storage
 from config import PROCESSED_DIR
 
 # Colores consistentes para las labels
@@ -28,7 +28,7 @@ LABEL_COLORS = {
 
 @st.cache_resource
 def get_storage():
-    return Storage()
+    return _get_storage()
 
 
 @st.cache_data(ttl=300)

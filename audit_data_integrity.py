@@ -14,7 +14,7 @@ from pathlib import Path
 # Agregar src al path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -23,7 +23,7 @@ class DataIntegrityAuditor:
     """Ejecuta auditorias de integridad sobre la base de datos."""
 
     def __init__(self):
-        self.storage = Storage()
+        self.storage = get_storage()
         self.issues = []
 
     def add_issue(self, severity, category, description, count=None, sql_fix=None):

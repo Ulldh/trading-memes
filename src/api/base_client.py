@@ -108,8 +108,8 @@ class BaseAPIClient:
         """Lazy load de Storage para evitar imports circulares."""
         if self._storage is None and self.enable_usage_tracking:
             try:
-                from src.data.storage import Storage
-                self._storage = Storage()
+                from src.data.supabase_storage import get_storage
+                self._storage = get_storage()
             except Exception as e:
                 logger.debug(f"No se pudo inicializar Storage para tracking: {e}")
                 self.enable_usage_tracking = False

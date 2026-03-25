@@ -19,6 +19,7 @@ from typing import Optional
 import pandas as pd
 
 from src.data.storage import Storage
+from src.data.supabase_storage import get_storage
 from src.utils.logger import get_logger
 from src.utils.helpers import safe_divide, safe_float
 
@@ -69,7 +70,7 @@ class Labeler:
         storage: Instancia de Storage para leer datos OHLCV y guardar labels.
 
     Ejemplo:
-        storage = Storage()
+        storage = get_storage()
         labeler = Labeler(storage)
 
         # Clasificar un token individual

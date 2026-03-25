@@ -74,7 +74,7 @@ import json
 import pandas as pd
 from pathlib import Path
 
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage
 from src.models.drift_detector import DriftDetector
 from src.models.trainer import ModelTrainer
 
@@ -82,7 +82,7 @@ from src.models.trainer import ModelTrainer
 # 1. CARGAR DATOS
 # ============================================================
 
-storage = Storage()
+storage = get_storage()
 
 # Features actuales (usados en entrenamiento)
 try:

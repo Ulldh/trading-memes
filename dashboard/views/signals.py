@@ -15,7 +15,7 @@ import plotly.graph_objects as go
 from pathlib import Path
 from datetime import datetime
 
-from src.data.storage import Storage
+from src.data.supabase_storage import get_storage as _get_storage
 
 try:
     from config import MODELS_DIR
@@ -40,7 +40,7 @@ SIGNAL_COLORS = {
 
 @st.cache_resource
 def get_storage():
-    return Storage()
+    return _get_storage()
 
 
 def load_latest_signals() -> pd.DataFrame:
