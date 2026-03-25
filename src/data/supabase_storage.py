@@ -575,6 +575,97 @@ class SupabaseStorage:
         return resp.data[0]
 
     # ============================================================
+    # SCORES (predicciones ML)
+    # ============================================================
+
+    def upsert_scores(self, scores: list[dict]):
+        """
+        Inserta o actualiza scores de prediccion ML en la tabla scores.
+
+        Cada dict debe contener: token_id, probability, signal, prediction,
+        model_name, model_version. scored_at se asigna automaticamente
+        si no se proporciona (DEFAULT NOW() en Supabase).
+
+        Usa ON CONFLICT (token_id) para idempotencia: si ya existe un
+        score para ese token, se actualiza con los nuevos valores.
+
+        Args:
+            scores: Lista de dicts con los scores a insertar/actualizar.
+                Campos requeridos: token_id, probability, signal, prediction,
+                model_name, model_version.
+                Campo opcional: scored_at (TIMESTAMPTZ, default NOW()).
+
+        Ejemplo:
+            storage.upsert_scores([{
+                "token_id": "abc123",
+                "probability": 0.85,
+                "signal": "STRONG",
+                "prediction": 1,
+                "model_name": "random_forest",
+                "model_version": "v12",
+            }])
+        """
+        if not scores:
+            logger.warning("upsert_scores: lista vacia, nada que guardar")
+            return
+
+        # Validar y normalizar cada score antes de insertar
+        valid_rows = []
+        for s in scores:
+            if not s.get("token_id"):
+                logger.warning("upsert_scores: score sin token_id, saltando")
+                continue
+
+            row = {
+                "token_id": s["token_id"],
+                "probability": float(s.get("probability", 0.0)),
+                "signal": s.get("signal", "NONE"),
+                "prediction": int(s.get("prediction", 0)),
+                "model_name": s.get("model_name", "random_forest"),
+                "model_version": s.get("model_version", "unknown"),
+            }
+            # scored_at es opcional — si no se pasa, Supabase usa DEFAULT NOW()
+            if s.get("scored_at"):
+                row["scored_at"] = s["scored_at"]
+
+            valid_rows.append(row)
+
+        if not valid_rows:
+            logger.warning("upsert_scores: ningun score valido")
+            return
+
+        # Usar _batch_upsert con on_conflict="token_id" (PK de la tabla)
+        self._batch_upsert("scores", valid_rows, on_conflict="token_id")
+        logger.info(f"Scores upserted en Supabase: {len(valid_rows)} tokens")
+
+    def get_scores(self, min_probability: float = 0.0,
+                   scored_today: bool = False) -> pd.DataFrame:
+        """
+        Obtiene scores de la tabla scores con filtros opcionales.
+
+        Args:
+            min_probability: Probabilidad minima para filtrar (default 0.0 = todos).
+            scored_today: Si True, solo devuelve scores de hoy.
+
+        Returns:
+            DataFrame con scores + datos del token (JOIN con tokens).
+        """
+        sql = """
+            SELECT s.*, t.name, t.symbol, t.chain, t.pool_address
+            FROM scores s
+            JOIN tokens t ON s.token_id = t.token_id
+            WHERE s.probability >= {prob}
+        """.format(prob=float(min_probability))
+
+        if scored_today:
+            sql += " AND s.scored_at::date = CURRENT_DATE"
+
+        sql += " ORDER BY s.probability DESC"
+
+        data = self._rpc_query(sql)
+        return pd.DataFrame(data) if data else pd.DataFrame()
+
+    # ============================================================
     # ESTADISTICAS
     # ============================================================
 
@@ -583,6 +674,7 @@ class SupabaseStorage:
         tables = [
             "tokens", "pool_snapshots", "ohlcv",
             "holder_snapshots", "contract_info", "labels", "features",
+            "scores",
         ]
         counts = {}
         for table in tables:

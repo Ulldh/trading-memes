@@ -386,6 +386,125 @@ class GemScorer:
         return df
 
     # ============================================================
+    # SCORE + GUARDAR EN SUPABASE (para daily-collect.yml)
+    # ============================================================
+
+    def _get_model_version(self) -> str:
+        """
+        Obtiene la version del modelo actual desde latest_version.txt.
+
+        Lee el archivo local si existe. Retorna 'unknown' si no se
+        puede determinar la version.
+        """
+        latest_file = self._models_dir / "latest_version.txt"
+        if latest_file.exists():
+            return latest_file.read_text().strip()
+        return "unknown"
+
+    def score_and_save(self, min_ohlcv_days: int = 7) -> pd.DataFrame:
+        """
+        Califica tokens nuevos y guarda los scores en Supabase.
+
+        Flujo completo para el step de scoring en daily-collect.yml:
+        1. Obtiene tokens sin score para la version actual del modelo.
+        2. Calcula features y genera predicciones (RF).
+        3. Upsert de scores en la tabla 'scores' via SupabaseStorage.
+
+        Tokens "sin score" = tokens con features + >=7d OHLCV que NO
+        tienen un registro en 'scores' con el model_version actual.
+        Esto permite re-scoring al cambiar de version de modelo.
+
+        Args:
+            min_ohlcv_days: Minimo dias de OHLCV requeridos (default 7).
+
+        Returns:
+            DataFrame con los scores generados (puede estar vacio).
+        """
+        model_version = self._get_model_version()
+        logger.info(
+            f"score_and_save: modelo={self.model_name}, "
+            f"version={model_version}, min_ohlcv={min_ohlcv_days}d"
+        )
+
+        # Obtener tokens con features + OHLCV suficiente pero sin score
+        # para la version actual del modelo
+        tokens_df = self.storage.query("""
+            SELECT DISTINCT t.token_id, t.chain, t.symbol
+            FROM tokens t
+            INNER JOIN ohlcv o ON t.token_id = o.token_id
+                AND o.timeframe = 'day'
+            INNER JOIN features f ON t.token_id = f.token_id
+            LEFT JOIN scores s ON t.token_id = s.token_id
+                AND s.model_version = ?
+            WHERE s.token_id IS NULL
+            GROUP BY t.token_id, t.chain, t.symbol
+            HAVING COUNT(o.id) >= ?
+        """, (model_version, min_ohlcv_days))
+
+        if tokens_df.empty:
+            logger.info("score_and_save: no hay tokens nuevos para calificar")
+            return pd.DataFrame()
+
+        logger.info(f"score_and_save: calificando {len(tokens_df)} tokens...")
+
+        # Calificar cada token
+        results = []
+        for _, row in tokens_df.iterrows():
+            token_id = row["token_id"]
+            try:
+                result = self.score_token(token_id)
+                result["chain"] = row["chain"]
+                result["symbol"] = row.get("symbol", "")
+                result["model_name"] = self.model_name
+                result["model_version"] = model_version
+                results.append(result)
+            except Exception as e:
+                logger.warning(f"Error scoring {token_id[:10]}: {e}")
+
+        if not results:
+            logger.info("score_and_save: ningun token pudo ser calificado")
+            return pd.DataFrame()
+
+        # Crear DataFrame y ordenar por probabilidad
+        df = pd.DataFrame(results)
+        df = df.sort_values("probability", ascending=False).reset_index(drop=True)
+
+        # Preparar dicts para upsert en Supabase
+        score_dicts = [
+            {
+                "token_id": row["token_id"],
+                "probability": float(row["probability"]),
+                "signal": row["signal"],
+                "prediction": int(row["prediction"]),
+                "model_name": row["model_name"],
+                "model_version": row["model_version"],
+                "scored_at": row.get("scored_at"),
+            }
+            for _, row in df.iterrows()
+        ]
+
+        # Upsert scores en Supabase
+        try:
+            self.storage.upsert_scores(score_dicts)
+            logger.info(
+                f"score_and_save: {len(score_dicts)} scores guardados "
+                f"(version={model_version})"
+            )
+        except Exception as e:
+            logger.error(f"score_and_save: error guardando scores: {e}")
+            # Retornar el DataFrame aunque falle el guardado,
+            # para que el caller pueda reintentar el upsert
+            raise
+
+        # Resumen de senales
+        for signal in ["STRONG", "MEDIUM", "WEAK"]:
+            count = (df["signal"] == signal).sum()
+            if count > 0:
+                logger.info(f"  {signal}: {count} tokens")
+
+        return df
+
+    # ============================================================
     # GUARDAR SENALES A CSV
     # ============================================================
 

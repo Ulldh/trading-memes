@@ -1,0 +1,343 @@
+{
+  "name": "Retrain Notifier — Trading Memes",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9,
+              "triggerAtMinute": 0,
+              "field": "weeks",
+              "triggerAtDay": 1
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://xayfwuqbbqtyerxzjbec.supabase.co/storage/v1/object/public/ml-models/latest_version.txt",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "get-latest-version",
+      "name": "Get Latest Version",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0],
+      "continueOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SUPABASE_HEADER_AUTH_CREDENTIAL_ID",
+          "name": "Supabase Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Comparar version actual con la almacenada en static data\nconst staticData = $getWorkflowStaticData('global');\nconst input = $input.first().json;\n\n// Detectar error HTTP en el nodo anterior\nif (input.error || input.code) {\n  return [{\n    json: {\n      status: 'error',\n      errorMessage: input.message || input.error || 'Error al obtener latest_version.txt',\n      latestVersion: null,\n      oldVersion: staticData.lastVersion || null\n    }\n  }];\n}\n\n// La respuesta es texto plano, puede venir como string en data o body\nconst rawVersion = (typeof input === 'string' ? input : (input.data || input.body || '')).toString().trim();\n\nif (!rawVersion || rawVersion.length === 0) {\n  return [{\n    json: {\n      status: 'error',\n      errorMessage: 'latest_version.txt esta vacio o no se pudo leer',\n      latestVersion: null,\n      oldVersion: staticData.lastVersion || null\n    }\n  }];\n}\n\nconst latestVersion = rawVersion;\nconst storedVersion = staticData.lastVersion || null;\n\n// Primera ejecucion: no hay version almacenada\nif (!storedVersion) {\n  staticData.lastVersion = latestVersion;\n  return [{\n    json: {\n      status: 'first_run',\n      latestVersion: latestVersion,\n      oldVersion: null,\n      isNewVersion: false\n    }\n  }];\n}\n\n// Comparar versiones\nconst isNew = latestVersion !== storedVersion;\n\nreturn [{\n  json: {\n    status: isNew ? 'new_version' : 'no_change',\n    latestVersion: latestVersion,\n    oldVersion: storedVersion,\n    isNewVersion: isNew\n  }\n}];"
+      },
+      "id": "check-version",
+      "name": "Check Version",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "new-version-check",
+              "leftValue": "={{ $json.isNewVersion }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-new-version",
+      "name": "IF New Version",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://xayfwuqbbqtyerxzjbec.supabase.co/storage/v1/object/public/ml-models/{{ $json.latestVersion }}/metadata.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-new-metadata",
+      "name": "Get New Metadata",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, -100],
+      "continueOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SUPABASE_HEADER_AUTH_CREDENTIAL_ID",
+          "name": "Supabase Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://xayfwuqbbqtyerxzjbec.supabase.co/storage/v1/object/public/ml-models/{{ $('IF New Version').item.json.oldVersion }}/metadata.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-old-metadata",
+      "name": "Get Old Metadata",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 100],
+      "continueOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SUPABASE_HEADER_AUTH_CREDENTIAL_ID",
+          "name": "Supabase Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "output": "waitForAll"
+      },
+      "id": "merge-metadata",
+      "name": "Merge Metadata",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1100, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Comparar metricas entre version antigua y nueva, formatear mensaje Telegram\nconst staticData = $getWorkflowStaticData('global');\n\n// Recuperar datos del nodo IF\nconst versionInfo = $('IF New Version').first().json;\nconst newVersion = versionInfo.latestVersion;\nconst oldVersion = versionInfo.oldVersion;\n\n// Obtener metadata de ambas versiones\nconst allItems = $input.all();\nconst newMeta = allItems[0]?.json || {};\nconst oldMeta = allItems[1]?.json || {};\n\n// Funcion auxiliar para extraer metricas de metadata.json\n// Estructura esperada: { rf_val_f1, xgb_val_f1, train_samples, trained_at, ... }\nfunction getMetric(meta, key, fallback) {\n  if (!meta || meta.error || meta.code) return fallback;\n  return meta[key] !== undefined ? meta[key] : fallback;\n}\n\nconst newRfF1 = getMetric(newMeta, 'rf_val_f1', null);\nconst oldRfF1 = getMetric(oldMeta, 'rf_val_f1', null);\nconst newXgbF1 = getMetric(newMeta, 'xgb_val_f1', null);\nconst oldXgbF1 = getMetric(oldMeta, 'xgb_val_f1', null);\nconst newTrainSize = getMetric(newMeta, 'train_samples', null);\nconst oldTrainSize = getMetric(oldMeta, 'train_samples', null);\nconst newDate = getMetric(newMeta, 'trained_at', null);\nconst oldDate = getMetric(oldMeta, 'trained_at', null);\n\n// Formatear valores para la tabla\nfunction fmt(val, decimals) {\n  if (val === null || val === undefined) return 'N/A';\n  return typeof val === 'number' ? val.toFixed(decimals) : String(val);\n}\n\nfunction fmtDate(val) {\n  if (!val) return 'N/A';\n  // Tomar solo YYYY-MM-DD\n  return String(val).substring(0, 10);\n}\n\nfunction fmtDiff(oldVal, newVal) {\n  if (oldVal === null || newVal === null) return 'N/A';\n  const diff = newVal - oldVal;\n  const sign = diff >= 0 ? '+' : '';\n  return sign + diff.toFixed(3);\n}\n\n// Clasificar resultado: MEJORA, DEGRADACION, LATERAL\n// MEJORA = ambos F1 suben. DEGRADACION = alguno baja >2%. LATERAL = resto.\nlet resultado = '\\u27a1\\ufe0f LATERAL';\nlet resultadoEmoji = '\\u27a1\\ufe0f';\n\nif (newRfF1 !== null && oldRfF1 !== null && newXgbF1 !== null && oldXgbF1 !== null) {\n  const rfDiff = newRfF1 - oldRfF1;\n  const xgbDiff = newXgbF1 - oldXgbF1;\n  \n  if (rfDiff > 0 && xgbDiff > 0) {\n    resultado = '\\ud83d\\udcc8 MEJORA';\n    resultadoEmoji = '\\ud83d\\udcc8';\n  } else if (rfDiff < -0.02 || xgbDiff < -0.02) {\n    resultado = '\\ud83d\\udcc9 DEGRADACION';\n    resultadoEmoji = '\\ud83d\\udcc9';\n  }\n}\n\n// Emojis para deltas individuales\nfunction deltaEmoji(oldVal, newVal) {\n  if (oldVal === null || newVal === null) return '\\u2139\\ufe0f';\n  return newVal >= oldVal ? '\\ud83d\\udcc8' : '\\ud83d\\udcc9';\n}\n\n// Construir mensaje HTML\nlet msg = `<b>\\ud83d\\udd04 Retrain Completado \\u2014 Trading Memes</b>\\n\\n`;\nmsg += `<b>Nueva versi\\u00f3n:</b> ${newVersion}\\n`;\nmsg += `<b>Anterior:</b> ${oldVersion}\\n`;\nmsg += `<b>Resultado:</b> ${resultado}\\n\\n`;\n\nmsg += `<b>\\ud83d\\udcca Comparativa de M\\u00e9tricas:</b>\\n`;\nmsg += `<pre>`;\nmsg += `\\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u252c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u252c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510\\n`;\nmsg += `\\u2502 M\\u00e9trica       \\u2502 Anterior \\u2502 Nuevo    \\u2502\\n`;\nmsg += `\\u251c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u253c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u253c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2524\\n`;\nmsg += `\\u2502 RF F1         \\u2502 ${fmt(oldRfF1, 3).padEnd(8)} \\u2502 ${fmt(newRfF1, 3).padEnd(8)} \\u2502\\n`;\nmsg += `\\u2502 XGB F1        \\u2502 ${fmt(oldXgbF1, 3).padEnd(8)} \\u2502 ${fmt(newXgbF1, 3).padEnd(8)} \\u2502\\n`;\nmsg += `\\u2502 Tokens train  \\u2502 ${fmt(oldTrainSize, 0).padEnd(8)} \\u2502 ${fmt(newTrainSize, 0).padEnd(8)} \\u2502\\n`;\nmsg += `\\u2502 Fecha         \\u2502 ${fmtDate(oldDate).padEnd(8)} \\u2502 ${fmtDate(newDate).padEnd(8)} \\u2502\\n`;\nmsg += `\\u2514\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2534\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2534\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2518`;\nmsg += `</pre>\\n\\n`;\n\nmsg += `${deltaEmoji(oldRfF1, newRfF1)} Cambio F1 RF: ${fmtDiff(oldRfF1, newRfF1)}\\n`;\nmsg += `${deltaEmoji(oldXgbF1, newXgbF1)} Cambio F1 XGB: ${fmtDiff(oldXgbF1, newXgbF1)}`;\n\n// Actualizar static data con la nueva version\nstaticData.lastVersion = newVersion;\n\nreturn [{\n  json: {\n    text: msg,\n    chat_id: '1558705287'\n  }\n}];"
+      },
+      "id": "compare-metrics",
+      "name": "Compare Metrics & Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 0]
+    },
+    {
+      "parameters": {
+        "chatId": "1558705287",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "telegram-new-version",
+      "name": "Telegram: New Version",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1540, 0],
+      "continueOnFail": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Rama sin cambios o primera ejecucion\nconst versionInfo = $('Check Version').first().json;\nconst status = versionInfo.status;\nconst version = versionInfo.latestVersion;\n\nlet msg;\n\nif (status === 'error') {\n  // Error al obtener version\n  const errorDetail = versionInfo.errorMessage || 'Error desconocido';\n  msg = `<b>\\ud83d\\udd04 Retrain Check \\u2014 Trading Memes</b>\\n`;\n  msg += `\\u274c ERROR: ${errorDetail}\\n`;\n  if (versionInfo.oldVersion) {\n    msg += `\\u00daltima versi\\u00f3n conocida: ${versionInfo.oldVersion}`;\n  }\n} else if (status === 'first_run') {\n  // Primera ejecucion, version inicializada\n  msg = `<b>\\ud83d\\udd04 Retrain Check \\u2014 Trading Memes</b>\\n`;\n  msg += `\\u2139\\ufe0f Retrain Notifier inicializado. Versi\\u00f3n: ${version}`;\n} else {\n  // Sin cambios\n  msg = `<b>\\ud83d\\udd04 Retrain Check \\u2014 Trading Memes</b>\\n`;\n  msg += `\\u2139\\ufe0f Sin cambios. Modelo actual: ${version}`;\n}\n\nreturn [{\n  json: {\n    text: msg,\n    chat_id: '1558705287'\n  }\n}];"
+      },
+      "id": "format-no-change",
+      "name": "Format No Change",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 280]
+    },
+    {
+      "parameters": {
+        "chatId": "1558705287",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "telegram-no-change",
+      "name": "Telegram: No Change",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1100, 280],
+      "continueOnFail": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Latest Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Latest Version": {
+      "main": [
+        [
+          {
+            "node": "Check Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Version": {
+      "main": [
+        [
+          {
+            "node": "IF New Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF New Version": {
+      "main": [
+        [
+          {
+            "node": "Get New Metadata",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Old Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format No Change",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get New Metadata": {
+      "main": [
+        [
+          {
+            "node": "Merge Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Old Metadata": {
+      "main": [
+        [
+          {
+            "node": "Merge Metadata",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Metadata": {
+      "main": [
+        [
+          {
+            "node": "Compare Metrics & Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare Metrics & Format": {
+      "main": [
+        [
+          {
+            "node": "Telegram: New Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format No Change": {
+      "main": [
+        [
+          {
+            "node": "Telegram: No Change",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "UTC"
+  },
+  "staticData": {
+    "global": {
+      "lastVersion": "v12"
+    }
+  },
+  "tags": [
+    {
+      "name": "trading-memes"
+    },
+    {
+      "name": "retrain"
+    },
+    {
+      "name": "monitoring"
+    }
+  ],
+  "meta": {
+    "instanceId": "placeholder"
+  }
+}

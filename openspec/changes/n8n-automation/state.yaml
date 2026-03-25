@@ -1,0 +1,10 @@
+change: n8n-automation
+status: tasks-complete
+created: 2026-03-25
+updated: 2026-03-25
+artifacts:
+  proposal: proposal.md
+  spec: spec.md
+  design: design.md
+  tasks: tasks.md
+next_recommended: sdd-apply

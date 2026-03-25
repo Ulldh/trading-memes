@@ -73,6 +73,12 @@ jobs:
               print(f'  {k}: {v}')
           "
 
+      # Scoring de tokens con modelos ML
+      # Descarga modelos de Supabase Storage si no estan localmente.
+      # Si no hay modelos entrenados todavia, skip graceful (exit 0).
+      - name: Score tokens with ML models
+        run: python scripts/score_tokens.py --model random_forest --min-days 7
+
       # Notificacion por Telegram si falla
       - name: Notify Telegram on failure
         if: failure()
