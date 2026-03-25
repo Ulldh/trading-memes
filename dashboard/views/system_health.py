@@ -15,9 +15,14 @@ import plotly.graph_objects as go
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 import json
+import os
+import platform
 import subprocess
 
 from src.data.supabase_storage import get_storage as _get_storage
+
+# Detectar si estamos en produccion (Docker/Render/Linux)
+IS_DOCKER = bool(os.getenv("RENDER")) or platform.system() == "Linux"
 
 # Constantes
 LOGS_DIR = Path("logs")
@@ -252,24 +257,30 @@ def render_services_logs():
         "Los servicios deben estar activos para que la recopilacion y backups funcionen."
     )
 
-    # Estado de servicios launchd
-    st.markdown("### Servicios Activos (launchd)")
+    # Estado de servicios launchd (solo macOS)
+    if IS_DOCKER:
+        st.info(
+            "ℹ️ **Servicios launchd**: No disponible en produccion (Linux/Docker). "
+            "Los servicios launchd solo funcionan en macOS local."
+        )
+    else:
+        st.markdown("### Servicios Activos (launchd)")
 
-    services = [
-        ("com.tradingmemes.dailycollect", "Daily Collect (03:00)"),
-        ("com.tradingmemes.healthcheck", "Health Check (cada 6h)"),
-        ("com.tradingmemes.backup", "Backup (04:00)"),
-    ]
+        services = [
+            ("com.tradingmemes.dailycollect", "Daily Collect (03:00)"),
+            ("com.tradingmemes.healthcheck", "Health Check (cada 6h)"),
+            ("com.tradingmemes.backup", "Backup (04:00)"),
+        ]
 
-    for service_id, service_name in services:
-        is_active = check_launchd_service(service_id)
-        if is_active:
-            st.success(f"✅ **{service_name}** - Activo")
-        else:
-            st.error(f"❌ **{service_name}** - Inactivo")
-            st.caption(
-                f"Para activar: `launchctl load ~/Library/LaunchAgents/{service_id}.plist`"
-            )
+        for service_id, service_name in services:
+            is_active = check_launchd_service(service_id)
+            if is_active:
+                st.success(f"✅ **{service_name}** - Activo")
+            else:
+                st.error(f"❌ **{service_name}** - Inactivo")
+                st.caption(
+                    f"Para activar: `launchctl load ~/Library/LaunchAgents/{service_id}.plist`"
+                )
 
     st.divider()
 
@@ -399,6 +410,15 @@ def render_disk_space():
 def render_execute_scripts():
     """Renderiza la seccion de ejecucion de scripts."""
     st.subheader("🚀 Ejecutar Scripts")
+
+    if IS_DOCKER:
+        st.warning(
+            "⚠️ **No disponible en produccion**. La ejecucion de scripts esta "
+            "deshabilitada en el entorno Docker/Render por seguridad. "
+            "Usa la terminal local o GitHub Actions para ejecutar scripts."
+        )
+        return
+
     st.caption(
         "Ejecuta los scripts principales del proyecto directamente desde el dashboard. "
         "Útil para ejecutar tareas manuales sin tener que abrir la terminal.\n\n"
@@ -543,7 +563,9 @@ def load_latest_health_status() -> dict:
 
 
 def check_launchd_service(service_id: str) -> bool:
-    """Verifica si un servicio launchd esta activo."""
+    """Verifica si un servicio launchd esta activo (solo macOS)."""
+    if IS_DOCKER:
+        return False
     try:
         result = subprocess.run(
             ["launchctl", "list"],

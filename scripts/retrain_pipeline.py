@@ -188,6 +188,57 @@ def run_pipeline(
     logger.info(f"Modelos guardados en: {version_dir}")
 
     # ================================================================
+    # PASO 5: Subir artefactos extra a Supabase Storage
+    # ================================================================
+    logger.info("=" * 60)
+    logger.info("PASO 5: Subiendo artefactos extra a Supabase Storage")
+    logger.info("=" * 60)
+
+    try:
+        from src.models.model_storage import upload_version, _get_supabase_client, BUCKET
+
+        # 5a. Subir modelos versionados (usa la funcion existente)
+        upload_result = upload_version(stats["model_version"])
+        logger.info(
+            f"  Modelos subidos: {len(upload_result['files_uploaded'])} archivos"
+        )
+
+        # 5b. Subir artefactos extra del dashboard
+        from config import MODELS_DIR as _MODELS_DIR, PROCESSED_DIR as _PROCESSED_DIR
+
+        extra_files = [
+            (_MODELS_DIR / "evaluation_results.json", "extras/evaluation_results.json"),
+            (_MODELS_DIR / "feature_columns.json", "extras/feature_columns.json"),
+        ]
+
+        client = _get_supabase_client()
+        storage_bucket = client.storage.from_(BUCKET)
+        extras_uploaded = 0
+
+        for local_path, remote_path in extra_files:
+            if not local_path.exists():
+                logger.debug(f"  {local_path.name} no existe, saltando")
+                continue
+            try:
+                with open(local_path, "rb") as f:
+                    data = f.read()
+                try:
+                    storage_bucket.remove([remote_path])
+                except Exception:
+                    pass
+                storage_bucket.upload(remote_path, data)
+                extras_uploaded += 1
+                logger.info(f"  {local_path.name} -> {remote_path}")
+            except Exception as e:
+                logger.warning(f"  Error subiendo {local_path.name}: {e}")
+
+        logger.info(f"  Artefactos extra subidos: {extras_uploaded}")
+
+    except Exception as e:
+        logger.warning(f"  No se pudieron subir artefactos a Storage: {e}")
+        logger.warning("  (Los modelos locales se guardaron correctamente)")
+
+    # ================================================================
     # RESUMEN FINAL
     # ================================================================
     logger.info("=" * 60)

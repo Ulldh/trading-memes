@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: trading-memes-dashboard
+    runtime: docker
+    repo: https://github.com/Ulldh/trading-memes
+    branch: main
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: STORAGE_BACKEND
+        value: supabase
+      - key: RENDER
+        value: "true"

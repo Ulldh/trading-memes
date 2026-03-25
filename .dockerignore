@@ -1,0 +1,63 @@
+# === Virtual environment ===
+.venv/
+venv/
+env/
+
+# === Environment secrets ===
+.env
+.env.*
+
+# === Git ===
+.git/
+.github/
+.gitignore
+
+# === Python cache ===
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# === Data files (downloaded at runtime from Supabase) ===
+data/raw/
+data/processed/
+data/models/
+data/trading_memes.db
+data/backups/
+
+# === Notebooks ===
+notebooks/
+*.ipynb
+
+# === Tests ===
+tests/
+
+# === Logs & signals (created at runtime) ===
+logs/
+signals/
+
+# === macOS ===
+.DS_Store
+
+# === Scripts not needed in production ===
+scripts/migrate_to_supabase.py
+scripts/migrate_via_rest.py
+scripts/backfill_discover.py
+scripts/backfill_ohlcv.py
+scripts/bulk_collect.py
+scripts/expand_seed.py
+scripts/audit_data_integrity.py
+scripts/backup_db.sh
+scripts/restore_db.sh
+*.plist
+
+# === Documentation ===
+*.md
+
+# === IDE ===
+.vscode/
+.idea/
+
+# === Cache ===
+.cache/
