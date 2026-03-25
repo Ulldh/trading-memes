@@ -7,6 +7,8 @@ Ejecuta en secuencia:
     2. Re-extraer features para todos los tokens
     3. Entrenar modelos RF + XGBoost (nueva version)
     4. Guardar modelos versionados + metadata
+    5. Subir artefactos a Supabase Storage
+    6. Validar nuevo modelo vs anterior (auto-rollback si degrada >5%)
 
 Usa el backend configurado en STORAGE_BACKEND (.env): sqlite o supabase.
 
@@ -18,6 +20,7 @@ Uso:
 """
 
 import argparse
+import json
 import sys
 import time
 from pathlib import Path
@@ -33,6 +36,9 @@ from src.models.trainer import ModelTrainer
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+# Umbral de degradacion permitida (5%)
+DEGRADATION_THRESHOLD = 0.05
 
 
 def run_pipeline(
@@ -59,6 +65,12 @@ def run_pipeline(
         "model_version": "",
         "rf_val_f1": 0.0,
         "xgb_val_f1": 0.0,
+        # Validacion post-entrenamiento (paso 6)
+        "validation_passed": None,       # True/False/None (None = no se pudo validar)
+        "rollback": False,               # True si se hizo rollback
+        "rollback_to": "",               # Version a la que se hizo rollback
+        "prev_rf_val_f1": None,          # F1 del modelo anterior
+        "prev_xgb_val_f1": None,         # F1 del modelo anterior
     }
 
     storage = get_storage()
@@ -188,33 +200,58 @@ def run_pipeline(
     logger.info(f"Modelos guardados en: {version_dir}")
 
     # ================================================================
-    # PASO 5: Subir artefactos extra a Supabase Storage
+    # PASO 5: Subir artefactos a Supabase Storage
+    # (Sube archivos del modelo PERO NO actualiza latest_version.txt aun.
+    #  Eso se hace tras la validacion en Paso 6.)
     # ================================================================
     logger.info("=" * 60)
-    logger.info("PASO 5: Subiendo artefactos extra a Supabase Storage")
+    logger.info("PASO 5: Subiendo artefactos a Supabase Storage")
     logger.info("=" * 60)
 
+    supabase_available = False
     try:
-        from src.models.model_storage import upload_version, _get_supabase_client, BUCKET
-
-        # 5a. Subir modelos versionados (usa la funcion existente)
-        upload_result = upload_version(stats["model_version"])
-        logger.info(
-            f"  Modelos subidos: {len(upload_result['files_uploaded'])} archivos"
+        from src.models.model_storage import (
+            _get_supabase_client, BUCKET, VERSION_FILES,
         )
 
-        # 5b. Subir artefactos extra del dashboard
-        from config import MODELS_DIR as _MODELS_DIR, PROCESSED_DIR as _PROCESSED_DIR
+        client = _get_supabase_client()
+        storage_bucket = client.storage.from_(BUCKET)
+        supabase_available = True
 
+        # 5a. Subir archivos del modelo versionado (sin actualizar latest_version.txt)
+        from config import MODELS_DIR as _MODELS_DIR, PROCESSED_DIR as _PROCESSED_DIR
+        version_name = stats["model_version"]
+        model_dir = _MODELS_DIR / version_name
+        files_uploaded = 0
+
+        for filename in VERSION_FILES:
+            filepath = model_dir / filename
+            if not filepath.exists():
+                logger.debug(f"  {filename} no existe, saltando")
+                continue
+            remote_path = f"{version_name}/{filename}"
+            try:
+                with open(filepath, "rb") as f:
+                    data = f.read()
+                try:
+                    storage_bucket.remove([remote_path])
+                except Exception:
+                    pass
+                storage_bucket.upload(remote_path, data)
+                files_uploaded += 1
+                logger.info(f"  {filename} -> {remote_path}")
+            except Exception as e:
+                logger.warning(f"  Error subiendo {filename}: {e}")
+
+        logger.info(f"  Modelos subidos: {files_uploaded} archivos")
+
+        # 5b. Subir artefactos extra del dashboard
         extra_files = [
             (_MODELS_DIR / "evaluation_results.json", "extras/evaluation_results.json"),
             (_MODELS_DIR / "feature_columns.json", "extras/feature_columns.json"),
         ]
 
-        client = _get_supabase_client()
-        storage_bucket = client.storage.from_(BUCKET)
         extras_uploaded = 0
-
         for local_path, remote_path in extra_files:
             if not local_path.exists():
                 logger.debug(f"  {local_path.name} no existe, saltando")
@@ -239,19 +276,187 @@ def run_pipeline(
         logger.warning("  (Los modelos locales se guardaron correctamente)")
 
     # ================================================================
+    # PASO 6: Validar nuevo modelo vs anterior
+    # Compara RF val_F1 y XGB val_F1 entre la version nueva y la anterior.
+    # Si AMBAS metricas caen mas del 5% -> rollback automatico.
+    # ================================================================
+    logger.info("=" * 60)
+    logger.info("PASO 6: Validando nuevo modelo vs version anterior")
+    logger.info("=" * 60)
+
+    # Determinar version anterior
+    new_version = stats["model_version"]  # ej: "v13"
+    new_version_num = int(new_version.replace("v", ""))
+    prev_version = f"v{new_version_num - 1}" if new_version_num > 1 else None
+
+    if prev_version is None:
+        logger.info("  Primera version (v1), no hay modelo anterior para comparar.")
+        stats["validation_passed"] = True
+
+        # Actualizar latest_version.txt en Supabase (primera version)
+        if supabase_available:
+            _update_latest_version_remote(storage_bucket, new_version)
+    else:
+        # Cargar metadata de la version anterior
+        prev_metadata = _load_previous_metadata(prev_version, supabase_available,
+                                                 storage_bucket if supabase_available else None)
+
+        if prev_metadata is None:
+            logger.warning(
+                f"  No se encontro metadata de {prev_version}. "
+                "Asumiendo validacion OK (sin referencia para comparar)."
+            )
+            stats["validation_passed"] = True
+            if supabase_available:
+                _update_latest_version_remote(storage_bucket, new_version)
+        else:
+            # Extraer metricas del modelo anterior
+            prev_results = prev_metadata.get("results", {})
+            prev_rf_f1 = prev_results.get("random_forest", {}).get("val_f1", 0.0)
+            prev_xgb_f1 = prev_results.get("xgboost", {}).get("val_f1", 0.0)
+
+            stats["prev_rf_val_f1"] = prev_rf_f1
+            stats["prev_xgb_val_f1"] = prev_xgb_f1
+
+            # Calcular degradacion
+            new_rf_f1 = stats["rf_val_f1"]
+            new_xgb_f1 = stats["xgb_val_f1"]
+
+            rf_drop = prev_rf_f1 - new_rf_f1
+            xgb_drop = prev_xgb_f1 - new_xgb_f1
+
+            logger.info(f"  {prev_version} -> {new_version}:")
+            logger.info(f"    RF  Val F1: {prev_rf_f1:.3f} -> {new_rf_f1:.3f} (delta: {-rf_drop:+.3f})")
+            logger.info(f"    XGB Val F1: {prev_xgb_f1:.3f} -> {new_xgb_f1:.3f} (delta: {-xgb_drop:+.3f})")
+
+            # Ambas metricas deben caer mas del umbral para rollback
+            rf_degraded = rf_drop > DEGRADATION_THRESHOLD
+            xgb_degraded = xgb_drop > DEGRADATION_THRESHOLD
+
+            if rf_degraded and xgb_degraded:
+                # ROLLBACK: ambas metricas degradaron mas del 5%
+                logger.warning(
+                    f"  AMBAS metricas degradaron >5%: "
+                    f"RF {rf_drop:+.3f}, XGB {xgb_drop:+.3f}"
+                )
+                logger.warning(
+                    f"  Nuevo modelo {new_version} degradó métricas. "
+                    f"Rollback a {prev_version}"
+                )
+
+                stats["validation_passed"] = False
+                stats["rollback"] = True
+                stats["rollback_to"] = prev_version
+
+                # Rollback: actualizar latest_version.txt a la version anterior
+                # Local
+                from config import MODELS_DIR as _MODELS_DIR_RB
+                local_latest = _MODELS_DIR_RB / "latest_version.txt"
+                local_latest.write_text(prev_version)
+                logger.info(f"  latest_version.txt local -> {prev_version}")
+
+                # Remoto (Supabase Storage)
+                if supabase_available:
+                    _update_latest_version_remote(storage_bucket, prev_version)
+
+                logger.warning(
+                    f"  Artefactos de {new_version} se conservan en Storage "
+                    f"para analisis, pero latest apunta a {prev_version}"
+                )
+            else:
+                # Validacion OK: al menos una metrica mejora o se mantiene
+                logger.info("  Validacion OK: metricas dentro del umbral aceptable")
+                stats["validation_passed"] = True
+
+                # Actualizar latest_version.txt en Supabase
+                if supabase_available:
+                    _update_latest_version_remote(storage_bucket, new_version)
+
+    # ================================================================
     # RESUMEN FINAL
     # ================================================================
     logger.info("=" * 60)
-    logger.info("PIPELINE COMPLETADO")
-    logger.info(f"  Version:          {stats['model_version']}")
+    if stats["rollback"]:
+        logger.warning("PIPELINE COMPLETADO CON ROLLBACK")
+        logger.warning(f"  Version entrenada: {stats['model_version']}")
+        logger.warning(f"  Rollback a:        {stats['rollback_to']}")
+    else:
+        logger.info("PIPELINE COMPLETADO")
+        logger.info(f"  Version:          {stats['model_version']}")
     logger.info(f"  Tokens:           {stats['tokens_total']}")
     logger.info(f"  Labels:           {stats['labels_total']} ({stats['labels_positive']} pos)")
     logger.info(f"  Features:         {stats['features_total']}")
     logger.info(f"  RF Val F1:        {stats['rf_val_f1']:.3f}")
     logger.info(f"  XGB Val F1:       {stats['xgb_val_f1']:.3f}")
+    if stats["prev_rf_val_f1"] is not None:
+        logger.info(f"  RF Val F1 (prev): {stats['prev_rf_val_f1']:.3f}")
+        logger.info(f"  XGB Val F1 (prev):{stats['prev_xgb_val_f1']:.3f}")
+    logger.info(f"  Validacion:       {'PASS' if stats['validation_passed'] else 'FAIL (rollback)'}")
     logger.info("=" * 60)
 
     return stats
+
+
+def _load_previous_metadata(
+    prev_version: str,
+    supabase_available: bool,
+    storage_bucket,
+) -> dict | None:
+    """
+    Carga el metadata.json de la version anterior.
+
+    Intenta primero desde Supabase Storage, luego desde disco local.
+
+    Args:
+        prev_version: Nombre de la version anterior (ej: "v12").
+        supabase_available: Si el cliente de Supabase esta disponible.
+        storage_bucket: Bucket de Supabase Storage (o None).
+
+    Returns:
+        Dict con metadata o None si no se encontro.
+    """
+    # Intentar desde Supabase Storage
+    if supabase_available and storage_bucket is not None:
+        try:
+            data = storage_bucket.download(f"{prev_version}/metadata.json")
+            metadata = json.loads(data.decode())
+            logger.info(f"  Metadata de {prev_version} cargada desde Supabase Storage")
+            return metadata
+        except Exception as e:
+            logger.debug(f"  No se pudo descargar metadata de {prev_version} de Storage: {e}")
+
+    # Intentar desde disco local
+    try:
+        from config import MODELS_DIR as _MODELS_DIR_META
+        local_metadata = _MODELS_DIR_META / prev_version / "metadata.json"
+        if local_metadata.exists():
+            with open(local_metadata) as f:
+                metadata = json.load(f)
+            logger.info(f"  Metadata de {prev_version} cargada desde disco local")
+            return metadata
+    except Exception as e:
+        logger.debug(f"  No se pudo cargar metadata local de {prev_version}: {e}")
+
+    return None
+
+
+def _update_latest_version_remote(storage_bucket, version: str):
+    """
+    Actualiza latest_version.txt en Supabase Storage.
+
+    Args:
+        storage_bucket: Bucket de Supabase Storage.
+        version: Version a establecer como latest (ej: "v13").
+    """
+    try:
+        try:
+            storage_bucket.remove(["latest_version.txt"])
+        except Exception:
+            pass
+        storage_bucket.upload("latest_version.txt", version.encode())
+        logger.info(f"  latest_version.txt remoto -> {version}")
+    except Exception as e:
+        logger.warning(f"  Error actualizando latest_version.txt remoto: {e}")
 
 
 if __name__ == "__main__":

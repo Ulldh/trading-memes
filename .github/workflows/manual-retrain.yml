@@ -57,6 +57,7 @@ jobs:
         run: mkdir -p data/raw data/processed data/models .cache
 
       # Construir argumentos segun inputs del usuario
+      # Captura la salida JSON del pipeline para extraer metricas
       - name: Run retrain pipeline
         id: retrain
         run: |
@@ -72,7 +73,35 @@ jobs:
           fi
 
           echo "Ejecutando: python scripts/retrain_pipeline.py $ARGS"
-          python scripts/retrain_pipeline.py $ARGS
+
+          # Ejecutar pipeline y guardar la ultima linea (dict de stats) en archivo temporal
+          python scripts/retrain_pipeline.py $ARGS 2>&1 | tee /dev/stderr | tail -1 > /tmp/retrain_output.txt
+
+          # Extraer metricas del output usando python (lee del archivo para evitar problemas de escape)
+          python3 << 'PYEOF'
+          import ast, os
+
+          with open("/tmp/retrain_output.txt") as f:
+              raw = f.read().strip()
+
+          # Limpiar prefijo 'Resultado: ' si existe
+          if "Resultado: " in raw:
+              raw = raw.split("Resultado: ", 1)[1]
+          try:
+              stats = ast.literal_eval(raw)
+          except Exception:
+              stats = {}
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"model_version={stats.get('model_version', 'unknown')}\n")
+              f.write(f"rf_val_f1={stats.get('rf_val_f1', 0.0)}\n")
+              f.write(f"xgb_val_f1={stats.get('xgb_val_f1', 0.0)}\n")
+              f.write(f"prev_rf_val_f1={stats.get('prev_rf_val_f1', '')}\n")
+              f.write(f"prev_xgb_val_f1={stats.get('prev_xgb_val_f1', '')}\n")
+              f.write(f"validation_passed={stats.get('validation_passed', '')}\n")
+              f.write(f"rollback={stats.get('rollback', False)}\n")
+              f.write(f"rollback_to={stats.get('rollback_to', '')}\n")
+          PYEOF
 
       # Subir artefactos del modelo (todos los archivos en data/models/)
       - name: Upload model artifacts
@@ -83,14 +112,34 @@ jobs:
           path: data/models/
           retention-days: 30
 
-      # Notificacion por Telegram con resultado
+      # Notificacion por Telegram con resultado de validacion
       - name: Notify Telegram on success
         if: success()
         run: |
+          VERSION="${{ steps.retrain.outputs.model_version }}"
+          RF_F1="${{ steps.retrain.outputs.rf_val_f1 }}"
+          XGB_F1="${{ steps.retrain.outputs.xgb_val_f1 }}"
+          PREV_RF="${{ steps.retrain.outputs.prev_rf_val_f1 }}"
+          PREV_XGB="${{ steps.retrain.outputs.prev_xgb_val_f1 }}"
+          ROLLBACK="${{ steps.retrain.outputs.rollback }}"
+          ROLLBACK_TO="${{ steps.retrain.outputs.rollback_to }}"
+
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             MSG="🔍 *Manual Retrain (DRY RUN)* completado"
+          elif [ "$ROLLBACK" = "True" ]; then
+            MSG="⚠️ *${VERSION} entrenado pero rollback a ${ROLLBACK_TO}*"
+            if [ -n "$PREV_RF" ] && [ "$PREV_RF" != "None" ]; then
+              MSG="${MSG}%0ARF F1: ${PREV_RF} → ${RF_F1}"
+              MSG="${MSG}%0AXGB F1: ${PREV_XGB} → ${XGB_F1}"
+            fi
           else
-            MSG="✅ *Manual Retrain* completado exitosamente"
+            MSG="✅ *${VERSION} entrenado y validado*"
+            if [ -n "$PREV_RF" ] && [ "$PREV_RF" != "None" ]; then
+              MSG="${MSG}%0ARF F1: ${PREV_RF} → ${RF_F1}"
+              MSG="${MSG}%0AXGB F1: ${PREV_XGB} → ${XGB_F1}"
+            else
+              MSG="${MSG}%0ARF F1: ${RF_F1}, XGB F1: ${XGB_F1}"
+            fi
           fi
 
           INPUTS="skip_labels=${{ inputs.skip_labels }}, skip_features=${{ inputs.skip_features }}, dry_run=${{ inputs.dry_run }}"
