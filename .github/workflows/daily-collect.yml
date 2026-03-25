@@ -1,0 +1,83 @@
+# Recopilacion diaria de datos - Ejecuta el collector contra Supabase
+name: Daily Collect
+
+on:
+  schedule:
+    # Todos los dias a las 06:00 UTC
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      max_tokens_ohlcv:
+        description: "Maximo de tokens para OHLCV (default 200)"
+        required: false
+        default: "200"
+
+concurrency:
+  group: daily-collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      # Backend de almacenamiento
+      STORAGE_BACKEND: supabase
+      # Supabase
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      # API keys (nombres exactos de config.py)
+      HELIUS_API_KEY: ${{ secrets.HELIUS_API_KEY }}
+      ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+      BASESCAN_API_KEY: ${{ secrets.BASESCAN_API_KEY }}
+      COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+      BIRDEYE_API_KEY: ${{ secrets.BIRDEYE_API_KEY }}
+      X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create data directories
+        run: mkdir -p data/raw data/processed data/models .cache
+
+      # El collector tiene __main__ que llama run_daily_collection() + collect_market_context()
+      - name: Run daily collection
+        run: python -m src.data.collector
+
+      # Mostrar estadisticas de la DB despues de la recopilacion
+      - name: Show DB stats
+        run: |
+          python -c "
+          from src.data.supabase_storage import get_storage
+          storage = get_storage()
+          stats = storage.stats()
+          print('=== DB Stats post-collect ===')
+          for k, v in stats.items():
+              print(f'  {k}: {v}')
+          "
+
+      # Notificacion por Telegram si falla
+      - name: Notify Telegram on failure
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d parse_mode="Markdown" \
+            -d text="❌ *Daily Collect FAILED*%0A%0ARepo: ${{ github.repository }}%0ARun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

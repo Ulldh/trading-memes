@@ -1,0 +1,49 @@
+# CI - Tests y validacion basica en cada push/PR a main
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create data directories
+        run: mkdir -p data/raw data/processed data/models .cache
+
+      - name: Run tests
+        env:
+          STORAGE_BACKEND: sqlite
+        run: pytest tests/ -v --tb=short
+
+      - name: Smoke test imports
+        run: |
+          python -c "from src.data.collector import DataCollector; print('OK: collector')"
+          python -c "from src.models.trainer import ModelTrainer; print('OK: trainer')"
+          python -c "from src.features.builder import FeatureBuilder; print('OK: builder')"

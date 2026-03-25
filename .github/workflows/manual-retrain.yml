@@ -1,0 +1,109 @@
+# Manual Retrain - Pipeline completo de re-entrenamiento bajo demanda
+name: Manual Retrain
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_labels:
+        description: "Saltar re-etiquetado (usar labels existentes)"
+        required: false
+        type: boolean
+        default: false
+      skip_features:
+        description: "Saltar extraccion de features (usar existentes)"
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: "Solo mostrar estadisticas, no entrenar"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: retrain
+  cancel-in-progress: false
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      STORAGE_BACKEND: supabase
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create data directories
+        run: mkdir -p data/raw data/processed data/models .cache
+
+      # Construir argumentos segun inputs del usuario
+      - name: Run retrain pipeline
+        id: retrain
+        run: |
+          ARGS=""
+          if [ "${{ inputs.skip_labels }}" = "true" ]; then
+            ARGS="$ARGS --skip-labels"
+          fi
+          if [ "${{ inputs.skip_features }}" = "true" ]; then
+            ARGS="$ARGS --skip-features"
+          fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+
+          echo "Ejecutando: python scripts/retrain_pipeline.py $ARGS"
+          python scripts/retrain_pipeline.py $ARGS
+
+      # Subir artefactos del modelo (todos los archivos en data/models/)
+      - name: Upload model artifacts
+        if: ${{ inputs.dry_run != true }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-models-${{ github.run_number }}
+          path: data/models/
+          retention-days: 30
+
+      # Notificacion por Telegram con resultado
+      - name: Notify Telegram on success
+        if: success()
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            MSG="🔍 *Manual Retrain (DRY RUN)* completado"
+          else
+            MSG="✅ *Manual Retrain* completado exitosamente"
+          fi
+
+          INPUTS="skip_labels=${{ inputs.skip_labels }}, skip_features=${{ inputs.skip_features }}, dry_run=${{ inputs.dry_run }}"
+
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d parse_mode="Markdown" \
+            -d text="${MSG}%0A%0A*Inputs:* ${INPUTS}%0A%0A[Ver run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+
+      - name: Notify Telegram on failure
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d parse_mode="Markdown" \
+            -d text="❌ *Manual Retrain FAILED*%0A%0A*Inputs:* skip_labels=${{ inputs.skip_labels }}, skip_features=${{ inputs.skip_features }}, dry_run=${{ inputs.dry_run }}%0A%0A[Ver run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
