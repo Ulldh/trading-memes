@@ -42,11 +42,12 @@ Uso:
         print(f"Razones: {drift_report['reasons']}")
 """
 
+import json
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from typing import Optional, Dict, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 from scipy.stats import ks_2samp
 from sklearn.metrics import f1_score, accuracy_score
@@ -493,3 +494,317 @@ class DriftDetector:
             "reasons": reasons,
             **results,
         }
+
+    # ============================================================
+    # 5. FEATURE DRIFT (cambio en medianas de features)
+    # ============================================================
+
+    @staticmethod
+    def detect_feature_drift(
+        train_medians: dict,
+        current_medians: dict,
+        threshold_pct: float = 0.50,
+        min_drifted_ratio: float = 0.20,
+    ) -> Dict[str, any]:
+        """
+        Detecta drift comparando medianas de features entre entrenamiento y datos actuales.
+
+        Para cada feature calcula el desplazamiento relativo (shift) entre
+        la mediana de entrenamiento y la mediana actual. Si mas de un porcentaje
+        minimo de features tienen shift > threshold, se considera drift.
+
+        Args:
+            train_medians: Medianas de features en datos de entrenamiento.
+                           Formato: {"feature_name": valor, ...}
+            current_medians: Medianas de features en datos actuales.
+            threshold_pct: Porcentaje de cambio para considerar drift en una
+                           feature individual (0.50 = 50%).
+            min_drifted_ratio: Proporcion minima de features con drift para
+                               disparar la alerta (0.20 = 20%).
+
+        Returns:
+            Dict con:
+            - triggered (bool): True si drifted_count/total > min_drifted_ratio.
+            - total_features (int): Numero total de features evaluadas.
+            - drifted_count (int): Numero de features con drift.
+            - drifted_ratio (float): Proporcion de features con drift.
+            - details (dict): Solo features con drift, cada una con train/current/shift_pct.
+
+        Ejemplo:
+            >>> result = DriftDetector.detect_feature_drift(
+            ...     {"feat_a": 0.5, "feat_b": 1.0},
+            ...     {"feat_a": 0.8, "feat_b": 1.1},
+            ... )
+            >>> if result["triggered"]:
+            ...     print(f"{result['drifted_count']} features con drift")
+        """
+        # Usar solo features presentes en ambos diccionarios
+        common_features = set(train_medians.keys()) & set(current_medians.keys())
+
+        if not common_features:
+            logger.warning("No hay features en comun para comparar medianas.")
+            return {
+                "triggered": False,
+                "total_features": 0,
+                "drifted_count": 0,
+                "drifted_ratio": 0.0,
+                "details": {},
+            }
+
+        drifted_details = {}
+
+        for feat in sorted(common_features):
+            train_val = train_medians[feat]
+            current_val = current_medians[feat]
+
+            # Calcular shift relativo: abs(current - train) / max(|train|, epsilon)
+            denominator = max(abs(train_val), 1e-6)
+            shift = abs(current_val - train_val) / denominator
+
+            if shift > threshold_pct:
+                drifted_details[feat] = {
+                    "train": train_val,
+                    "current": current_val,
+                    "shift_pct": round(shift, 4),
+                }
+
+        total = len(common_features)
+        drifted_count = len(drifted_details)
+        drifted_ratio = drifted_count / total if total > 0 else 0.0
+        triggered = drifted_ratio > min_drifted_ratio
+
+        if triggered:
+            logger.warning(
+                f"Feature drift detectado: {drifted_count}/{total} features "
+                f"({drifted_ratio:.1%}) superan umbral de {threshold_pct:.0%}"
+            )
+        else:
+            logger.info(
+                f"No feature drift: {drifted_count}/{total} features "
+                f"({drifted_ratio:.1%}) con shift > {threshold_pct:.0%}"
+            )
+
+        return {
+            "triggered": triggered,
+            "total_features": total,
+            "drifted_count": drifted_count,
+            "drifted_ratio": round(drifted_ratio, 4),
+            "details": drifted_details,
+        }
+
+    # ============================================================
+    # 6. REPORTE COMPLETO (genera reporte plano para save_drift_report)
+    # ============================================================
+
+    @classmethod
+    def generate_report(
+        cls,
+        model_version: str,
+        metadata: dict,
+        train_medians: dict,
+        current_medians: dict,
+        days_threshold: int = 30,
+        volume_threshold: int = 50,
+    ) -> dict:
+        """
+        Genera un reporte completo de drift listo para save_drift_report().
+
+        Ejecuta las tres verificaciones ligeras (time, volume, feature) sin
+        necesidad de datos crudos ni modelo cargado:
+        - Time drift: compara metadata["trained_at"] con fecha actual.
+        - Volume drift: consulta labels en storage vs metadata["train_size"].
+        - Feature drift: compara train_medians vs current_medians.
+
+        Args:
+            model_version: Version del modelo (ej: "v12").
+            metadata: Dict con "trained_at" (ISO string) y "train_size" (int).
+            train_medians: Medianas de features usadas en entrenamiento.
+            current_medians: Medianas de features actuales.
+            days_threshold: Dias maximos sin re-entrenar (default: 30).
+            volume_threshold: Tokens nuevos minimos para re-entrenar (default: 50).
+
+        Returns:
+            Dict plano con todos los campos necesarios para save_drift_report(),
+            incluyendo: model_version, needs_retraining, reasons, scores
+            individuales por tipo de drift, y overall_score ponderado.
+
+        Ejemplo:
+            >>> report = DriftDetector.generate_report(
+            ...     "v12",
+            ...     {"trained_at": "2026-03-01T00:00:00Z", "train_size": 1200},
+            ...     {"feat_a": 0.5}, {"feat_a": 0.9}
+            ... )
+            >>> report["needs_retraining"]
+            True
+        """
+        # Crear instancia temporal con los umbrales proporcionados
+        detector = cls(days_threshold=days_threshold, volume_threshold=volume_threshold)
+        reasons = []
+
+        # --- 1. Time drift ---
+        trained_at = metadata.get("trained_at")
+        time_result = detector.detect_time_drift(trained_at)
+        time_days = time_result.get("days_since_training")
+        time_triggered = time_result["has_drift"]
+        if time_triggered:
+            reasons.append("time_drift")
+
+        # --- 2. Volume drift ---
+        # Consultar cuantos labels hay actualmente en storage
+        train_size = metadata.get("train_size", 0)
+        new_labels = 0
+        try:
+            from src.data.supabase_storage import get_storage
+            storage = get_storage()
+            rows = storage.query("SELECT COUNT(*) as cnt FROM labels")
+            total_labels = rows[0]["cnt"] if rows else 0
+            new_labels = max(0, total_labels - train_size)
+        except Exception as e:
+            logger.warning(f"No se pudo consultar labels en storage: {e}")
+            total_labels = train_size  # Asumir sin cambios si falla
+
+        volume_result = detector.detect_volume_drift(train_size, new_labels)
+        volume_triggered = volume_result["has_drift"]
+        if volume_triggered:
+            reasons.append("volume_drift")
+
+        # --- 3. Feature drift ---
+        feature_result = cls.detect_feature_drift(train_medians, current_medians)
+        feature_triggered = feature_result["triggered"]
+        if feature_triggered:
+            reasons.append("feature_drift")
+
+        # --- Overall score (0-1, ponderado) ---
+        # Pesos: time=0.3, volume=0.3, feature=0.4
+        time_score = 1.0 if time_triggered else (
+            min((time_days or 0) / days_threshold, 1.0)
+        )
+        volume_score = 1.0 if volume_triggered else (
+            min(new_labels / max(volume_threshold, 1), 1.0)
+        )
+        feature_score = feature_result["drifted_ratio"]
+
+        overall_score = round(
+            0.3 * time_score + 0.3 * volume_score + 0.4 * feature_score, 4
+        )
+
+        needs_retraining = len(reasons) > 0
+
+        # Reporte completo (estructura interna para referencia)
+        full_report = {
+            "time_drift": time_result,
+            "volume_drift": volume_result,
+            "feature_drift": feature_result,
+        }
+
+        # Top features con drift (limitar details para no saturar la DB)
+        feature_details = feature_result.get("details", {})
+        # Ordenar por shift descendente y tomar top 10
+        sorted_details = dict(
+            sorted(
+                feature_details.items(),
+                key=lambda x: x[1]["shift_pct"],
+                reverse=True,
+            )[:10]
+        )
+
+        if needs_retraining:
+            logger.warning(
+                f"Reporte {model_version}: RE-ENTRENAMIENTO RECOMENDADO. "
+                f"Razones: {reasons}. Score: {overall_score}"
+            )
+        else:
+            logger.info(
+                f"Reporte {model_version}: modelo OK. Score: {overall_score}"
+            )
+
+        return {
+            "model_version": model_version,
+            "needs_retraining": needs_retraining,
+            "reasons": reasons,
+            "time_drift_days": time_days,
+            "time_drift_triggered": time_triggered,
+            "volume_drift_new_labels": new_labels,
+            "volume_drift_triggered": volume_triggered,
+            "feature_drift_count": feature_result["drifted_count"],
+            "feature_drift_total": feature_result["total_features"],
+            "feature_drift_triggered": feature_triggered,
+            "feature_drift_details": sorted_details,
+            "overall_score": overall_score,
+            "report_json": full_report,
+        }
+
+    # ============================================================
+    # 7. CARGA DE ARTEFACTOS DESDE DISCO LOCAL
+    # ============================================================
+
+    @staticmethod
+    def load_from_local(model_version: str = None) -> Tuple[dict, dict]:
+        """
+        Carga metadata.json y train_medians.json desde disco local.
+
+        Lee los archivos del directorio data/models/{version}/.
+        Si no se especifica version, lee latest_version.txt para determinarla.
+        Los archivos deben existir localmente (descargados por download_models.py
+        o generados por el pipeline de entrenamiento).
+
+        Args:
+            model_version: Version del modelo (ej: "v12"). Si es None,
+                           lee latest_version.txt de MODELS_DIR.
+
+        Returns:
+            Tupla (metadata, train_medians) donde:
+            - metadata: dict con "trained_at", "train_size", etc.
+            - train_medians: dict con medianas por feature.
+
+        Raises:
+            FileNotFoundError: Si los archivos no existen en disco.
+
+        Ejemplo:
+            >>> metadata, medians = DriftDetector.load_from_local("v12")
+            >>> print(metadata["trained_at"])
+            "2026-03-15T10:30:00Z"
+        """
+        from config import MODELS_DIR
+
+        # Determinar version si no se proporciona
+        if model_version is None:
+            version_file = MODELS_DIR / "latest_version.txt"
+            if version_file.exists():
+                model_version = version_file.read_text().strip()
+                logger.info(f"Version detectada desde latest_version.txt: {model_version}")
+            else:
+                raise FileNotFoundError(
+                    f"No se encontro latest_version.txt en {MODELS_DIR}. "
+                    "Especifica model_version manualmente."
+                )
+
+        version_dir = MODELS_DIR / model_version
+
+        # Cargar metadata.json
+        metadata_path = version_dir / "metadata.json"
+        if not metadata_path.exists():
+            raise FileNotFoundError(
+                f"No se encontro metadata.json en {version_dir}. "
+                "Ejecuta download_models.py o el pipeline de entrenamiento primero."
+            )
+        with open(metadata_path, "r") as f:
+            metadata = json.load(f)
+
+        # Cargar train_medians.json
+        medians_path = version_dir / "train_medians.json"
+        if not medians_path.exists():
+            raise FileNotFoundError(
+                f"No se encontro train_medians.json en {version_dir}. "
+                "Ejecuta download_models.py o el pipeline de entrenamiento primero."
+            )
+        with open(medians_path, "r") as f:
+            train_medians = json.load(f)
+
+        logger.info(
+            f"Artefactos {model_version} cargados: "
+            f"metadata ({len(metadata)} campos), "
+            f"train_medians ({len(train_medians)} features)"
+        )
+
+        return metadata, train_medians

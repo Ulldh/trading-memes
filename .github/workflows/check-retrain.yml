@@ -39,70 +39,22 @@ jobs:
       - name: Create data directories
         run: mkdir -p data/raw data/processed data/models .cache
 
-      # Ejecutar deteccion de drift: volume + time (no requiere modelo cargado)
+      # Ejecutar script de drift detection
+      # El script escribe needs_retrain, reasons, overall_score, model_version
+      # a GITHUB_OUTPUT antes de hacer sys.exit().
+      # Exit codes: 0=OK, 1=retrain needed, 2=error.
+      # continue-on-error permite que el job siga aunque exit code sea 1.
       - name: Run drift detection
         id: drift
-        run: |
-          python -c "
-          import json
-          from src.data.supabase_storage import get_storage
-          from src.models.drift_detector import DriftDetector
+        run: python scripts/check_drift.py --verbose
+        continue-on-error: true
 
-          storage = get_storage()
-          detector = DriftDetector()
-
-          # --- Volume drift ---
-          # Obtener conteo actual de labels
-          labels_df = storage.query('SELECT COUNT(*) as cnt FROM labels')
-          current_labels = int(labels_df.iloc[0]['cnt']) if not labels_df.empty else 0
-
-          # Buscar metadata del ultimo modelo para saber cuantos labels tenia
-          import glob, os
-          from pathlib import Path
-
-          models_dir = Path('data/models')
-          versions = sorted(models_dir.glob('v*'), reverse=True) if models_dir.exists() else []
-
-          train_size = 0
-          last_train_date = None
-
-          if versions:
-              latest = versions[0]
-              # Buscar metadata JSON
-              meta_files = list(latest.glob('*metadata*.json'))
-              if meta_files:
-                  import json as jmod
-                  with open(meta_files[0]) as f:
-                      meta = jmod.load(f)
-                  train_size = meta.get('train_size', meta.get('n_samples', 0))
-                  last_train_date = meta.get('trained_at', meta.get('timestamp', None))
-
-          new_size = max(0, current_labels - train_size)
-
-          # --- Ejecutar deteccion ---
-          report = detector.detect_all_drift(
-              train_size=train_size,
-              new_size=new_size,
-              last_train_date=last_train_date,
-          )
-
-          needs = report['needs_retraining']
-          reasons = report.get('reasons', [])
-
-          print(f'needs_retrain={needs}')
-          print(f'reasons={reasons}')
-          print(f'current_labels={current_labels}')
-          print(f'train_size={train_size}')
-          print(f'new_tokens={new_size}')
-          print(f'last_train_date={last_train_date}')
-
-          # Exportar para steps siguientes
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
-              fh.write(f'needs_retrain={\"true\" if needs else \"false\"}\n')
-              fh.write(f'reasons={json.dumps(reasons)}\n')
-              fh.write(f'current_labels={current_labels}\n')
-              fh.write(f'new_tokens={new_size}\n')
-          "
+      # Disparar retrain automaticamente si se detecta drift (exit code 1)
+      - name: Trigger retrain if needed
+        if: steps.drift.outputs.needs_retrain == 'true'
+        run: gh workflow run manual-retrain.yml
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       # Notificacion por Telegram con resultado del check
       - name: Notify Telegram
@@ -116,7 +68,11 @@ jobs:
             STATUS="Modelo OK, no necesita re-entrenamiento"
           fi
 
+          SCORE="${{ steps.drift.outputs.overall_score }}"
+          REASONS="${{ steps.drift.outputs.reasons }}"
+          VERSION="${{ steps.drift.outputs.model_version }}"
+
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
             -d parse_mode="Markdown" \
-            -d text="${EMOJI} *Drift Check*%0A%0A*Status:* ${STATUS}%0A*Labels actuales:* ${{ steps.drift.outputs.current_labels }}%0A*Tokens nuevos:* ${{ steps.drift.outputs.new_tokens }}%0A*Razones:* ${{ steps.drift.outputs.reasons }}%0A%0A[Ver run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            -d text="${EMOJI} *Drift Check*%0A%0A*Status:* ${STATUS}%0A*Modelo:* ${VERSION}%0A*Score:* ${SCORE}%0A*Razones:* ${REASONS}%0A%0A[Ver run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"

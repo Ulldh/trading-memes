@@ -666,6 +666,92 @@ class SupabaseStorage:
         return pd.DataFrame(data) if data else pd.DataFrame()
 
     # ============================================================
+    # DRIFT REPORTS
+    # ============================================================
+
+    def save_drift_report(self, report: dict):
+        """
+        Guarda un reporte de drift detection en la tabla drift_reports.
+
+        Args:
+            report: Dict con los resultados del drift check.
+                Campos requeridos: model_version.
+                Campos opcionales: needs_retraining, reasons,
+                time_drift_days, time_drift_triggered,
+                volume_drift_new_labels, volume_drift_triggered,
+                feature_drift_count, feature_drift_total,
+                feature_drift_triggered, feature_drift_details,
+                overall_score, report_json.
+
+        Ejemplo:
+            storage.save_drift_report({
+                "model_version": "v12",
+                "needs_retraining": True,
+                "reasons": ["time_drift", "feature_drift"],
+                "overall_score": 0.75,
+                "time_drift_days": 45,
+                "time_drift_triggered": True,
+            })
+        """
+        if not report.get("model_version"):
+            logger.error("save_drift_report: model_version es requerido")
+            return
+
+        row = {
+            "model_version": report["model_version"],
+            "needs_retraining": report.get("needs_retraining", False),
+            "reasons": report.get("reasons", []),
+            "time_drift_days": report.get("time_drift_days"),
+            "time_drift_triggered": report.get("time_drift_triggered", False),
+            "volume_drift_new_labels": report.get("volume_drift_new_labels"),
+            "volume_drift_triggered": report.get("volume_drift_triggered", False),
+            "feature_drift_count": report.get("feature_drift_count", 0),
+            "feature_drift_total": report.get("feature_drift_total", 0),
+            "feature_drift_triggered": report.get("feature_drift_triggered", False),
+            "feature_drift_details": report.get("feature_drift_details", {}),
+            "overall_score": report.get("overall_score", 0.0),
+            "report_json": report.get("report_json", {}),
+        }
+
+        # Filtrar None para que Supabase use los DEFAULT de la tabla
+        row = {k: v for k, v in row.items() if v is not None}
+
+        try:
+            self._client.table("drift_reports").insert(row).execute()
+            logger.info(
+                f"Drift report guardado: {report['model_version']} "
+                f"(needs_retraining={report.get('needs_retraining', False)})"
+            )
+        except Exception as e:
+            logger.error(f"Error guardando drift report: {e}")
+            raise
+
+    def get_drift_reports(self, model_version: str = None,
+                          limit: int = 50) -> pd.DataFrame:
+        """
+        Obtiene reportes de drift, opcionalmente filtrados por version.
+
+        Args:
+            model_version: Filtrar por version de modelo (opcional).
+            limit: Numero maximo de reportes a devolver (default 50).
+
+        Returns:
+            DataFrame con los reportes ordenados por checked_at DESC.
+        """
+        q = (
+            self._client.table("drift_reports")
+            .select("*")
+            .order("checked_at", desc=True)
+            .limit(limit)
+        )
+        if model_version:
+            q = q.eq("model_version", model_version)
+
+        resp = q.execute()
+        data = resp.data or []
+        return pd.DataFrame(data) if data else pd.DataFrame()
+
+    # ============================================================
     # ESTADISTICAS
     # ============================================================
 
@@ -674,7 +760,7 @@ class SupabaseStorage:
         tables = [
             "tokens", "pool_snapshots", "ohlcv",
             "holder_snapshots", "contract_info", "labels", "features",
-            "scores",
+            "scores", "drift_reports",
         ]
         counts = {}
         for table in tables:
