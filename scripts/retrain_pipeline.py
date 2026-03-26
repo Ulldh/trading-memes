@@ -65,6 +65,7 @@ def run_pipeline(
         "model_version": "",
         "rf_val_f1": 0.0,
         "xgb_val_f1": 0.0,
+        "lgb_val_f1": 0.0,
         # Validacion post-entrenamiento (paso 6)
         "validation_passed": None,       # True/False/None (None = no se pudo validar)
         "rollback": False,               # True si se hizo rollback
@@ -157,7 +158,7 @@ def run_pipeline(
     # PASO 3: Entrenar modelos
     # ================================================================
     logger.info("=" * 60)
-    logger.info("PASO 3: Entrenando modelos RF + XGBoost")
+    logger.info("PASO 3: Entrenando modelos RF + XGBoost + LightGBM")
     logger.info("=" * 60)
 
     t0 = time.time()
@@ -186,6 +187,8 @@ def run_pipeline(
             stats["rf_val_f1"] = f1
         elif "xgboost" in model_name.lower():
             stats["xgb_val_f1"] = f1
+        elif "lightgbm" in model_name.lower():
+            stats["lgb_val_f1"] = f1
 
     # ================================================================
     # PASO 4: Guardar modelos versionados
@@ -388,6 +391,8 @@ def run_pipeline(
     logger.info(f"  Features:         {stats['features_total']}")
     logger.info(f"  RF Val F1:        {stats['rf_val_f1']:.3f}")
     logger.info(f"  XGB Val F1:       {stats['xgb_val_f1']:.3f}")
+    if stats.get("lgb_val_f1", 0) > 0:
+        logger.info(f"  LGB Val F1:       {stats['lgb_val_f1']:.3f}")
     if stats["prev_rf_val_f1"] is not None:
         logger.info(f"  RF Val F1 (prev): {stats['prev_rf_val_f1']:.3f}")
         logger.info(f"  XGB Val F1 (prev):{stats['prev_xgb_val_f1']:.3f}")

@@ -47,6 +47,8 @@ BUCKET = "ml-models"
 VERSION_FILES = [
     "random_forest.joblib",
     "xgboost.joblib",
+    "lightgbm.joblib",
+    "ensemble_meta.joblib",
     "metadata.json",
     "train_medians.json",
 ]

@@ -3,10 +3,13 @@ trainer.py - Pipeline de entrenamiento de modelos de Machine Learning.
 
 Este modulo maneja el flujo completo de entrenamiento:
 1. Preparacion de datos (merge, limpieza, split).
-2. Entrenamiento de Random Forest (con SMOTE para balanceo).
-3. Entrenamiento de XGBoost (con early stopping).
-4. Guardado y carga de modelos entrenados.
-5. Versionado automatico de modelos (v1, v2, v3, etc.).
+2. Seleccion automatica de features (varianza, correlacion, importancia).
+3. Entrenamiento de Random Forest (con SMOTE para balanceo).
+4. Entrenamiento de XGBoost (con early stopping).
+5. Entrenamiento de LightGBM (opcional, si esta instalado).
+6. Evaluacion de ensembles (soft_voting, weighted_voting, stacking).
+7. Guardado y carga de modelos entrenados.
+8. Versionado automatico de modelos (v1, v2, v3, etc.).
 
 Clases:
     ModelTrainer: Orquesta el entrenamiento de multiples modelos.
@@ -17,6 +20,7 @@ Dependencias:
     - imblearn: Para SMOTE (sobre-muestreo de clase minoritaria).
     - joblib: Para serializar/deserializar modelos.
     - pandas: Para manipulacion de datos.
+    - lightgbm (opcional): Para el clasificador LightGBM.
 """
 
 from pathlib import Path
@@ -50,6 +54,16 @@ from imblearn.over_sampling import SMOTE
 from imblearn.pipeline import Pipeline as ImbPipeline
 
 from src.utils.logger import get_logger
+
+# Modulos de Fase 5: feature selection, regularizacion, ensemble
+from src.models.feature_selector import FeatureSelector
+from src.models.regularization import get_regularized_rf_params, get_regularized_xgb_params
+
+# LightGBM y EnsembleBuilder: importacion segura (pueden no estar instalados)
+try:
+    from src.models.ensemble import EnsembleBuilder, LIGHTGBM_AVAILABLE
+except ImportError:
+    LIGHTGBM_AVAILABLE = False
 
 # Importar configuracion del proyecto
 try:
@@ -89,11 +103,15 @@ class ModelTrainer:
     """
     Orquesta el entrenamiento de modelos de clasificacion para detectar memecoins "gem".
 
-    Entrena dos tipos de modelos:
+    Entrena tres tipos de modelos:
     - Random Forest: Robusto, interpretable, con SMOTE para balanceo de clases.
     - XGBoost: Alto rendimiento, con early stopping para evitar overfitting.
+    - LightGBM (opcional): Gradient boosting rapido, si esta instalado.
 
-    Ambos modelos se entrenan para clasificacion binaria por defecto
+    Tambien evalua estrategias de ensemble (soft_voting, weighted_voting, stacking)
+    y realiza seleccion automatica de features para reducir overfitting.
+
+    Todos los modelos se entrenan para clasificacion binaria por defecto
     (1 = token exitoso, 0 = no exitoso), pero tambien soportan multiclase.
 
     Args:
@@ -102,11 +120,13 @@ class ModelTrainer:
     Atributos:
         models: Diccionario {nombre_modelo: modelo_entrenado}.
         results: Diccionario {nombre_modelo: metricas}.
+        _selected_features: Lista de features seleccionadas (si se uso feature selection).
+        _feature_selection_info: Info de features eliminadas por cada filtro.
 
     Ejemplo:
         trainer = ModelTrainer(random_seed=42)
 
-        # Entrenar todos los modelos
+        # Entrenar todos los modelos (con feature selection y LightGBM)
         resultados = trainer.train_all(features_df, labels_df, target="label_binary")
 
         # Ver metricas
@@ -127,6 +147,10 @@ class ModelTrainer:
         self.models: dict = {}        # nombre -> modelo entrenado
         self.results: dict = {}       # nombre -> diccionario de metricas
         self.feature_names: list = [] # nombres de las features usadas
+        self._selected_features: list = []  # features tras seleccion (vacio si no se aplica)
+        self._feature_selection_info: dict = {}  # info de seleccion (removed, selected, etc.)
+        self._ensemble_builder: object = None  # EnsembleBuilder (si se usa)
+        self._ensemble_results: dict = {}  # resultados de evaluacion de ensembles
 
     # ============================================================
     # PREPARACION DE DATOS
@@ -318,6 +342,7 @@ class ModelTrainer:
         y_train: pd.Series,
         X_val: pd.DataFrame,
         y_val: pd.Series,
+        rf_params_override: dict | None = None,
     ) -> RandomForestClassifier:
         """
         Entrena un Random Forest con SMOTE para balanceo de clases.
@@ -326,21 +351,26 @@ class ModelTrainer:
         sinteticos de la clase minoritaria para que el modelo no este
         sesgado hacia la clase mayoritaria.
 
-        Tambien usa class_weight='balanced' y cross-validation de 5 folds.
+        Usa hiperparametros regularizados de regularization.py por defecto,
+        con class_weight='balanced' y cross-validation de 5 folds.
 
         Args:
             X_train: Features de entrenamiento.
             y_train: Labels de entrenamiento.
             X_val: Features de validacion (para reportar metricas).
             y_val: Labels de validacion.
+            rf_params_override: Hiperparametros personalizados (override de regularizados).
 
         Returns:
             Modelo RandomForestClassifier entrenado.
         """
         logger.info("--- Entrenando Random Forest ---")
 
-        # --- Configurar el modelo ---
-        rf_params = ML_CONFIG.get("rf_params", {}).copy()
+        # --- Configurar el modelo (regularizados por defecto) ---
+        rf_params = get_regularized_rf_params(random_seed=self.random_seed)
+        # Permitir override parcial (ej: de Optuna)
+        if rf_params_override:
+            rf_params.update(rf_params_override)
         rf_params["random_state"] = self.random_seed
         smote_ratio = ML_CONFIG.get("smote_sampling", 0.5)
 
@@ -413,15 +443,16 @@ class ModelTrainer:
         y_train: pd.Series,
         X_val: pd.DataFrame,
         y_val: pd.Series,
+        xgb_params_override: dict | None = None,
     ) -> XGBClassifier:
         """
         Entrena un XGBoost con early stopping y scale_pos_weight.
 
-        XGBoost es un algoritmo de gradient boosting que construye arboles
-        secuencialmente, cada uno corrigiendo los errores del anterior.
+        Usa hiperparametros regularizados de regularization.py por defecto
+        para reducir el overfitting observado en v12 (gap CV-Val de 0.131).
 
         scale_pos_weight: Ajusta el peso de la clase positiva para compensar
-        el desbalanceo. Si hay 100 negativos y 10 positivos, scale_pos_weight=10.
+        el desbalanceo. Se calcula dinamicamente segun el ratio de clases.
 
         Early stopping: Detiene el entrenamiento si no mejora en N rondas,
         evitando overfitting.
@@ -431,6 +462,7 @@ class ModelTrainer:
             y_train: Labels de entrenamiento.
             X_val: Features de validacion (usado para early stopping).
             y_val: Labels de validacion.
+            xgb_params_override: Hiperparametros personalizados (override de regularizados).
 
         Returns:
             Modelo XGBClassifier entrenado.
@@ -454,8 +486,11 @@ class ModelTrainer:
             f"scale_pos_weight={scale_pos_weight:.2f}"
         )
 
-        # --- Configurar el modelo ---
-        xgb_params = ML_CONFIG.get("xgb_params", {}).copy()
+        # --- Configurar el modelo (regularizados por defecto) ---
+        xgb_params = get_regularized_xgb_params(random_seed=self.random_seed)
+        # Permitir override parcial (ej: de Optuna)
+        if xgb_params_override:
+            xgb_params.update(xgb_params_override)
         xgb_params["random_state"] = self.random_seed
         xgb_params["scale_pos_weight"] = scale_pos_weight
 
@@ -629,31 +664,39 @@ class ModelTrainer:
         features_df: pd.DataFrame,
         labels_df: pd.DataFrame,
         target: str = "label_binary",
+        use_feature_selection: bool = True,
     ) -> dict:
         """
-        Pipeline completo: prepara datos, entrena RF + XGBoost, devuelve resultados.
+        Pipeline completo: prepara datos, selecciona features, entrena modelos, evalua ensembles.
 
         Este es el metodo principal que ejecuta todo el flujo de entrenamiento:
         1. Prepara los datos (merge, limpieza, split).
-        2. Entrena Random Forest con SMOTE.
-        3. Entrena XGBoost con early stopping.
-        4. Devuelve diccionario con todos los resultados.
+        2. Seleccion automatica de features (varianza, correlacion, importancia).
+        3. Entrena Random Forest con SMOTE + hiperparametros regularizados.
+        4. Entrena XGBoost con early stopping + hiperparametros regularizados.
+        5. Entrena LightGBM (si esta disponible).
+        6. Evalua ensembles (soft_voting, weighted_voting, stacking).
+        7. Calibra probabilidades y busca threshold optimo.
+        8. Devuelve diccionario con todos los resultados.
 
         Args:
             features_df: DataFrame con features calculados.
             labels_df: DataFrame con labels.
             target: Columna objetivo ('label_binary' por defecto).
+            use_feature_selection: Si True, aplica seleccion automatica de features
+                                   para reducir overfitting (default True).
 
         Returns:
             Diccionario con estructura:
             {
                 "random_forest": {metricas...},
                 "xgboost": {metricas...},
+                "lightgbm": {metricas...},  # solo si LightGBM disponible
                 "data_info": {info del dataset...},
             }
         """
         logger.info("=" * 60)
-        logger.info("INICIO DEL PIPELINE DE ENTRENAMIENTO")
+        logger.info("INICIO DEL PIPELINE DE ENTRENAMIENTO (v2 - Fase 5)")
         logger.info("=" * 60)
 
         # --- Paso 1: Preparar datos ---
@@ -683,48 +726,53 @@ class ModelTrainer:
         train_indices = X_train.index
         self._train_token_ids = list(all_token_ids[train_indices])
 
+        # --- Paso 1b: Seleccion automatica de features ---
+        original_feature_count = len(feature_names)
+        if use_feature_selection:
+            try:
+                X_train, X_test, feature_names = self._run_feature_selection(
+                    X_train, X_test, y_train, feature_names
+                )
+                # Actualizar feature_names internos
+                self.feature_names = feature_names
+                self._X_train = X_train
+                self._X_test = X_test
+            except Exception as e:
+                logger.warning(f"Feature selection fallo: {e}. Continuando con todas las features.")
+
         # Informacion del dataset
         data_info = {
             "total_samples": len(X_train) + len(X_test),
             "train_samples": len(X_train),
             "test_samples": len(X_test),
             "n_features": len(feature_names),
+            "n_features_original": original_feature_count,
             "feature_names": feature_names,
             "target": target,
             "class_distribution": y_train.value_counts().to_dict(),
         }
 
-        # --- Paso 2: Entrenar Random Forest ---
+        # --- Paso 2: Entrenar Random Forest (hiperparametros regularizados) ---
         try:
             self.train_random_forest(X_train, y_train, X_test, y_test)
         except Exception as e:
             logger.error(f"Error entrenando Random Forest: {e}")
             self.results["random_forest"] = {"error": str(e)}
 
-        # --- Paso 3: Entrenar XGBoost ---
+        # --- Paso 3: Entrenar XGBoost (hiperparametros regularizados) ---
         try:
             self.train_xgboost(X_train, y_train, X_test, y_test)
         except Exception as e:
             logger.error(f"Error entrenando XGBoost: {e}")
             self.results["xgboost"] = {"error": str(e)}
 
-        # --- Paso 3b: Feature selection (eliminar features correlacionados) ---
-        if ML_CONFIG.get("remove_correlated", False):
-            try:
-                from src.models.optimizer import ModelOptimizer
-                optimizer = ModelOptimizer(random_seed=self.random_seed)
-                n_before = X_train.shape[1]
-                X_train = optimizer.remove_correlated_features(X_train, threshold=0.95)
-                # Aplicar las mismas columnas al set de test
-                X_test = X_test[X_train.columns]
-                self.feature_names = list(X_train.columns)
-                n_removed = n_before - X_train.shape[1]
-                if n_removed > 0:
-                    logger.info(f"Feature selection: eliminados {n_removed} features correlacionados")
-            except Exception as e:
-                logger.warning(f"Feature selection fallo: {e}")
+        # --- Paso 3b: Entrenar LightGBM (si esta disponible) ---
+        try:
+            self._train_lightgbm(X_train, y_train, X_test, y_test)
+        except Exception as e:
+            logger.warning(f"LightGBM no disponible o fallo: {e}")
 
-        # --- Paso 4: Calibrar probabilidades de ambos modelos ---
+        # --- Paso 4: Calibrar probabilidades de todos los modelos ---
         # IMPORTANTE: calibrar con X_test/y_test (datos NO vistos) para
         # que las probabilidades sean realistas, no optimistas.
         for name in list(self.models.keys()):
@@ -741,7 +789,8 @@ class ModelTrainer:
                 logger.info(f"  {name} calibrado: F1={cal_f1:.4f}")
             except Exception as e:
                 logger.warning(f"Calibracion fallo para {name}: {e}")
-                self.results[name]["calibrated"] = False
+                if name in self.results and isinstance(self.results[name], dict):
+                    self.results[name]["calibrated"] = False
 
         # --- Paso 4b: Calcular threshold optimo via CV en TRAIN ---
         # IMPORTANTE: usar out-of-fold predictions en train (no X_test)
@@ -750,8 +799,7 @@ class ModelTrainer:
             try:
                 # Crear estimador fresco para OOF predictions
                 if name == "random_forest":
-                    rf_p = ML_CONFIG.get("rf_params", {}).copy()
-                    rf_p["random_state"] = self.random_seed
+                    rf_p = get_regularized_rf_params(random_seed=self.random_seed)
                     smote_ratio_t = ML_CONFIG.get("smote_sampling", 0.5)
                     cv_est = ImbPipeline([
                         ("smote", SMOTE(
@@ -761,14 +809,14 @@ class ModelTrainer:
                         ("clf", RandomForestClassifier(**rf_p)),
                     ])
                 elif name == "xgboost":
-                    xgb_p = ML_CONFIG.get("xgb_params", {}).copy()
-                    xgb_p["random_state"] = self.random_seed
+                    xgb_p = get_regularized_xgb_params(random_seed=self.random_seed)
                     n_neg = int((y_train == 0).sum())
                     n_pos = int((y_train == 1).sum())
                     xgb_p["scale_pos_weight"] = n_neg / n_pos if n_pos > 0 else 1.0
                     xgb_p.pop("early_stopping_rounds", None)
                     cv_est = XGBClassifier(**xgb_p)
                 else:
+                    # Para lightgbm u otros, saltar threshold optimization
                     continue
 
                 skf_t = StratifiedKFold(
@@ -796,25 +844,291 @@ class ModelTrainer:
             except Exception as e:
                 logger.warning(f"Threshold optimization fallo para {name}: {e}")
 
-        # --- Paso 5: Crear ensemble si esta habilitado ---
+        # --- Paso 5: Evaluar ensembles (soft_voting, weighted_voting, stacking) ---
+        try:
+            self._evaluate_ensembles(X_train, y_train, X_test, y_test)
+        except Exception as e:
+            logger.warning(f"Evaluacion de ensemble fallo: {e}")
+
+        # --- Paso 5b: Crear ensemble legacy si esta habilitado (retrocompatibilidad) ---
         if ML_CONFIG.get("use_ensemble", False):
             try:
                 ensemble = self.train_ensemble(X_train, y_train, X_test, y_test)
                 if ensemble is not None:
-                    logger.info("Ensemble creado exitosamente")
+                    logger.info("Ensemble legacy creado exitosamente")
             except Exception as e:
-                logger.warning(f"Ensemble fallo: {e}")
+                logger.warning(f"Ensemble legacy fallo: {e}")
 
         # --- Resumen ---
         self.results["data_info"] = data_info
         logger.info("=" * 60)
         logger.info("PIPELINE DE ENTRENAMIENTO COMPLETADO")
         for name, metrics in self.results.items():
-            if name != "data_info" and "error" not in metrics:
-                logger.info(f"  {name}: F1={metrics.get('val_f1', 'N/A'):.4f}")
+            if name != "data_info" and isinstance(metrics, dict) and "error" not in metrics:
+                val_f1 = metrics.get("val_f1")
+                if val_f1 is not None:
+                    logger.info(f"  {name}: F1={val_f1:.4f}")
+        if self._ensemble_results:
+            best_ensemble = max(
+                self._ensemble_results.items(),
+                key=lambda x: x[1].get("f1", 0) if isinstance(x[1], dict) else 0,
+            )
+            logger.info(
+                f"  Mejor ensemble: {best_ensemble[0]} "
+                f"(F1={best_ensemble[1].get('f1', 0):.4f})"
+            )
         logger.info("=" * 60)
 
         return self.results
+
+    # ============================================================
+    # SELECCION AUTOMATICA DE FEATURES (Fase 5)
+    # ============================================================
+
+    def _run_feature_selection(
+        self,
+        X_train: pd.DataFrame,
+        X_test: pd.DataFrame,
+        y_train: pd.Series,
+        feature_names: list[str],
+    ) -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
+        """
+        Ejecuta el pipeline de seleccion automatica de features.
+
+        Entrena un RF rapido para estimar importancias, y luego ejecuta
+        el pipeline auto_select de FeatureSelector (varianza -> correlacion -> importancia).
+
+        Args:
+            X_train: Features de entrenamiento.
+            X_test: Features de validacion.
+            y_train: Labels de entrenamiento.
+            feature_names: Lista de nombres de features originales.
+
+        Returns:
+            Tupla de (X_train_filtered, X_test_filtered, selected_features).
+        """
+        logger.info("=" * 60)
+        logger.info("SELECCION AUTOMATICA DE FEATURES")
+        logger.info("=" * 60)
+
+        # Entrenar un RF rapido para estimar importancias
+        # (pocos arboles, sin SMOTE, solo para ranking de features)
+        quick_rf = RandomForestClassifier(
+            n_estimators=100,
+            max_depth=8,
+            random_state=self.random_seed,
+            n_jobs=-1,
+            class_weight="balanced",
+        )
+        quick_rf.fit(X_train, y_train)
+
+        # Ejecutar pipeline de seleccion
+        selector = FeatureSelector(X_train, y_train, feature_names)
+        X_filtered, selected_features = selector.auto_select(model=quick_rf)
+
+        # Guardar informacion de seleccion
+        original_count = len(feature_names)
+        selected_count = len(selected_features)
+        removed_features = [f for f in feature_names if f not in selected_features]
+
+        self._selected_features = selected_features
+        self._feature_selection_info = {
+            "original_count": original_count,
+            "selected_count": selected_count,
+            "removed": removed_features,
+            "selected": selected_features,
+            "removal_report": selector.get_removal_report(),
+        }
+
+        # Aplicar seleccion a ambos sets
+        X_train_filtered = X_train[selected_features].copy()
+        X_test_filtered = X_test[selected_features].copy()
+
+        logger.info(
+            f"Feature selection: {original_count} -> {selected_count} features "
+            f"({len(removed_features)} eliminadas)"
+        )
+
+        return X_train_filtered, X_test_filtered, selected_features
+
+    # ============================================================
+    # ENTRENAMIENTO: LightGBM (Fase 5)
+    # ============================================================
+
+    def _train_lightgbm(
+        self,
+        X_train: pd.DataFrame,
+        y_train: pd.Series,
+        X_val: pd.DataFrame,
+        y_val: pd.Series,
+    ):
+        """
+        Entrena LightGBM via EnsembleBuilder y registra metricas.
+
+        Si LightGBM no esta instalado, lanza un warning y retorna sin error.
+
+        Args:
+            X_train: Features de entrenamiento.
+            y_train: Labels de entrenamiento.
+            X_val: Features de validacion.
+            y_val: Labels de validacion.
+        """
+        if not LIGHTGBM_AVAILABLE:
+            logger.warning(
+                "LightGBM no esta instalado. Saltando entrenamiento LightGBM. "
+                "Instalar con: pip install lightgbm>=4.0"
+            )
+            return
+
+        logger.info("--- Entrenando LightGBM ---")
+
+        # Crear EnsembleBuilder con los modelos base ya entrenados
+        base_models = {}
+        for name in ["random_forest", "xgboost"]:
+            if name in self.models:
+                base_models[name] = self.models[name]
+
+        if not base_models:
+            logger.warning("No hay modelos base entrenados para crear EnsembleBuilder")
+            return
+
+        self._ensemble_builder = EnsembleBuilder(base_models)
+
+        # Entrenar LightGBM via EnsembleBuilder
+        lgb_model = self._ensemble_builder.train_lightgbm(
+            X_train, y_train, X_val, y_val,
+            random_seed=self.random_seed,
+        )
+
+        # Evaluar LightGBM en validacion
+        y_pred_val = lgb_model.predict(X_val)
+        val_f1 = f1_score(y_val, y_pred_val, average="binary", zero_division=0)
+        val_acc = accuracy_score(y_val, y_pred_val)
+
+        # Cross-validation para LightGBM
+        import lightgbm as lgb
+        cv_folds = ML_CONFIG.get("cv_folds", 5)
+        cv_scores = np.array([0.0])
+        try:
+            lgb_cv_params = {
+                "objective": "binary",
+                "num_leaves": 31,
+                "max_depth": 6,
+                "learning_rate": 0.05,
+                "n_estimators": 500,
+                "is_unbalance": True,
+                "subsample": 0.8,
+                "colsample_bytree": 0.8,
+                "reg_alpha": 0.1,
+                "reg_lambda": 0.1,
+                "random_state": self.random_seed,
+                "verbose": -1,
+                "n_jobs": -1,
+            }
+            lgb_cv_model = lgb.LGBMClassifier(**lgb_cv_params)
+            skf = StratifiedKFold(
+                n_splits=cv_folds, shuffle=True, random_state=self.random_seed,
+            )
+            cv_scores = cross_val_score(
+                lgb_cv_model, X_train, y_train,
+                cv=skf, scoring="f1", n_jobs=-1,
+            )
+            logger.info(
+                f"LightGBM CV ({cv_folds} folds) F1: "
+                f"{cv_scores.mean():.4f} (+/- {cv_scores.std():.4f})"
+            )
+        except Exception as e:
+            logger.warning(f"LightGBM cross-validation fallo: {e}")
+
+        logger.info(f"LightGBM validacion: F1={val_f1:.4f}, Accuracy={val_acc:.4f}")
+
+        # Registrar modelo y metricas
+        self.models["lightgbm"] = lgb_model
+        self.results["lightgbm"] = {
+            "cv_f1_mean": float(cv_scores.mean()),
+            "cv_f1_std": float(cv_scores.std()),
+            "val_f1": float(val_f1),
+            "val_accuracy": float(val_acc),
+        }
+
+    # ============================================================
+    # EVALUACION DE ENSEMBLES (Fase 5)
+    # ============================================================
+
+    def _evaluate_ensembles(
+        self,
+        X_train: pd.DataFrame,
+        y_train: pd.Series,
+        X_val: pd.DataFrame,
+        y_val: pd.Series,
+    ):
+        """
+        Evalua estrategias de ensemble: soft_voting, weighted_voting, stacking.
+
+        Requiere al menos 2 modelos base entrenados. Si LightGBM no esta
+        disponible, evalua ensemble con RF + XGBoost.
+
+        Guarda los resultados en self._ensemble_results y el meta-learner
+        de stacking en self._stacking_meta_learner.
+
+        Args:
+            X_train: Features de entrenamiento (para stacking).
+            y_train: Labels de entrenamiento (para stacking).
+            X_val: Features de validacion.
+            y_val: Labels de validacion.
+        """
+        # Necesitamos al menos 2 modelos para ensemble
+        base_models = {
+            name: model for name, model in self.models.items()
+            if name in ["random_forest", "xgboost", "lightgbm"]
+        }
+
+        if len(base_models) < 2:
+            logger.warning(
+                f"Solo hay {len(base_models)} modelo(s) base. "
+                "Ensemble requiere al menos 2. Saltando."
+            )
+            return
+
+        logger.info("=" * 60)
+        logger.info("EVALUACION DE ENSEMBLES")
+        logger.info(f"Modelos base: {list(base_models.keys())}")
+        logger.info("=" * 60)
+
+        # Crear o reutilizar EnsembleBuilder
+        if self._ensemble_builder is not None:
+            # Ya tiene los modelos (incluyendo LightGBM si se entreno)
+            ensemble = self._ensemble_builder
+            # Asegurar que tiene todos los modelos base actualizados (post-calibracion)
+            ensemble.models = dict(base_models)
+        else:
+            ensemble = EnsembleBuilder(base_models)
+            self._ensemble_builder = ensemble
+
+        # Evaluar todas las estrategias
+        ensemble_results = ensemble.evaluate_ensemble(
+            X_val, y_val,
+            X_train=X_train,
+            y_train=y_train,
+        )
+
+        # Filtrar solo resultados de ensemble (no modelos individuales)
+        ensemble_methods = ["soft_voting", "weighted_voting", "stacking"]
+        for method in ensemble_methods:
+            if method in ensemble_results:
+                self._ensemble_results[f"ensemble_{method}"] = ensemble_results[method]
+
+        # Guardar meta-learner si stacking es el mejor
+        best_method = ensemble.get_best_method()
+        logger.info(f"Mejor metodo global: {best_method}")
+
+        if ensemble.meta_learner is not None:
+            self._stacking_meta_learner = ensemble.meta_learner
+
+        # Guardar best_model info
+        self._ensemble_results["_best_method"] = best_method
+        best_f1 = ensemble_results.get(best_method, {}).get("f1", 0)
+        self._ensemble_results["_best_f1"] = best_f1
 
     # ============================================================
     # GUARDAR / CARGAR MODELOS
@@ -971,8 +1285,14 @@ class ModelTrainer:
             joblib.dump(model, filepath)
             logger.info(f"  {name}.joblib -> {version_name}/")
 
+        # Guardar ensemble meta-learner si existe
+        if hasattr(self, "_stacking_meta_learner") and self._stacking_meta_learner is not None:
+            meta_path = version_dir / "ensemble_meta.joblib"
+            joblib.dump(self._stacking_meta_learner, meta_path)
+            logger.info(f"  ensemble_meta.joblib -> {version_name}/")
+
         # ============================================================
-        # 2. PREPARAR METADATA JSON
+        # 2. PREPARAR METADATA JSON (estructura v2 - Fase 5)
         # ============================================================
         metadata_dict = {
             "version": version_name,
@@ -982,6 +1302,10 @@ class ModelTrainer:
             "results": {},
             "hyperparameters": {},
         }
+
+        # Añadir informacion de feature selection (si se aplico)
+        if self._feature_selection_info:
+            metadata_dict["feature_selection"] = self._feature_selection_info
 
         # Añadir informacion de resultados (train_samples, f1, etc.)
         for model_name, metrics in self.results.items():
@@ -995,11 +1319,29 @@ class ModelTrainer:
                         clean_metrics[k] = v
                 metadata_dict["results"][model_name] = clean_metrics
 
-        # Añadir hiperparametros de config
-        if "rf_params" in ML_CONFIG:
-            metadata_dict["hyperparameters"]["random_forest"] = ML_CONFIG["rf_params"]
-        if "xgb_params" in ML_CONFIG:
-            metadata_dict["hyperparameters"]["xgboost"] = ML_CONFIG["xgb_params"]
+        # Añadir resultados de ensemble (soft_voting, weighted_voting, stacking)
+        if self._ensemble_results:
+            for method_name, method_metrics in self._ensemble_results.items():
+                if isinstance(method_metrics, dict):
+                    clean = {}
+                    for k, v in method_metrics.items():
+                        if isinstance(v, (int, float, str, bool, type(None))):
+                            clean[k] = v
+                    metadata_dict["results"][method_name] = clean
+
+            # Guardar mejor modelo global y su F1
+            best_method = self._ensemble_results.get("_best_method", "")
+            best_f1 = self._ensemble_results.get("_best_f1", 0)
+            metadata_dict["best_model"] = best_method
+            metadata_dict["best_f1"] = best_f1
+
+        # Añadir hiperparametros regularizados (no los de config legacy)
+        metadata_dict["hyperparameters"]["random_forest"] = get_regularized_rf_params(
+            random_seed=self.random_seed
+        )
+        metadata_dict["hyperparameters"]["xgboost"] = get_regularized_xgb_params(
+            random_seed=self.random_seed
+        )
 
         # Añadir train_token_ids para que el backtester pueda excluirlos
         if hasattr(self, "_train_token_ids"):
