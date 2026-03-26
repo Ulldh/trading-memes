@@ -12,7 +12,10 @@ def __getattr__(name):
     if name == "SHAPExplainer":
         from .explainer import SHAPExplainer
         return SHAPExplainer
+    if name == "EnsembleBuilder":
+        from .ensemble import EnsembleBuilder
+        return EnsembleBuilder
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-__all__ = ["Labeler", "ModelTrainer", "ModelEvaluator", "SHAPExplainer"]
+__all__ = ["Labeler", "ModelTrainer", "ModelEvaluator", "SHAPExplainer", "EnsembleBuilder"]

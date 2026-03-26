@@ -25,6 +25,7 @@ from src.features.social import compute_social_features, compute_temporal_social
 from src.features.contract import compute_contract_features, compute_contract_risk_features
 from src.features.volatility_advanced import compute_volatility_advanced_features
 from src.features.sentiment import compute_sentiment_features
+from src.features.technical import extract_technical_features
 from src.utils.helpers import safe_divide, pct_change, safe_float, detect_chain
 
 
@@ -640,3 +641,233 @@ class TestSentimentFeatures:
         result = compute_sentiment_features(mention_data)
         assert isinstance(result, dict)
         assert result["mention_count"] is None  # 0 tweets = sin datos
+
+
+# ============================================================
+# Tests para technical features
+# ============================================================
+
+class TestTechnicalFeatures:
+    """Tests para features de analisis tecnico (momentum, volume profile, token age)."""
+
+    def _make_ohlcv(self, n_candles=10, freq="1h", start="2024-01-01 00:00:00"):
+        """Helper: genera DataFrame OHLCV simulado con tendencia alcista."""
+        np.random.seed(42)
+        base_price = 1.0
+        prices = base_price * np.cumprod(1 + np.random.normal(0.02, 0.05, n_candles))
+
+        return pd.DataFrame({
+            "timestamp": pd.date_range(start=start, periods=n_candles, freq=freq, tz="UTC"),
+            "open": prices * 0.98,
+            "high": prices * 1.05,
+            "low": prices * 0.95,
+            "close": prices,
+            "volume": np.random.uniform(1000, 10000, n_candles),
+        })
+
+    def test_basic_calculation(self):
+        """Calcula features con datos OHLCV validos (10 candles horarias)."""
+        ohlcv_df = self._make_ohlcv(n_candles=10, freq="1h")
+        result = extract_technical_features(ohlcv_df)
+
+        assert isinstance(result, dict)
+
+        # Momentum features
+        assert "rsi_14" in result
+        assert "momentum_3d" in result
+        assert "momentum_7d" in result
+        assert "price_acceleration" in result
+
+        # Volume profile features
+        assert "vwap_ratio" in result
+        assert "obv_trend" in result
+        assert "volume_momentum" in result
+        assert "volume_price_corr" in result
+
+        # Token age features
+        assert "hours_since_launch" in result
+        assert "is_first_week" in result
+        assert "launch_hour_utc" in result
+
+    def test_rsi_range(self):
+        """RSI debe estar entre 0 y 100."""
+        ohlcv_df = self._make_ohlcv(n_candles=20, freq="1h")
+        result = extract_technical_features(ohlcv_df)
+
+        if result["rsi_14"] is not None:
+            assert 0 <= result["rsi_14"] <= 100
+
+    def test_rsi_all_gains(self):
+        """RSI = 100 cuando solo hay ganancias."""
+        ohlcv_df = pd.DataFrame({
+            "timestamp": pd.date_range("2024-01-01", periods=5, freq="1h", tz="UTC"),
+            "open": [1.0, 1.1, 1.2, 1.3, 1.4],
+            "high": [1.15, 1.25, 1.35, 1.45, 1.55],
+            "low": [0.95, 1.05, 1.15, 1.25, 1.35],
+            "close": [1.1, 1.2, 1.3, 1.4, 1.5],
+            "volume": [1000, 1100, 1200, 1300, 1400],
+        })
+
+        result = extract_technical_features(ohlcv_df)
+        assert result["rsi_14"] == 100.0
+
+    def test_vwap_ratio_positive(self):
+        """VWAP ratio debe ser positivo cuando hay datos validos."""
+        ohlcv_df = self._make_ohlcv(n_candles=10)
+        result = extract_technical_features(ohlcv_df)
+
+        if result["vwap_ratio"] is not None:
+            assert result["vwap_ratio"] > 0
+
+    def test_volume_price_corr_range(self):
+        """Correlacion debe estar entre -1 y 1."""
+        ohlcv_df = self._make_ohlcv(n_candles=20, freq="1h")
+        result = extract_technical_features(ohlcv_df)
+
+        if result["volume_price_corr"] is not None:
+            assert -1.0 <= result["volume_price_corr"] <= 1.0
+
+    def test_token_age_first_week(self):
+        """Token de pocas horas debe tener is_first_week = 1."""
+        ohlcv_df = self._make_ohlcv(n_candles=5, freq="1h")
+        result = extract_technical_features(ohlcv_df)
+
+        assert result["is_first_week"] == 1
+        assert result["hours_since_launch"] is not None
+        assert result["hours_since_launch"] < 168  # < 7 dias
+
+    def test_token_age_after_first_week(self):
+        """Token de mas de 7 dias debe tener is_first_week = 0."""
+        ohlcv_df = self._make_ohlcv(n_candles=10, freq="1D")
+        result = extract_technical_features(ohlcv_df)
+
+        assert result["is_first_week"] == 0
+        assert result["hours_since_launch"] >= 168
+
+    def test_launch_hour_utc_range(self):
+        """Hora de lanzamiento debe estar entre 0 y 23."""
+        ohlcv_df = self._make_ohlcv(n_candles=5)
+        result = extract_technical_features(ohlcv_df)
+
+        assert result["launch_hour_utc"] is not None
+        assert 0 <= result["launch_hour_utc"] <= 23
+
+    def test_empty_dataframe(self):
+        """Maneja DataFrame OHLCV vacio."""
+        ohlcv_df = pd.DataFrame(
+            columns=["timestamp", "open", "high", "low", "close", "volume"]
+        )
+
+        result = extract_technical_features(ohlcv_df)
+
+        assert isinstance(result, dict)
+        assert result["rsi_14"] is None
+        assert result["vwap_ratio"] is None
+        assert result["hours_since_launch"] is None
+
+    def test_none_dataframe(self):
+        """Maneja None como input."""
+        result = extract_technical_features(None)
+
+        assert isinstance(result, dict)
+        assert result["rsi_14"] is None
+        assert result["momentum_3d"] is None
+
+    def test_insufficient_data(self):
+        """Maneja caso con solo 2 candles (minimo para token age, no para momentum)."""
+        ohlcv_df = pd.DataFrame({
+            "timestamp": pd.date_range("2024-01-01", periods=2, freq="1h", tz="UTC"),
+            "open": [1.0, 1.1],
+            "high": [1.2, 1.3],
+            "low": [0.9, 1.0],
+            "close": [1.1, 1.2],
+            "volume": [1000, 1200],
+        })
+
+        result = extract_technical_features(ohlcv_df)
+
+        assert isinstance(result, dict)
+        # Token age se calcula incluso con pocos datos
+        assert result["hours_since_launch"] is not None
+
+    def test_single_candle(self):
+        """Con 1 solo candle, solo calcula token age basico."""
+        ohlcv_df = pd.DataFrame({
+            "timestamp": [pd.Timestamp("2024-01-01 15:00:00", tz="UTC")],
+            "open": [1.0],
+            "high": [1.2],
+            "low": [0.9],
+            "close": [1.1],
+            "volume": [1000],
+        })
+
+        result = extract_technical_features(ohlcv_df)
+
+        assert isinstance(result, dict)
+        assert result["rsi_14"] is None  # No hay suficientes datos
+        assert result["hours_since_launch"] == 0.0
+        assert result["launch_hour_utc"] == 15
+
+    def test_zero_prices(self):
+        """Maneja precios en cero sin crashear."""
+        ohlcv_df = pd.DataFrame({
+            "timestamp": pd.date_range("2024-01-01", periods=5, freq="1h", tz="UTC"),
+            "open": [0, 0, 0, 0, 0],
+            "high": [0, 0, 0, 0, 0],
+            "low": [0, 0, 0, 0, 0],
+            "close": [0, 0, 0, 0, 0],
+            "volume": [0, 0, 0, 0, 0],
+        })
+
+        result = extract_technical_features(ohlcv_df)
+
+        assert isinstance(result, dict)
+        # No debe crashear, features deben ser None o 0
+
+    def test_extreme_pump_and_dump(self):
+        """Maneja caso de pump and dump extremo."""
+        ohlcv_df = pd.DataFrame({
+            "timestamp": pd.date_range("2024-01-01", periods=6, freq="1h", tz="UTC"),
+            "open": [1.0, 2.0, 5.0, 10.0, 3.0, 1.0],
+            "high": [2.5, 6.0, 12.0, 15.0, 5.0, 1.5],
+            "low": [0.8, 1.5, 4.0, 3.0, 0.5, 0.3],
+            "close": [2.0, 5.0, 10.0, 3.0, 1.0, 0.5],
+            "volume": [5000, 50000, 200000, 100000, 30000, 10000],
+        })
+
+        result = extract_technical_features(ohlcv_df)
+
+        assert isinstance(result, dict)
+        # RSI despues de un dump deberia ser bajo
+        if result["rsi_14"] is not None:
+            assert 0 <= result["rsi_14"] <= 100
+
+    def test_price_acceleration_sign(self):
+        """Price acceleration = momentum_3d - momentum_7d."""
+        ohlcv_df = self._make_ohlcv(n_candles=20, freq="1h")
+        result = extract_technical_features(ohlcv_df)
+
+        if result["momentum_3d"] is not None and result["momentum_7d"] is not None:
+            expected = result["momentum_3d"] - result["momentum_7d"]
+            assert result["price_acceleration"] == pytest.approx(expected, abs=1e-10)
+
+    def test_daily_data(self):
+        """Funciona con datos diarios (no solo horarios)."""
+        ohlcv_df = self._make_ohlcv(n_candles=30, freq="1D")
+        result = extract_technical_features(ohlcv_df)
+
+        assert isinstance(result, dict)
+        assert result["rsi_14"] is not None
+        assert result["is_first_week"] == 0  # 30 dias > 7 dias
+
+    def test_all_11_features_present(self):
+        """Verifica que las 11 features estan en el resultado."""
+        ohlcv_df = self._make_ohlcv(n_candles=20, freq="1h")
+        result = extract_technical_features(ohlcv_df)
+
+        expected_keys = {
+            "rsi_14", "momentum_3d", "momentum_7d", "price_acceleration",
+            "vwap_ratio", "obv_trend", "volume_momentum", "volume_price_corr",
+            "hours_since_launch", "is_first_week", "launch_hour_utc",
+        }
+        assert expected_keys == set(result.keys())

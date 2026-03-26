@@ -41,6 +41,7 @@ from src.features.market_context import compute_market_context_features
 from src.features.temporal import extract_temporal_features
 from src.features.volatility_advanced import compute_volatility_advanced_features
 from src.features.sentiment import compute_sentiment_features
+from src.features.technical import extract_technical_features
 
 logger = get_logger(__name__)
 
@@ -316,6 +317,24 @@ class FeatureBuilder:
                 modules_ok += 1
         except Exception as e:
             logger.error(f"Error en sentiment para {token_id}: {e}")
+            modules_fail += 1
+
+        # ============================================================
+        # 11. FEATURES TECNICAS (momentum, volume profile, token age)
+        # ============================================================
+        try:
+            # Reutilizar datos OHLCV (ya obtenidos en paso 4/9)
+            ohlcv_df = self.storage.get_ohlcv(token_id, timeframe="hour")
+
+            # Si no hay datos horarios, intentar con datos diarios
+            if ohlcv_df.empty:
+                ohlcv_df = self.storage.get_ohlcv(token_id, timeframe="day")
+
+            technical = extract_technical_features(ohlcv_df)
+            all_features.update(technical)
+            modules_ok += 1
+        except Exception as e:
+            logger.error(f"Error en technical para {token_id}: {e}")
             modules_fail += 1
 
         # Reportar si hubo modulos fallidos
