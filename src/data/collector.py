@@ -1166,7 +1166,7 @@ class DataCollector:
             GROUP BY t.token_id, t.chain, t.pool_address
             HAVING COUNT(o.id) = 0
                 OR MAX(o.timestamp::date) < (CURRENT_DATE - INTERVAL '1 day')
-            ORDER BY ohlcv_count ASC, last_ohlcv_date ASC NULLS FIRST
+            ORDER BY COUNT(o.id) ASC, MAX(o.timestamp::date) ASC NULLS FIRST
             LIMIT ?
         """, (max_tokens,))
 

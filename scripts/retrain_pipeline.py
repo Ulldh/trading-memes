@@ -131,7 +131,9 @@ def run_pipeline(
     else:
         logger.info("PASO 2: Saltando extraccion de features (--skip-features)")
         # Cargar features existentes desde DB
-        features_df = storage.query("SELECT * FROM features")
+        # Usar get_features_df() en lugar de query() crudo para que
+        # SupabaseStorage desempaquete el JSONB 'data' a columnas planas
+        features_df = storage.get_features_df()
         stats["features_total"] = len(features_df)
 
     if features_df.empty:

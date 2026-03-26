@@ -472,7 +472,7 @@ class SupabaseStorage:
             FROM api_usage
             WHERE timestamp >= NOW() - INTERVAL '{int(days)} days'
             GROUP BY api_name
-            ORDER BY total_calls DESC
+            ORDER BY COUNT(*) DESC
         """
         data = self._rpc_query(sql)
         return pd.DataFrame(data) if data else pd.DataFrame()
@@ -487,7 +487,7 @@ class SupabaseStorage:
             FROM api_usage
             WHERE timestamp >= NOW() - INTERVAL '{int(days)} days'
             GROUP BY DATE(timestamp), api_name
-            ORDER BY date DESC, api_name
+            ORDER BY DATE(timestamp) DESC, api_name
         """
         data = self._rpc_query(sql)
         return pd.DataFrame(data) if data else pd.DataFrame()
