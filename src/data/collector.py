@@ -1152,17 +1152,21 @@ class DataCollector:
         # Buscar tokens con pool_address que necesitan OHLCV actualizado
         # Prioridad 1: tokens sin ningun OHLCV
         # Prioridad 2: tokens cuyo ultimo OHLCV tiene >1 dia
+        # Consulta compatible con PostgreSQL (Supabase):
+        # - No se pueden usar alias en HAVING, repetimos la expresion
+        # - DATE('now', '-1 day') es SQLite; en PG: CURRENT_DATE - INTERVAL '1 day'
+        # - timestamp::date para extraer la fecha del timestamp
         tokens_df = self.storage.query("""
             SELECT t.token_id, t.chain, t.pool_address,
-                   MAX(DATE(o.timestamp)) as last_ohlcv_date,
+                   MAX(o.timestamp::date) as last_ohlcv_date,
                    COUNT(o.id) as ohlcv_count
             FROM tokens t
             LEFT JOIN ohlcv o ON t.token_id = o.token_id
             WHERE t.pool_address IS NOT NULL AND t.pool_address != ''
-            GROUP BY t.token_id
+            GROUP BY t.token_id, t.chain, t.pool_address
             HAVING COUNT(o.id) = 0
-                OR last_ohlcv_date < DATE('now', '-1 day')
-            ORDER BY ohlcv_count ASC, last_ohlcv_date ASC
+                OR MAX(o.timestamp::date) < (CURRENT_DATE - INTERVAL '1 day')
+            ORDER BY ohlcv_count ASC, last_ohlcv_date ASC NULLS FIRST
             LIMIT ?
         """, (max_tokens,))
 
