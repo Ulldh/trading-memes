@@ -11,15 +11,7 @@ import pandas as pd
 
 from src.data.supabase_storage import get_storage as _get_storage
 from src.utils.helpers import truncate_address
-
-# Colores para labels
-LABEL_COLORS = {
-    "gem": "#2ecc71",
-    "moderate_success": "#3498db",
-    "neutral": "#95a5a6",
-    "failure": "#e74c3c",
-    "rug": "#1a1a1a",
-}
+from dashboard.constants import LABEL_COLORS
 
 
 @st.cache_resource
@@ -102,7 +94,10 @@ def render():
 
             with col5:
                 if st.button("X", key=f"remove_{token_id}", help="Eliminar de watchlist"):
-                    storage.remove_from_watchlist(token_id)
-                    st.rerun()
+                    try:
+                        storage.remove_from_watchlist(token_id)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al eliminar de watchlist: {e}")
 
             st.divider()

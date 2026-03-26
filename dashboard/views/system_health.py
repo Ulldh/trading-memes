@@ -272,15 +272,18 @@ def render_services_logs():
             ("com.tradingmemes.backup", "Backup (04:00)"),
         ]
 
-        for service_id, service_name in services:
-            is_active = check_launchd_service(service_id)
-            if is_active:
-                st.success(f"✅ **{service_name}** - Activo")
-            else:
-                st.error(f"❌ **{service_name}** - Inactivo")
-                st.caption(
-                    f"Para activar: `launchctl load ~/Library/LaunchAgents/{service_id}.plist`"
-                )
+        try:
+            for service_id, service_name in services:
+                is_active = check_launchd_service(service_id)
+                if is_active:
+                    st.success(f"✅ **{service_name}** - Activo")
+                else:
+                    st.error(f"❌ **{service_name}** - Inactivo")
+                    st.caption(
+                        f"Para activar: `launchctl load ~/Library/LaunchAgents/{service_id}.plist`"
+                    )
+        except Exception:
+            st.warning("No se pudo verificar el estado de los servicios launchd.")
 
     st.divider()
 
@@ -563,7 +566,10 @@ def load_latest_health_status() -> dict:
 
 
 def check_launchd_service(service_id: str) -> bool:
-    """Verifica si un servicio launchd esta activo (solo macOS)."""
+    """Verifica si un servicio launchd esta activo (solo macOS).
+
+    Retorna False si estamos en Docker/Linux o si launchctl no esta disponible.
+    """
     if IS_DOCKER:
         return False
     try:
@@ -571,8 +577,9 @@ def check_launchd_service(service_id: str) -> bool:
             ["launchctl", "list"],
             capture_output=True,
             text=True,
-            check=True
+            timeout=10,
         )
-        return service_id in result.stdout
-    except Exception:
+        return result.returncode == 0 and service_id in result.stdout
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError, Exception):
+        # launchctl no existe (Linux sin RENDER), timeout, u otro error
         return False

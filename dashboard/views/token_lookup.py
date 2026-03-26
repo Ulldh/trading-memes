@@ -23,15 +23,7 @@ import plotly.express as px
 from src.data.supabase_storage import get_storage as _get_storage
 from src.utils.helpers import detect_chain
 from config import MODELS_DIR, SUPPORTED_CHAINS
-
-# Colores para labels
-LABEL_COLORS = {
-    "gem": "#2ecc71",
-    "moderate_success": "#3498db",
-    "neutral": "#95a5a6",
-    "failure": "#e74c3c",
-    "rug": "#1a1a1a",
-}
+from dashboard.constants import LABEL_COLORS
 
 
 @st.cache_resource
@@ -744,16 +736,19 @@ def render():
     else:
         feature_row = df_features.iloc[0]
         exclude = {"token_id", "index", "computed_at"}
-        feature_dict = {
-            k: v for k, v in feature_row.items()
-            if k not in exclude and v is not None and not (isinstance(v, float) and np.isnan(v))
-        }
+        feature_dict = {}
+        for k, v in feature_row.items():
+            if k not in exclude and v is not None and not (isinstance(v, float) and np.isnan(v)):
+                feature_dict[k] = v
 
         if feature_dict:
             rows = []
             for k, v in feature_dict.items():
                 desc = FEATURE_DESCRIPTIONS.get(k, "")
-                val = f"{v:.6f}" if isinstance(v, float) else str(v)
+                try:
+                    val = f"{v:.6f}" if isinstance(v, float) else str(v)
+                except (ValueError, TypeError):
+                    val = str(v)
                 rows.append({"Feature": k, "Valor": val, "Descripcion": desc})
 
             df_display = pd.DataFrame(rows)
@@ -782,12 +777,13 @@ def render():
             "contract_age_hours": "Edad Contrato",
         }
 
-        # Filtrar features disponibles
-        available_radar = {
-            k: v for k, v in RADAR_FEATURES.items()
-            if k in feature_row.index and feature_row[k] is not None
-               and not (isinstance(feature_row[k], float) and np.isnan(feature_row[k]))
-        }
+        # Filtrar features disponibles (acceso defensivo a feature_row)
+        available_radar = {}
+        for k, v in RADAR_FEATURES.items():
+            if k in feature_row.index:
+                val = feature_row[k]
+                if val is not None and not (isinstance(val, float) and np.isnan(val)):
+                    available_radar[k] = v
 
         if len(available_radar) >= 3:
             # Obtener valores del token actual

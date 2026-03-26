@@ -16,6 +16,7 @@ from pathlib import Path
 from datetime import datetime
 
 from src.data.supabase_storage import get_storage as _get_storage
+from dashboard.constants import SIGNAL_COLORS
 
 try:
     from config import MODELS_DIR
@@ -28,14 +29,6 @@ except ImportError:
     SIGNAL_THRESHOLDS = {"STRONG": 0.80, "MEDIUM": 0.65, "WEAK": 0.50}
 
 SIGNALS_DIR = Path("signals")
-
-# Colores para niveles de senal
-SIGNAL_COLORS = {
-    "STRONG": "#2ecc71",  # Verde
-    "MEDIUM": "#f39c12",  # Naranja
-    "WEAK": "#3498db",    # Azul
-    "NONE": "#95a5a6",    # Gris
-}
 
 
 @st.cache_resource
@@ -209,8 +202,11 @@ def render_current_signals():
 
     # Tabla de senales con colores
     if "signal" in df_filtered.columns:
-        # Ordenar por probabilidad descendente
-        df_display = df_filtered.sort_values("probability", ascending=False)
+        # Ordenar por probabilidad descendente (si la columna existe)
+        if "probability" in df_filtered.columns:
+            df_display = df_filtered.sort_values("probability", ascending=False)
+        else:
+            df_display = df_filtered.copy()
 
         # Seleccionar columnas para mostrar
         display_cols = ["token_id", "chain", "symbol", "probability", "signal"]
@@ -382,43 +378,44 @@ def render_backtesting():
                     st.error(results["error"])
                     return
 
-                # Metricas principales
+                # Metricas principales (acceso defensivo a claves del resultado)
                 col1, col2, col3 = st.columns(3)
                 col1.metric(
                     "Precision",
-                    f"{results['precision']:.1%}",
+                    f"{results.get('precision', 0):.1%}",
                     help="De las senales, cuantas eran gems reales.",
                 )
                 col2.metric(
                     "Recall",
-                    f"{results['recall']:.1%}",
+                    f"{results.get('recall', 0):.1%}",
                     help="De los gems, cuantos se detectaron.",
                 )
                 col3.metric(
                     "F1 Score",
-                    f"{results['f1']:.4f}",
+                    f"{results.get('f1', 0):.4f}",
                     help="Balance entre precision y recall.",
                 )
 
                 col4, col5, col6 = st.columns(3)
-                col4.metric("True Positives", results["true_positives"])
-                col5.metric("False Positives", results["false_positives"])
-                col6.metric("False Negatives", results["false_negatives"])
+                col4.metric("True Positives", results.get("true_positives", 0))
+                col5.metric("False Positives", results.get("false_positives", 0))
+                col6.metric("False Negatives", results.get("false_negatives", 0))
 
                 # Resumen de rentabilidad
-                st.divider()
-                st.subheader("Rentabilidad Simulada")
-                col_r1, col_r2 = st.columns(2)
-                col_r1.metric(
-                    "Retorno promedio (max multiple)",
-                    f"{results['avg_return']:.2f}x",
-                    help="Promedio del maximo retorno de tokens con senal.",
-                )
-                col_r2.metric(
-                    "Retorno mediana",
-                    f"{results['median_return']:.2f}x",
-                    help="Mediana del maximo retorno (mas robusta que el promedio).",
-                )
+                if "avg_return" in results:
+                    st.divider()
+                    st.subheader("Rentabilidad Simulada")
+                    col_r1, col_r2 = st.columns(2)
+                    col_r1.metric(
+                        "Retorno promedio (max multiple)",
+                        f"{results.get('avg_return', 0):.2f}x",
+                        help="Promedio del maximo retorno de tokens con senal.",
+                    )
+                    col_r2.metric(
+                        "Retorno mediana",
+                        f"{results.get('median_return', 0):.2f}x",
+                        help="Mediana del maximo retorno (mas robusta que el promedio).",
+                    )
 
                 # Tabla detallada
                 if "details" in results and not results["details"].empty:
@@ -432,9 +429,11 @@ def render_backtesting():
                         "max_multiple",
                     ]
                     available = [c for c in display_cols if c in df_detail.columns]
-                    df_detail = df_detail[available].sort_values(
-                        "probability", ascending=False
-                    )
+                    df_detail = df_detail[available]
+                    if "probability" in df_detail.columns:
+                        df_detail = df_detail.sort_values(
+                            "probability", ascending=False
+                        )
 
                     # Formatear
                     if "probability" in df_detail.columns:
@@ -534,6 +533,13 @@ def render_ohlcv_section(df_signals: pd.DataFrame):
 
     if ohlcv_df.empty:
         st.warning(f"No hay datos OHLCV disponibles para este token en timeframe '{timeframe}'.")
+        return
+
+    # Verificar columnas requeridas para candlestick
+    required_ohlcv_cols = {"timestamp", "open", "high", "low", "close", "volume"}
+    missing_cols = required_ohlcv_cols - set(ohlcv_df.columns)
+    if missing_cols:
+        st.warning(f"Faltan columnas OHLCV: {', '.join(missing_cols)}")
         return
 
     # Limitar numero de velas

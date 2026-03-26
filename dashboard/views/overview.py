@@ -13,22 +13,7 @@ import pandas as pd
 import plotly.express as px
 
 from src.data.supabase_storage import get_storage as _get_storage
-
-# Colores consistentes para las labels en todo el dashboard
-LABEL_COLORS = {
-    "gem": "#2ecc71",              # verde
-    "moderate_success": "#3498db", # azul
-    "neutral": "#95a5a6",          # gris
-    "failure": "#e74c3c",          # rojo
-    "rug": "#1a1a1a",              # negro
-}
-
-# Colores para las cadenas
-CHAIN_COLORS = {
-    "solana": "#9945FF",
-    "ethereum": "#627EEA",
-    "base": "#0052FF",
-}
+from dashboard.constants import LABEL_COLORS, CHAIN_COLORS
 
 
 @st.cache_resource

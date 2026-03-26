@@ -14,16 +14,7 @@ import plotly.express as px
 
 from src.data.supabase_storage import get_storage as _get_storage
 from config import PROCESSED_DIR
-
-# Colores consistentes para las labels
-LABEL_COLORS = {
-    "gem": "#2ecc71",
-    "moderate_success": "#3498db",
-    "neutral": "#95a5a6",
-    "failure": "#e74c3c",
-    "rug": "#1a1a1a",
-    "sin_label": "#bdc3c7",
-}
+from dashboard.constants import LABEL_COLORS
 
 
 @st.cache_resource
@@ -31,7 +22,7 @@ def get_storage():
     return _get_storage()
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=3600)
 def load_features_and_labels():
     """Carga features y labels y los combina."""
     storage = get_storage()
