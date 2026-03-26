@@ -171,6 +171,7 @@ EXCLUDED_FEATURES = [
     "return_7d",
     # Quasi-leakage: usan datos de la ventana de 7 dias (misma que el target)
     "max_return_7d",           # usa max(high) de ventana 7d
+    "max_return_30d",          # usa max(high) de ventana 30d
     "close_to_high_ratio_7d",  # usa last close de ventana 7d
     "price_recovery_ratio",    # usa last close de ventana 7d
     # Leakage temporal: cambia con datetime.now(), no reproducible
