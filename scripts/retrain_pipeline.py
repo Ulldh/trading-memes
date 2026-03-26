@@ -17,6 +17,8 @@ Uso:
     python scripts/retrain_pipeline.py --skip-labels    # Solo features + train
     python scripts/retrain_pipeline.py --skip-features   # Solo labels + train
     python scripts/retrain_pipeline.py --dry-run          # Solo mostrar stats
+    python scripts/retrain_pipeline.py --tuned-params data/models/tuned_params.json
+    python scripts/retrain_pipeline.py --use-v12-features  # Comparar justo vs v12
 """
 
 import argparse
@@ -80,10 +82,52 @@ def _download_from_supabase_storage(remote_path: str) -> bytes | None:
         return None
 
 
+def _load_v12_feature_names() -> list[str]:
+    """
+    Carga la lista de feature_names del modelo v12.
+
+    Estrategia de busqueda (en orden):
+      1. Disco local: data/models/v12/metadata.json
+      2. Supabase Storage: v12/metadata.json (REST)
+
+    Returns:
+        Lista de nombres de features, o lista vacia si no se encontro.
+    """
+    # 1. Intentar desde disco local
+    try:
+        from config import MODELS_DIR
+        local_metadata = MODELS_DIR / "v12" / "metadata.json"
+        if local_metadata.exists():
+            with open(local_metadata) as f:
+                metadata = json.load(f)
+            features = metadata.get("feature_names", [])
+            if features:
+                logger.info(f"  v12 feature list cargada desde disco local: {len(features)} features")
+                return features
+    except Exception as e:
+        logger.debug(f"  No se pudo cargar v12 metadata local: {e}")
+
+    # 2. Fallback: Supabase Storage via REST
+    data = _download_from_supabase_storage("v12/metadata.json")
+    if data is not None:
+        try:
+            metadata = json.loads(data.decode())
+            features = metadata.get("feature_names", [])
+            if features:
+                logger.info(f"  v12 feature list cargada desde Supabase Storage: {len(features)} features")
+                return features
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            logger.debug(f"  v12/metadata.json no es valido: {e}")
+
+    return []
+
+
 def run_pipeline(
     skip_labels: bool = False,
     skip_features: bool = False,
     dry_run: bool = False,
+    tuned_params_file: str | None = None,
+    use_v12_features: bool = False,
 ) -> dict:
     """
     Pipeline completo: label -> features -> train -> save.
@@ -92,6 +136,8 @@ def run_pipeline(
         skip_labels: Si True, no re-etiqueta (usa labels existentes).
         skip_features: Si True, no re-extrae features (usa los existentes).
         dry_run: Si True, solo muestra estadisticas sin entrenar.
+        tuned_params_file: Ruta a JSON con hiperparametros optimizados (de tune_models.py).
+        use_v12_features: Si True, filtra features al set de v12 para comparacion justa.
 
     Returns:
         Dict con estadisticas del pipeline.
@@ -215,15 +261,40 @@ def run_pipeline(
             logger.warning("  No se pudo descargar latest_version.txt. Se asumira v1.")
 
     # ================================================================
+    # PASO 2.7: Filtrar features al set de v12 si se pidio
+    # (antes de entrenar, para comparacion justa con v12)
+    # ================================================================
+    if use_v12_features:
+        v12_features = _load_v12_feature_names()
+        if v12_features:
+            available = [c for c in v12_features if c in features_df.columns]
+            extra_cols = [c for c in features_df.columns if c not in v12_features and c != "token_id"]
+            # Mantener token_id + features de v12
+            keep_cols = ["token_id"] + available if "token_id" in features_df.columns else available
+            features_df = features_df[keep_cols]
+            logger.info(
+                f"  --use-v12-features: {len(available)}/{len(v12_features)} features de v12 disponibles, "
+                f"{len(extra_cols)} features nuevos descartados"
+            )
+        else:
+            logger.warning("  --use-v12-features: no se pudo cargar feature list de v12. Usando todas.")
+
+    # ================================================================
     # PASO 3: Entrenar modelos
     # ================================================================
     logger.info("=" * 60)
     logger.info("PASO 3: Entrenando modelos RF + XGBoost + LightGBM")
     logger.info("=" * 60)
 
+    if tuned_params_file:
+        logger.info(f"  Usando hiperparametros tuneados de: {tuned_params_file}")
+
     t0 = time.time()
     trainer = ModelTrainer(random_seed=42)
-    results = trainer.train_all(features_df, labels_df, target="label_binary")
+    results = trainer.train_all(
+        features_df, labels_df, target="label_binary",
+        tuned_params_file=tuned_params_file,
+    )
     t1 = time.time()
 
     logger.info(f"Entrenamiento completado en {t1 - t0:.1f}s")
@@ -556,6 +627,14 @@ if __name__ == "__main__":
         "--dry-run", action="store_true",
         help="Solo mostrar estadisticas, no entrenar"
     )
+    parser.add_argument(
+        "--tuned-params", type=str, default=None,
+        help="Archivo JSON con hiperparametros optimizados (de tune_models.py)"
+    )
+    parser.add_argument(
+        "--use-v12-features", action="store_true",
+        help="Filtrar features al set de v12 (de metadata.json) para comparacion justa"
+    )
 
     args = parser.parse_args()
 
@@ -563,6 +642,8 @@ if __name__ == "__main__":
         skip_labels=args.skip_labels,
         skip_features=args.skip_features,
         dry_run=args.dry_run,
+        tuned_params_file=args.tuned_params,
+        use_v12_features=args.use_v12_features,
     )
 
     print(f"\nResultado: {stats}")

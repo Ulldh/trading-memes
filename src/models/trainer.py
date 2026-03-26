@@ -153,6 +153,85 @@ class ModelTrainer:
         self._ensemble_results: dict = {}  # resultados de evaluacion de ensembles
 
     # ============================================================
+    # RESOLUCION DE HIPERPARAMETROS TUNEADOS
+    # ============================================================
+
+    def _resolve_tuned_params(
+        self,
+        rf_params: dict | None = None,
+        xgb_params: dict | None = None,
+        lgb_params: dict | None = None,
+        tuned_params_file: str | None = None,
+    ) -> tuple[dict | None, dict | None, dict | None]:
+        """
+        Resuelve hiperparametros tuneados desde archivo JSON o parametros directos.
+
+        Prioridad (de mayor a menor):
+        1. Parametros individuales (rf_params, xgb_params, lgb_params) — override directo.
+        2. Archivo JSON de Optuna (tuned_params_file) — si se proporciona.
+        3. None — se usaran los defaults regularizados de regularization.py.
+
+        El archivo JSON debe tener la estructura:
+        {
+            "random_forest": {"max_depth": 8, "n_estimators": 200, ...},
+            "xgboost": {"max_depth": 5, "learning_rate": 0.03, ...},
+            "lightgbm": {"num_leaves": 31, ...}
+        }
+
+        Args:
+            rf_params: Hiperparametros directos para Random Forest.
+            xgb_params: Hiperparametros directos para XGBoost.
+            lgb_params: Hiperparametros directos para LightGBM.
+            tuned_params_file: Ruta a archivo JSON con params de Optuna.
+
+        Returns:
+            Tupla (rf_params, xgb_params, lgb_params) resueltos.
+            Cada uno puede ser None (= usar defaults regularizados).
+        """
+        _rf = rf_params
+        _xgb = xgb_params
+        _lgb = lgb_params
+
+        # Si hay archivo JSON de Optuna, cargar como base
+        if tuned_params_file is not None:
+            tuned_path = Path(tuned_params_file)
+            if not tuned_path.exists():
+                logger.warning(
+                    f"Archivo de params tuneados no encontrado: {tuned_params_file}. "
+                    "Usando defaults regularizados."
+                )
+            else:
+                try:
+                    with open(tuned_path) as f:
+                        tuned = json.load(f)
+                    logger.info(f"Hiperparametros tuneados cargados de: {tuned_params_file}")
+
+                    # Solo usar del archivo si no se paso parametro directo
+                    if _rf is None and "random_forest" in tuned:
+                        _rf = tuned["random_forest"]
+                        logger.info(f"  RF params de archivo: {list(_rf.keys())}")
+                    if _xgb is None and "xgboost" in tuned:
+                        _xgb = tuned["xgboost"]
+                        logger.info(f"  XGB params de archivo: {list(_xgb.keys())}")
+                    if _lgb is None and "lightgbm" in tuned:
+                        _lgb = tuned["lightgbm"]
+                        logger.info(f"  LGB params de archivo: {list(_lgb.keys())}")
+                except (json.JSONDecodeError, OSError) as e:
+                    logger.error(
+                        f"Error leyendo archivo de params tuneados: {e}. "
+                        "Usando defaults regularizados."
+                    )
+
+        # Log de la fuente de params para cada modelo
+        for name, params in [("RF", _rf), ("XGB", _xgb), ("LGB", _lgb)]:
+            if params is not None:
+                logger.info(f"  {name}: usando hiperparametros tuneados/personalizados")
+            else:
+                logger.info(f"  {name}: usando defaults regularizados")
+
+        return _rf, _xgb, _lgb
+
+    # ============================================================
     # PREPARACION DE DATOS
     # ============================================================
 
@@ -665,6 +744,10 @@ class ModelTrainer:
         labels_df: pd.DataFrame,
         target: str = "label_binary",
         use_feature_selection: bool = True,
+        rf_params: dict | None = None,
+        xgb_params: dict | None = None,
+        lgb_params: dict | None = None,
+        tuned_params_file: str | None = None,
     ) -> dict:
         """
         Pipeline completo: prepara datos, selecciona features, entrena modelos, evalua ensembles.
@@ -679,12 +762,23 @@ class ModelTrainer:
         7. Calibra probabilidades y busca threshold optimo.
         8. Devuelve diccionario con todos los resultados.
 
+        Prioridad de hiperparametros (de mayor a menor):
+        1. Parametros individuales (rf_params, xgb_params, lgb_params).
+        2. Archivo JSON de Optuna (tuned_params_file).
+        3. Defaults regularizados de regularization.py.
+
         Args:
             features_df: DataFrame con features calculados.
             labels_df: DataFrame con labels.
             target: Columna objetivo ('label_binary' por defecto).
             use_feature_selection: Si True, aplica seleccion automatica de features
                                    para reducir overfitting (default True).
+            rf_params: Hiperparametros personalizados para Random Forest (override).
+            xgb_params: Hiperparametros personalizados para XGBoost (override).
+            lgb_params: Hiperparametros personalizados para LightGBM (override).
+            tuned_params_file: Ruta a archivo JSON con hiperparametros optimizados
+                               (estructura: {"random_forest": {...}, "xgboost": {...},
+                               "lightgbm": {...}}).
 
         Returns:
             Diccionario con estructura:
@@ -695,6 +789,13 @@ class ModelTrainer:
                 "data_info": {info del dataset...},
             }
         """
+        # --- Resolver hiperparametros: archivo JSON < params individuales ---
+        _rf_params, _xgb_params, _lgb_params = self._resolve_tuned_params(
+            rf_params=rf_params,
+            xgb_params=xgb_params,
+            lgb_params=lgb_params,
+            tuned_params_file=tuned_params_file,
+        )
         logger.info("=" * 60)
         logger.info("INICIO DEL PIPELINE DE ENTRENAMIENTO (v2 - Fase 5)")
         logger.info("=" * 60)
@@ -752,23 +853,32 @@ class ModelTrainer:
             "class_distribution": y_train.value_counts().to_dict(),
         }
 
-        # --- Paso 2: Entrenar Random Forest (hiperparametros regularizados) ---
+        # --- Paso 2: Entrenar Random Forest (hiperparametros regularizados o tuneados) ---
         try:
-            self.train_random_forest(X_train, y_train, X_test, y_test)
+            self.train_random_forest(
+                X_train, y_train, X_test, y_test,
+                rf_params_override=_rf_params,
+            )
         except Exception as e:
             logger.error(f"Error entrenando Random Forest: {e}")
             self.results["random_forest"] = {"error": str(e)}
 
-        # --- Paso 3: Entrenar XGBoost (hiperparametros regularizados) ---
+        # --- Paso 3: Entrenar XGBoost (hiperparametros regularizados o tuneados) ---
         try:
-            self.train_xgboost(X_train, y_train, X_test, y_test)
+            self.train_xgboost(
+                X_train, y_train, X_test, y_test,
+                xgb_params_override=_xgb_params,
+            )
         except Exception as e:
             logger.error(f"Error entrenando XGBoost: {e}")
             self.results["xgboost"] = {"error": str(e)}
 
         # --- Paso 3b: Entrenar LightGBM (si esta disponible) ---
         try:
-            self._train_lightgbm(X_train, y_train, X_test, y_test)
+            self._train_lightgbm(
+                X_train, y_train, X_test, y_test,
+                lgb_params_override=_lgb_params,
+            )
         except Exception as e:
             logger.warning(f"LightGBM no disponible o fallo: {e}")
 
@@ -961,6 +1071,7 @@ class ModelTrainer:
         y_train: pd.Series,
         X_val: pd.DataFrame,
         y_val: pd.Series,
+        lgb_params_override: dict | None = None,
     ):
         """
         Entrena LightGBM via EnsembleBuilder y registra metricas.
@@ -972,6 +1083,7 @@ class ModelTrainer:
             y_train: Labels de entrenamiento.
             X_val: Features de validacion.
             y_val: Labels de validacion.
+            lgb_params_override: Hiperparametros personalizados para LightGBM (override).
         """
         if not LIGHTGBM_AVAILABLE:
             logger.warning(
@@ -994,11 +1106,45 @@ class ModelTrainer:
 
         self._ensemble_builder = EnsembleBuilder(base_models)
 
-        # Entrenar LightGBM via EnsembleBuilder
-        lgb_model = self._ensemble_builder.train_lightgbm(
-            X_train, y_train, X_val, y_val,
-            random_seed=self.random_seed,
-        )
+        # Entrenar LightGBM via EnsembleBuilder (o directo si hay params tuneados)
+        if lgb_params_override:
+            # Entrenar directo con params de Optuna (sin modificar ensemble.py)
+            import lightgbm as _lgb_mod
+            lgb_direct_params = {
+                "objective": "binary",
+                "metric": "binary_logloss",
+                "num_leaves": 31,
+                "max_depth": 6,
+                "learning_rate": 0.05,
+                "n_estimators": 500,
+                "is_unbalance": True,
+                "subsample": 0.8,
+                "colsample_bytree": 0.8,
+                "reg_alpha": 0.1,
+                "reg_lambda": 0.1,
+                "random_state": self.random_seed,
+                "verbose": -1,
+                "n_jobs": -1,
+            }
+            lgb_direct_params.update(lgb_params_override)
+            lgb_direct_params["random_state"] = self.random_seed
+            logger.info(f"  LightGBM con params tuneados: {list(lgb_params_override.keys())}")
+            lgb_model = _lgb_mod.LGBMClassifier(**lgb_direct_params)
+            lgb_model.fit(
+                X_train, y_train,
+                eval_set=[(X_val, y_val)],
+                callbacks=[
+                    _lgb_mod.early_stopping(stopping_rounds=50, verbose=False),
+                    _lgb_mod.log_evaluation(period=0),
+                ],
+            )
+            # Registrar en EnsembleBuilder tambien
+            self._ensemble_builder.models["lightgbm"] = lgb_model
+        else:
+            lgb_model = self._ensemble_builder.train_lightgbm(
+                X_train, y_train, X_val, y_val,
+                random_seed=self.random_seed,
+            )
 
         # Evaluar LightGBM en validacion
         y_pred_val = lgb_model.predict(X_val)
@@ -1010,6 +1156,7 @@ class ModelTrainer:
         cv_folds = ML_CONFIG.get("cv_folds", 5)
         cv_scores = np.array([0.0])
         try:
+            # Params base para CV (pueden ser override de Optuna)
             lgb_cv_params = {
                 "objective": "binary",
                 "num_leaves": 31,
@@ -1025,6 +1172,10 @@ class ModelTrainer:
                 "verbose": -1,
                 "n_jobs": -1,
             }
+            # Aplicar override de Optuna si se proporcionaron
+            if lgb_params_override:
+                lgb_cv_params.update(lgb_params_override)
+                lgb_cv_params["random_state"] = self.random_seed
             lgb_cv_model = lgb.LGBMClassifier(**lgb_cv_params)
             skf = StratifiedKFold(
                 n_splits=cv_folds, shuffle=True, random_state=self.random_seed,
