@@ -110,7 +110,7 @@ Se configuraran las siguientes credenciales en n8n Cloud:
 | Credencial | Tipo | Uso |
 |------------|------|-----|
 | Supabase API | HTTP Header Auth | `Authorization: Bearer {service_role_key}`, `apikey: {service_role_key}` |
-| Telegram Bot | Telegram API | Token: `8317359629:AAFT...` + Chat ID: `1558705287` |
+| Telegram Bot | Telegram API | Token: `TELEGRAM_BOT_TOKEN` (configured in n8n credentials) + Chat ID: `TELEGRAM_CHAT_ID` (env var) |
 
 ### 3.3 Workflow 1 - Health Monitor (detalle de nodos)
 
@@ -317,7 +317,7 @@ CREATE INDEX idx_scores_scored_at ON scores(scored_at);
 
 ### 5.1 Infraestructura existente (ya configurada)
 - **Supabase**: Proyecto `xayfwuqbbqtyerxzjbec` con DB poblada (4028 tokens, 86728 OHLCV, 1467 labels, 4028 features) y Storage bucket `ml-models` con modelos v12
-- **Telegram Bot**: Token `8317359629:AAFT_knnE98NZtKeDrVN1Qh73wbWSba-czA`, Chat ID `1558705287`, verificado y funcionando
+- **Telegram Bot**: Token stored in n8n credentials + GitHub Secrets (TELEGRAM_BOT_TOKEN), Chat ID stored as TELEGRAM_CHAT_ID env var, verificado y funcionando
 - **GitHub Actions**: 4 workflows existentes (ci, daily-collect, check-retrain, manual-retrain) con secrets configurados
 - **Supabase RPC functions**: `exec_query(text)` y `exec_sql(text)` disponibles con service_role key
 

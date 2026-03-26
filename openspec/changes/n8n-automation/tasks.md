@@ -163,8 +163,8 @@ These tasks create the 3 n8n Cloud workflows. Each is independent of the others 
    - Header Name 1: `apikey`, Value: `{service_role_key}`
    - Header Name 2: `Authorization`, Value: `Bearer {service_role_key}`
 2. Create credential "Telegram Bot" (type: Telegram API):
-   - Bot Token: `8317359629:AAFT_knnE98NZtKeDrVN1Qh73wbWSba-czA`
-3. Verify both by testing an HTTP Request node to Supabase and a Telegram send to chat_id `1558705287`.
+   - Bot Token: (use value from TELEGRAM_BOT_TOKEN secret -- do NOT hardcode)
+3. Verify both by testing an HTTP Request node to Supabase and a Telegram send to the configured chat_id.
 
 **Verification**: Test nodes succeed in n8n.
 
@@ -188,7 +188,7 @@ These tasks create the 3 n8n Cloud workflows. Each is independent of the others 
 | 5 | Latest Version | HTTP Request | GET `storage/v1/object/public/ml-models/latest_version.txt` |
 | 6 | Metadata | HTTP Request | GET `storage/v1/object/public/ml-models/{version}/metadata.json` |
 | 7 | Build Report | Code | JavaScript: aggregate all inputs, determine OK/WARNING/ERROR, build HTML message |
-| 8 | Send Telegram | Telegram | chat_id: `1558705287`, parse_mode: HTML |
+| 8 | Send Telegram | Telegram | chat_id: `TELEGRAM_CHAT_ID`, parse_mode: HTML |
 
 **Key logic in Code node**:
 - `continueOnFail: true` on all HTTP Request nodes
@@ -216,7 +216,7 @@ These tasks create the 3 n8n Cloud workflows. Each is independent of the others 
 | 1 | Schedule Trigger | Cron | 07:30 UTC daily |
 | 2 | Query Scores | HTTP Request | POST `exec_query`: `SELECT s.*, t.name, t.symbol, t.chain, t.pool_address FROM scores s JOIN tokens t ON s.token_id=t.token_id WHERE s.scored_at::date=CURRENT_DATE AND s.probability>=0.65 ORDER BY s.probability DESC LIMIT 20` |
 | 3 | Format Report | Code | JavaScript: format candidates or "Sin senales" message |
-| 4 | Send Telegram | Telegram | chat_id: `1558705287`, parse_mode: HTML |
+| 4 | Send Telegram | Telegram | chat_id: `TELEGRAM_CHAT_ID`, parse_mode: HTML |
 
 **Key logic in Code node**:
 - `continueOnFail: true` on HTTP Request

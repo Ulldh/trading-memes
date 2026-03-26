@@ -73,7 +73,7 @@ Schedule Trigger
     |
     v
 [Telegram: Send message]
-    - chat_id: 1558705287
+    - chat_id: TELEGRAM_CHAT_ID
     - parse_mode: HTML
     - text: from Code node output
 ```
