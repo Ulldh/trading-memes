@@ -356,7 +356,7 @@ class DataIntegrityAuditor:
             SELECT token_id, COUNT(DISTINCT chain) as n_chains, GROUP_CONCAT(chain) as chains
             FROM tokens
             GROUP BY token_id
-            HAVING n_chains > 1
+            HAVING COUNT(DISTINCT chain) > 1
         """)
 
         if not df.empty:
@@ -564,7 +564,7 @@ class DataIntegrityAuditor:
                 WHERE timeframe = 'day'
             )
             GROUP BY token_id
-            HAVING n_days >= 7
+            HAVING COUNT(*) >= 7
         """)
         tokens_with_ohlcv = set(df['token_id']) if not df.empty else set()
 

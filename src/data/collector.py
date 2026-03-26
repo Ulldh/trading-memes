@@ -1160,7 +1160,7 @@ class DataCollector:
             LEFT JOIN ohlcv o ON t.token_id = o.token_id
             WHERE t.pool_address IS NOT NULL AND t.pool_address != ''
             GROUP BY t.token_id
-            HAVING ohlcv_count = 0
+            HAVING COUNT(o.id) = 0
                 OR last_ohlcv_date < DATE('now', '-1 day')
             ORDER BY ohlcv_count ASC, last_ohlcv_date ASC
             LIMIT ?
