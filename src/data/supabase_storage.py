@@ -361,7 +361,13 @@ class SupabaseStorage:
     # ============================================================
 
     def upsert_label(self, label: dict):
-        """Inserta o actualiza un label para un token."""
+        """
+        Inserta o actualiza un label para un token.
+
+        Soporta campos nuevos de tier (M2): tier y tier_numeric.
+        Los campos None se filtran para no sobreescribir valores existentes
+        en un upsert parcial (ej: actualizar solo tier sin borrar label_multi).
+        """
         row = {
             "token_id": label.get("token_id"),
             "label_multi": label.get("label_multi"),
@@ -370,7 +376,13 @@ class SupabaseStorage:
             "final_multiple": label.get("final_multiple"),
             "return_7d": label.get("return_7d"),
             "notes": label.get("notes"),
+            # Campos de tier (M2) — se agregan si existen en el dict
+            "tier": label.get("tier"),
+            "tier_numeric": label.get("tier_numeric"),
         }
+        # Filtrar None para preservar valores existentes en ON CONFLICT
+        # (permite upserts parciales: solo tier, o solo label_multi, etc.)
+        row = {k: v for k, v in row.items() if v is not None}
         self._client.table("labels").upsert(
             row, on_conflict="token_id"
         ).execute()

@@ -142,6 +142,22 @@ LABELS_MULTI = {
     },
 }
 
+# Minimo de dias de datos OHLCV para clasificar (reducido de 7 a 3 para capturar rugs tempranos)
+MIN_DAYS_REQUIRED = 3
+
+# Umbrales para clasificacion por tiers (granular, complementa binaria)
+TIER_THRESHOLDS = {
+    "mega_gem": 10.0,        # max return >= 10x (1000%)
+    "standard_gem": 4.0,     # max return >= 4x (300%)
+    "mini_gem": 2.0,         # max return >= 2x (100%)
+    "micro_gem": 1.5,        # max return >= 1.5x (50%)
+    "neutral_upper": 1.5,    # max return < 1.5x
+    "neutral_lower": 0.5,    # max return >= 0.5x
+    "failure": 0.5,          # max return < 0.5x (perdio 50%+)
+    "rug_drop_pct": 0.90,    # caida de 90%+ en primeras 72h
+    "rug_max_hours": 72,     # ventana de deteccion de rug
+}
+
 # Clasificacion binaria simplificada
 LABEL_BINARY_THRESHOLD = 5.0  # success = alcanzo 5x en 30 dias
 
@@ -227,7 +243,7 @@ ML_CONFIG = {
     },
     "optimal_threshold": None,  # Se sobreescribe tras entrenamiento con threshold optimizado
     "use_ensemble": False,      # Activar ensemble VotingClassifier (RF+XGB)
-    "remove_correlated": False, # Eliminar features con correlacion > 0.95
+    "remove_correlated": True,  # Eliminar features con correlacion > 0.95
 }
 
 # ============================================================

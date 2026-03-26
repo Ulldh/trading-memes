@@ -119,6 +119,8 @@ CREATE TABLE IF NOT EXISTS labels (
     max_multiple    REAL,                       -- maximo multiple alcanzado
     final_multiple  REAL,                       -- multiple al dia 30
     return_7d       REAL,                       -- close_day7 / close_day1
+    tier            TEXT,                       -- mega_gem, standard_gem, mini_gem, micro_gem, neutral, failure, rug
+    tier_numeric    INTEGER,                    -- 6=mega_gem, 5=standard, 4=mini, 3=micro, 2=neutral, 1=failure, 0=rug
     labeled_at      TEXT DEFAULT CURRENT_TIMESTAMP,
     notes           TEXT,
     FOREIGN KEY (token_id) REFERENCES tokens(token_id)
@@ -204,6 +206,21 @@ class Storage:
             # WAL mode permite lecturas concurrentes mientras se escribe
             conn.execute("PRAGMA journal_mode=WAL")
             conn.executescript(SCHEMA_SQL)
+            # Migracion: agregar columnas tier si no existen en tablas antiguas
+            self._migrate_labels_tier(conn)
+
+    def _migrate_labels_tier(self, conn):
+        """Agrega columnas tier y tier_numeric a labels si no existen (M2)."""
+        try:
+            cols = [row[1] for row in conn.execute("PRAGMA table_info(labels)").fetchall()]
+            if "tier" not in cols:
+                conn.execute("ALTER TABLE labels ADD COLUMN tier TEXT")
+                logger.info("Migracion: columna 'tier' agregada a labels")
+            if "tier_numeric" not in cols:
+                conn.execute("ALTER TABLE labels ADD COLUMN tier_numeric INTEGER")
+                logger.info("Migracion: columna 'tier_numeric' agregada a labels")
+        except Exception as e:
+            logger.debug(f"Migracion tier ya aplicada o error menor: {e}")
 
     @contextmanager
     def _connect(self):
@@ -448,19 +465,27 @@ class Storage:
     # ============================================================
 
     def upsert_label(self, label: dict):
-        """Inserta o actualiza un label para un token."""
+        """
+        Inserta o actualiza un label para un token.
+
+        Soporta campos nuevos de tier (M2): tier y tier_numeric.
+        Usa COALESCE para no sobreescribir campos existentes con NULL
+        en upserts parciales (ej: actualizar solo tier sin borrar label_multi).
+        """
         sql = """
             INSERT INTO labels
                 (token_id, label_multi, label_binary, max_multiple,
-                 final_multiple, return_7d, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                 final_multiple, return_7d, notes, tier, tier_numeric)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(token_id) DO UPDATE SET
-                label_multi = excluded.label_multi,
-                label_binary = excluded.label_binary,
-                max_multiple = excluded.max_multiple,
-                final_multiple = excluded.final_multiple,
-                return_7d = excluded.return_7d,
-                notes = excluded.notes,
+                label_multi = COALESCE(excluded.label_multi, labels.label_multi),
+                label_binary = COALESCE(excluded.label_binary, labels.label_binary),
+                max_multiple = COALESCE(excluded.max_multiple, labels.max_multiple),
+                final_multiple = COALESCE(excluded.final_multiple, labels.final_multiple),
+                return_7d = COALESCE(excluded.return_7d, labels.return_7d),
+                notes = COALESCE(excluded.notes, labels.notes),
+                tier = COALESCE(excluded.tier, labels.tier),
+                tier_numeric = COALESCE(excluded.tier_numeric, labels.tier_numeric),
                 labeled_at = CURRENT_TIMESTAMP
         """
         self.execute(sql, (
@@ -471,6 +496,8 @@ class Storage:
             label.get("final_multiple"),
             label.get("return_7d"),
             label.get("notes"),
+            label.get("tier"),
+            label.get("tier_numeric"),
         ))
 
     # ============================================================

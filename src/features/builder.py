@@ -42,6 +42,7 @@ from src.features.temporal import extract_temporal_features
 from src.features.volatility_advanced import compute_volatility_advanced_features
 from src.features.sentiment import compute_sentiment_features
 from src.features.technical import extract_technical_features
+from src.features.interactions import extract_interaction_features
 
 logger = get_logger(__name__)
 
@@ -335,6 +336,18 @@ class FeatureBuilder:
             modules_ok += 1
         except Exception as e:
             logger.error(f"Error en technical para {token_id}: {e}")
+            modules_fail += 1
+
+        # ============================================================
+        # 12. FEATURES DE INTERACCION (combinaciones de features existentes)
+        # ============================================================
+        # DEBE ser el ultimo paso porque depende de features de TODOS los modulos
+        try:
+            interactions = extract_interaction_features(all_features)
+            all_features.update(interactions)
+            modules_ok += 1
+        except Exception as e:
+            logger.error(f"Error en interactions para {token_id}: {e}")
             modules_fail += 1
 
         # Reportar si hubo modulos fallidos

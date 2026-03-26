@@ -153,6 +153,42 @@ class ModelTrainer:
         self._ensemble_results: dict = {}  # resultados de evaluacion de ensembles
 
     # ============================================================
+    # SMOTE ADAPTIVO
+    # ============================================================
+
+    def _get_adaptive_smote_ratio(self, y_train) -> float:
+        """
+        Calcula ratio SMOTE adaptivo segun distribucion real de clases.
+
+        En lugar de usar un ratio fijo (ej: 0.5 de config), ajusta el
+        sobremuestreo segun que tan desbalanceadas estan las clases.
+        Cuanto mas rara es la clase minoritaria, mas agresivo el oversampling.
+
+        Args:
+            y_train: Labels de entrenamiento (0/1).
+
+        Returns:
+            Ratio de sampling para SMOTE (float entre 0.3 y 0.8).
+        """
+        counts = pd.Series(y_train).value_counts()
+        minority_pct = counts.min() / counts.sum()
+
+        if minority_pct < 0.05:       # <5% minoritaria -> oversampling agresivo
+            ratio = 0.8
+        elif minority_pct < 0.15:     # 5-15%
+            ratio = 0.6
+        elif minority_pct < 0.30:     # 15-30%
+            ratio = 0.4
+        else:                         # >30% -> oversampling suave
+            ratio = 0.3
+
+        logger.info(
+            f"SMOTE adaptivo: clase minoritaria={minority_pct:.1%}, "
+            f"ratio={ratio} (antes fijo: {ML_CONFIG.get('smote_sampling', 0.5)})"
+        )
+        return ratio
+
+    # ============================================================
     # RESOLUCION DE HIPERPARAMETROS TUNEADOS
     # ============================================================
 
@@ -451,7 +487,8 @@ class ModelTrainer:
         if rf_params_override:
             rf_params.update(rf_params_override)
         rf_params["random_state"] = self.random_seed
-        smote_ratio = ML_CONFIG.get("smote_sampling", 0.5)
+        # SMOTE adaptivo: calcula ratio segun distribucion real de clases
+        smote_ratio = self._get_adaptive_smote_ratio(y_train)
 
         # --- Cross-validation con SMOTE DENTRO de cada fold ---
         # IMPORTANTE: SMOTE se aplica dentro de cada fold para que las
@@ -910,7 +947,8 @@ class ModelTrainer:
                 # Crear estimador fresco para OOF predictions
                 if name == "random_forest":
                     rf_p = get_regularized_rf_params(random_seed=self.random_seed)
-                    smote_ratio_t = ML_CONFIG.get("smote_sampling", 0.5)
+                    # Usar SMOTE adaptivo (consistente con train_random_forest)
+                    smote_ratio_t = self._get_adaptive_smote_ratio(y_train)
                     cv_est = ImbPipeline([
                         ("smote", SMOTE(
                             sampling_strategy=smote_ratio_t,

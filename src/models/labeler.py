@@ -31,6 +31,8 @@ try:
         LABEL_BINARY_MODE,
         LABEL_RETURN_7D_THRESHOLD,
         LABEL_WINDOW_DAYS,
+        MIN_DAYS_REQUIRED,
+        TIER_THRESHOLDS,
     )
 except ImportError:
     # Valores por defecto si no se puede importar config
@@ -38,6 +40,7 @@ except ImportError:
     LABEL_BINARY_THRESHOLD = 5.0
     LABEL_BINARY_MODE = "return_7d"
     LABEL_RETURN_7D_THRESHOLD = 2.0
+    MIN_DAYS_REQUIRED = 3
     LABELS_MULTI = {
         "gem": {"min_multiple": 10.0, "sustain_multiple": 5.0, "sustain_days": 7},
         "moderate_success": {"min_multiple": 3.0, "sustain_multiple": 2.0, "sustain_days": 3},
@@ -45,11 +48,19 @@ except ImportError:
         "failure": {"max_multiple": 0.1},
         "rug": {"max_multiple": 0.01, "time_hours": 72, "liquidity_drop_pct": 0.9},
     }
+    TIER_THRESHOLDS = {
+        "mega_gem": 10.0,
+        "standard_gem": 4.0,
+        "mini_gem": 2.0,
+        "micro_gem": 1.5,
+        "neutral_upper": 1.5,
+        "neutral_lower": 0.5,
+        "failure": 0.5,
+        "rug_drop_pct": 0.90,
+        "rug_max_hours": 72,
+    }
 
 logger = get_logger(__name__)
-
-# Minimo de dias de datos OHLCV necesarios para clasificar un token
-MIN_DAYS_REQUIRED = 7
 
 
 class Labeler:
@@ -118,6 +129,21 @@ class Labeler:
         """
         # --- Paso 1: Obtener datos OHLCV diarios ---
         ohlcv_df = self.storage.get_ohlcv(token_id, timeframe="day")
+
+        # --- Paso 1.5: Deteccion temprana de rug (antes del check de MIN_DAYS) ---
+        # Si el token tiene 2+ velas y el precio cae 90%+ desde la primera,
+        # lo clasificamos como "rug" inmediatamente, sin esperar MIN_DAYS.
+        if not ohlcv_df.empty and len(ohlcv_df) >= 2:
+            early_rug_result = self.label_early_rug(ohlcv_df, token_id)
+            if early_rug_result is not None:
+                # Guardar en la base de datos y retornar
+                self.storage.upsert_label(early_rug_result)
+                logger.info(
+                    f"Token {token_id}: early rug detectado | "
+                    f"max={early_rug_result['max_multiple']:.4f}x, "
+                    f"final={early_rug_result['final_multiple']:.4f}x"
+                )
+                return early_rug_result
 
         # --- Paso 2: Verificar datos minimos ---
         if ohlcv_df.empty or len(ohlcv_df) < MIN_DAYS_REQUIRED:
@@ -509,6 +535,247 @@ class Labeler:
                 current_streak = 0
 
         return max_consecutive
+
+    # ============================================================
+    # DETECCION TEMPRANA DE RUG PULL (M1)
+    # ============================================================
+
+    def label_early_rug(self, ohlcv_df: pd.DataFrame, token_id: str = "") -> Optional[dict]:
+        """
+        Detecta rug pulls tempranos sin necesitar MIN_DAYS_REQUIRED dias de datos.
+
+        Si un token tiene 2+ velas y el precio cae 90%+ desde el close de la
+        primera vela, se clasifica inmediatamente como "rug". Esto captura
+        tokens que hacen rug en 48-72h sin tener que esperar dias de datos.
+
+        Args:
+            ohlcv_df: DataFrame con datos OHLCV diarios (al menos 2 filas).
+            token_id: Identificador del token (para el resultado).
+
+        Returns:
+            Dict con label "rug" si se detecta early rug, None si no aplica.
+        """
+        if ohlcv_df.empty or len(ohlcv_df) < 2:
+            return None
+
+        # Copiar para no modificar el original y convertir columnas numericas
+        df = ohlcv_df.copy()
+        for col in ["open", "high", "low", "close", "volume"]:
+            if col in df.columns:
+                df[col] = df[col].apply(safe_float)
+
+        initial_price = safe_float(df.iloc[0]["close"])
+        if initial_price <= 0:
+            return None
+
+        # Verificar si el precio cayo 90%+ desde el inicio
+        # Usamos el low mas bajo para capturar la caida maxima
+        min_low = df["low"].min()
+        min_multiple = safe_divide(min_low, initial_price, default=1.0)
+
+        # Umbral: caida de 90% = el precio quedo en 10% o menos del original
+        rug_drop_threshold = 1.0 - TIER_THRESHOLDS.get("rug_drop_pct", 0.90)
+
+        if min_multiple <= rug_drop_threshold:
+            # Es un early rug — calcular metricas basicas
+            max_high = df["high"].max()
+            max_multiple = safe_divide(max_high, initial_price, default=0.0)
+            final_close = safe_float(df.iloc[-1]["close"])
+            final_multiple = safe_divide(final_close, initial_price, default=0.0)
+
+            return {
+                "token_id": token_id,
+                "label_multi": "rug",
+                "label_binary": 0,
+                "max_multiple": round(max_multiple, 4),
+                "close_max_multiple": round(
+                    safe_divide(df["close"].max(), initial_price, default=0.0), 4
+                ),
+                "final_multiple": round(final_multiple, 4),
+                "return_7d": round(final_multiple, 4),  # No hay 7d, usar final
+                "notes": (
+                    f"Early rug: precio cayo a {min_multiple:.6f}x "
+                    f"({(1 - min_multiple) * 100:.1f}% caida) "
+                    f"en {len(df)} velas"
+                ),
+            }
+
+        return None
+
+    # ============================================================
+    # CLASIFICACION POR TIERS (M2) — Sistema granular adicional
+    # ============================================================
+
+    def label_tiered(self, ohlcv_df: pd.DataFrame, token_id: str = "") -> dict:
+        """
+        Etiquetado por tiers para clasificacion mas granular.
+
+        Sistema de 7 niveles basado en el retorno maximo alcanzado dentro
+        de la ventana de observacion. Complementa (NO reemplaza) el sistema
+        binario y multiclase existente.
+
+        Tiers (de mayor a menor rendimiento):
+        - mega_gem (6): max return >= 10x (1000%)
+        - standard_gem (5): max return >= 4x (300%)
+        - mini_gem (4): max return >= 2x (100%)
+        - micro_gem (3): max return >= 1.5x (50%)
+        - neutral (2): max return entre 0.5x y 1.5x
+        - failure (1): max return < 0.5x (perdio 50%+)
+        - rug (0): precio cae 90%+ en primeras 72h
+
+        Args:
+            ohlcv_df: DataFrame con datos OHLCV diarios.
+            token_id: Identificador del token (para el resultado).
+
+        Returns:
+            Dict con: tier, tier_numeric, max_return, details.
+        """
+        if ohlcv_df.empty or len(ohlcv_df) < 2:
+            return {
+                "tier": "unknown",
+                "tier_numeric": -1,
+                "max_return": 0.0,
+                "details": "Datos insuficientes para clasificar tier",
+            }
+
+        # Copiar y convertir columnas numericas
+        df = ohlcv_df.copy()
+        for col in ["open", "high", "low", "close", "volume"]:
+            if col in df.columns:
+                df[col] = df[col].apply(safe_float)
+
+        initial_price = safe_float(df.iloc[0]["close"])
+        if initial_price <= 0:
+            return {
+                "tier": "unknown",
+                "tier_numeric": -1,
+                "max_return": 0.0,
+                "details": "Precio inicial invalido",
+            }
+
+        # Calcular max return (usando high para capturar picos)
+        max_high = df["high"].max()
+        max_return = safe_divide(max_high, initial_price, default=0.0)
+
+        # --- Check 1: Rug Pull (caida 90%+ en primeras 72h) ---
+        rug_hours = TIER_THRESHOLDS.get("rug_max_hours", 72)
+        rug_days = max(1, int(rug_hours // 24))
+        early_data = df.head(rug_days)
+
+        if not early_data.empty:
+            min_low = early_data["low"].min()
+            min_multiple = safe_divide(min_low, initial_price, default=1.0)
+            rug_threshold = 1.0 - TIER_THRESHOLDS.get("rug_drop_pct", 0.90)
+
+            if min_multiple <= rug_threshold:
+                return {
+                    "tier": "rug",
+                    "tier_numeric": 0,
+                    "max_return": round(max_return, 4),
+                    "details": (
+                        f"Rug: precio cayo a {min_multiple:.6f}x "
+                        f"en primeras {rug_hours}h"
+                    ),
+                }
+
+        # --- Check 2: Clasificar por max return ---
+        if max_return >= TIER_THRESHOLDS["mega_gem"]:
+            tier, tier_num = "mega_gem", 6
+            details = f"Mega gem: max return {max_return:.2f}x (>= {TIER_THRESHOLDS['mega_gem']}x)"
+        elif max_return >= TIER_THRESHOLDS["standard_gem"]:
+            tier, tier_num = "standard_gem", 5
+            details = f"Standard gem: max return {max_return:.2f}x (>= {TIER_THRESHOLDS['standard_gem']}x)"
+        elif max_return >= TIER_THRESHOLDS["mini_gem"]:
+            tier, tier_num = "mini_gem", 4
+            details = f"Mini gem: max return {max_return:.2f}x (>= {TIER_THRESHOLDS['mini_gem']}x)"
+        elif max_return >= TIER_THRESHOLDS["micro_gem"]:
+            tier, tier_num = "micro_gem", 3
+            details = f"Micro gem: max return {max_return:.2f}x (>= {TIER_THRESHOLDS['micro_gem']}x)"
+        elif max_return >= TIER_THRESHOLDS["neutral_lower"]:
+            tier, tier_num = "neutral", 2
+            details = (
+                f"Neutral: max return {max_return:.2f}x "
+                f"(entre {TIER_THRESHOLDS['neutral_lower']}x y {TIER_THRESHOLDS['neutral_upper']}x)"
+            )
+        else:
+            tier, tier_num = "failure", 1
+            details = f"Failure: max return {max_return:.2f}x (< {TIER_THRESHOLDS['failure']}x)"
+
+        return {
+            "tier": tier,
+            "tier_numeric": tier_num,
+            "max_return": round(max_return, 4),
+            "details": details,
+        }
+
+    def label_all_tokens_tiered(self) -> pd.DataFrame:
+        """
+        Clasifica todos los tokens con el sistema de tiers.
+
+        Obtiene la lista de tokens desde la tabla 'tokens', aplica
+        label_tiered() a cada uno, y guarda los campos tier y tier_numeric
+        en la tabla labels (via upsert).
+
+        Returns:
+            DataFrame con columnas: token_id, tier, tier_numeric, max_return, details.
+        """
+        tokens_df = self.storage.get_all_tokens()
+
+        if tokens_df.empty:
+            logger.warning("No hay tokens para clasificar con tiers.")
+            return pd.DataFrame()
+
+        logger.info(f"Clasificando {len(tokens_df)} tokens con sistema de tiers...")
+
+        resultados = []
+        exitos = 0
+        fallos = 0
+
+        for _, row in tokens_df.iterrows():
+            token_id = row["token_id"]
+            try:
+                ohlcv_df = self.storage.get_ohlcv(token_id, timeframe="day")
+                if ohlcv_df.empty or len(ohlcv_df) < 2:
+                    fallos += 1
+                    continue
+
+                # Limitar a ventana de observacion
+                ohlcv_df = ohlcv_df.head(LABEL_WINDOW_DAYS).copy()
+
+                tier_result = self.label_tiered(ohlcv_df, token_id)
+                tier_result["token_id"] = token_id
+                resultados.append(tier_result)
+
+                # Actualizar la tabla labels con tier y tier_numeric
+                # (upsert parcial: solo agrega/actualiza campos de tier)
+                self.storage.upsert_label({
+                    "token_id": token_id,
+                    "tier": tier_result["tier"],
+                    "tier_numeric": tier_result["tier_numeric"],
+                })
+
+                exitos += 1
+
+            except Exception as e:
+                logger.error(f"Error clasificando tier para token {token_id}: {e}")
+                fallos += 1
+
+        logger.info(
+            f"Clasificacion por tiers completada: "
+            f"{exitos} exitos, {fallos} sin datos suficientes"
+        )
+
+        if not resultados:
+            return pd.DataFrame()
+
+        df = pd.DataFrame(resultados)
+
+        # Mostrar distribucion de tiers
+        if not df.empty:
+            distribucion = df["tier"].value_counts()
+            logger.info(f"Distribucion de tiers:\n{distribucion.to_string()}")
+
+        return df
 
     # ============================================================
     # SENSITIVITY ANALYSIS
