@@ -116,6 +116,49 @@ class EnsembleBuilder:
         )
 
     # ============================================================
+    # EXTRACCION DE ESTIMADOR BASE
+    # ============================================================
+
+    def _extract_estimator(self, model):
+        """
+        Extrae el estimador base de un Pipeline/ImbPipeline.
+
+        RF se almacena como ImbPipeline([("smote", SMOTE), ("rf", RFC)]).
+        Si llamamos predict_proba() sobre el pipeline, SMOTE se aplica
+        a los datos de validacion y corrompe las predicciones (F1=0.0).
+
+        Esta funcion extrae el clasificador final del pipeline para
+        llamar predict/predict_proba directamente sobre el, sin pasar
+        por SMOTE ni otros transformadores.
+
+        CalibratedClassifierCV y modelos sueltos (XGB, LGB) se retornan
+        tal cual porque su predict_proba() funciona correctamente.
+
+        Args:
+            model: Modelo que puede ser Pipeline, ImbPipeline,
+                   CalibratedClassifierCV o estimador directo.
+
+        Returns:
+            Estimador listo para predict/predict_proba sin SMOTE.
+        """
+        # Pipeline / ImbPipeline: tienen atributo 'steps' (lista de tuplas)
+        if hasattr(model, "steps"):
+            estimator = model.steps[-1][1]
+            logger.debug(
+                f"Estimador extraido de pipeline: {type(estimator).__name__}"
+            )
+            return estimator
+        # named_steps (alternativa menos comun)
+        if hasattr(model, "named_steps"):
+            estimator = list(model.named_steps.values())[-1]
+            logger.debug(
+                f"Estimador extraido de named_steps: {type(estimator).__name__}"
+            )
+            return estimator
+        # CalibratedClassifierCV o modelo directo: retornar tal cual
+        return model
+
+    # ============================================================
     # ENTRENAMIENTO DE LIGHTGBM
     # ============================================================
 
@@ -285,7 +328,9 @@ class EnsembleBuilder:
 
         for name, model in self.models.items():
             try:
-                proba = model.predict_proba(X)
+                # Extraer estimador base para evitar que SMOTE corrompa datos
+                estimator = self._extract_estimator(model)
+                proba = estimator.predict_proba(X)
                 # Tomar probabilidad de clase positiva
                 if proba.ndim == 2 and proba.shape[1] >= 2:
                     prob_positive = proba[:, 1]
@@ -463,10 +508,12 @@ class EnsembleBuilder:
         # --- 1. Evaluar cada modelo individual ---
         for name, model in self.models.items():
             logger.info(f"\nEvaluando modelo individual: {name}")
+            # Extraer estimador base para evitar que SMOTE corrompa datos
+            estimator = self._extract_estimator(model)
             metrics = self._evaluate_model_predictions(
                 y_val,
-                model.predict(X_val),
-                model.predict_proba(X_val),
+                estimator.predict(X_val),
+                estimator.predict_proba(X_val),
             )
             results[name] = metrics
             self.val_scores[name] = metrics["f1"]
@@ -579,7 +626,9 @@ class EnsembleBuilder:
 
         for name, model in self.models.items():
             try:
-                proba = model.predict_proba(X)
+                # Extraer estimador base para evitar que SMOTE corrompa datos
+                estimator = self._extract_estimator(model)
+                proba = estimator.predict_proba(X)
                 # Tomar probabilidad de clase positiva (columna 1)
                 if proba.ndim == 2 and proba.shape[1] >= 2:
                     prob_positive = proba[:, 1]

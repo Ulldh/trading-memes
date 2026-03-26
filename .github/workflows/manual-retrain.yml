@@ -112,7 +112,7 @@ jobs:
           path: data/models/
           retention-days: 30
 
-      # Notificacion por Telegram con resultado de validacion
+      # Notificacion por Telegram con resultado de validacion (plain text, sin parse_mode)
       - name: Notify Telegram on success
         if: success()
         run: |
@@ -125,15 +125,15 @@ jobs:
           ROLLBACK_TO="${{ steps.retrain.outputs.rollback_to }}"
 
           if [ "${{ inputs.dry_run }}" = "true" ]; then
-            MSG="🔍 *Manual Retrain (DRY RUN)* completado"
+            MSG="🔍 Manual Retrain (DRY RUN) completado"
           elif [ "$ROLLBACK" = "True" ]; then
-            MSG="⚠️ *${VERSION} entrenado pero rollback a ${ROLLBACK_TO}*"
+            MSG="⚠️ ${VERSION} entrenado pero rollback a ${ROLLBACK_TO}"
             if [ -n "$PREV_RF" ] && [ "$PREV_RF" != "None" ]; then
               MSG="${MSG}%0ARF F1: ${PREV_RF} → ${RF_F1}"
               MSG="${MSG}%0AXGB F1: ${PREV_XGB} → ${XGB_F1}"
             fi
           else
-            MSG="✅ *${VERSION} entrenado y validado*"
+            MSG="✅ ${VERSION} entrenado y validado"
             if [ -n "$PREV_RF" ] && [ "$PREV_RF" != "None" ]; then
               MSG="${MSG}%0ARF F1: ${PREV_RF} → ${RF_F1}"
               MSG="${MSG}%0AXGB F1: ${PREV_XGB} → ${XGB_F1}"
@@ -143,16 +143,17 @@ jobs:
           fi
 
           INPUTS="skip_labels=${{ inputs.skip_labels }}, skip_features=${{ inputs.skip_features }}, dry_run=${{ inputs.dry_run }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d parse_mode="Markdown" \
-            -d text="${MSG}%0A%0A*Inputs:* ${INPUTS}%0A%0A[Ver run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            -d text="${MSG}%0A%0AInputs: ${INPUTS}%0A%0AVer run: ${RUN_URL}"
 
       - name: Notify Telegram on failure
         if: failure()
         run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d parse_mode="Markdown" \
-            -d text="❌ *Manual Retrain FAILED*%0A%0A*Inputs:* skip_labels=${{ inputs.skip_labels }}, skip_features=${{ inputs.skip_features }}, dry_run=${{ inputs.dry_run }}%0A%0A[Ver run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            -d text="❌ Manual Retrain FAILED%0A%0AInputs: skip_labels=${{ inputs.skip_labels }}, skip_features=${{ inputs.skip_features }}, dry_run=${{ inputs.dry_run }}%0A%0AVer run: ${RUN_URL}"

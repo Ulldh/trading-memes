@@ -1200,7 +1200,9 @@ class ModelTrainer:
         """
         Encuentra el siguiente numero de version disponible.
 
-        Busca carpetas con formato v1, v2, v3, etc. y devuelve el siguiente.
+        Busca carpetas con formato v1, v2, v3, etc. y tambien lee
+        latest_version.txt (que puede haber sido descargado de Supabase).
+        Devuelve el numero siguiente al maximo encontrado.
 
         Args:
             base_dir: Directorio base donde estan las versiones.
@@ -1208,18 +1210,28 @@ class ModelTrainer:
         Returns:
             Numero de la siguiente version (ej: si existe v2, devuelve 3).
         """
-        if not base_dir.exists():
-            return 1
-
-        # Buscar carpetas con formato v{N}
         versions = []
-        for path in base_dir.iterdir():
-            if path.is_dir() and path.name.startswith("v"):
-                try:
-                    version_num = int(path.name[1:])  # "v2" -> 2
+
+        # 1. Buscar carpetas locales con formato v{N}
+        if base_dir.exists():
+            for path in base_dir.iterdir():
+                if path.is_dir() and path.name.startswith("v"):
+                    try:
+                        version_num = int(path.name[1:])  # "v2" -> 2
+                        versions.append(version_num)
+                    except ValueError:
+                        continue
+
+        # 2. Leer latest_version.txt (puede venir de Supabase via get_latest_version)
+        latest_file = base_dir / "latest_version.txt"
+        if latest_file.exists():
+            try:
+                text = latest_file.read_text().strip()
+                if text.startswith("v"):
+                    version_num = int(text[1:])
                     versions.append(version_num)
-                except ValueError:
-                    continue
+            except (ValueError, OSError):
+                pass
 
         # Devolver siguiente version
         return max(versions) + 1 if versions else 1
@@ -1405,6 +1417,12 @@ class ModelTrainer:
         """
         Obtiene el nombre de la version mas reciente.
 
+        Busca en este orden:
+            1. Archivo local: data/models/latest_version.txt
+            2. Carpetas locales con formato v{N}
+            3. Supabase Storage: latest_version.txt en bucket ml-models
+               (necesario en GitHub Actions donde no hay disco local)
+
         Args:
             base_path: Directorio base (default: MODELS_DIR).
 
@@ -1418,15 +1436,40 @@ class ModelTrainer:
         """
         base_dir = Path(base_path) if base_path else MODELS_DIR
 
-        # Intentar leer latest_version.txt
+        # 1. Intentar leer latest_version.txt local
         latest_file = base_dir / "latest_version.txt"
         if latest_file.exists():
-            return latest_file.read_text().strip()
+            version = latest_file.read_text().strip()
+            if version:
+                logger.debug(f"Version detectada desde archivo local: {version}")
+                return version
 
-        # Si no existe, buscar la version mas alta
+        # 2. Si no existe el archivo, buscar carpetas v{N} locales
         version_num = self._get_next_version(base_dir) - 1
         if version_num > 0:
-            return f"v{version_num}"
+            version = f"v{version_num}"
+            logger.debug(f"Version detectada desde carpetas locales: {version}")
+            return version
+
+        # 3. Fallback: consultar Supabase Storage (para GitHub Actions / Docker)
+        try:
+            from src.models.model_storage import _get_supabase_client, BUCKET
+            client = _get_supabase_client()
+            storage = client.storage.from_(BUCKET)
+            data = storage.download("latest_version.txt")
+            version = data.decode().strip()
+            if version:
+                logger.info(
+                    f"Version detectada desde Supabase Storage: {version}"
+                )
+                # Guardar localmente para que _get_next_version funcione
+                base_dir.mkdir(parents=True, exist_ok=True)
+                latest_file.write_text(version)
+                return version
+        except Exception as e:
+            logger.debug(
+                f"No se pudo consultar Supabase Storage para version: {e}"
+            )
 
         return None
 

@@ -21,8 +21,11 @@ Uso:
 
 import argparse
 import json
+import os
+import ssl
 import sys
 import time
+import urllib.request
 from pathlib import Path
 
 # Agregar el directorio raiz al path para imports
@@ -39,6 +42,42 @@ logger = get_logger(__name__)
 
 # Umbral de degradacion permitida (5%)
 DEGRADATION_THRESHOLD = 0.05
+
+
+def _download_from_supabase_storage(remote_path: str) -> bytes | None:
+    """
+    Descarga un archivo del bucket ml-models en Supabase Storage via urllib.
+
+    No requiere supabase-py — usa la REST API directamente.
+    Util en GitHub Actions donde no hay disco local con modelos.
+
+    Args:
+        remote_path: Ruta dentro del bucket (ej: "latest_version.txt", "v12/metadata.json").
+
+    Returns:
+        Bytes del archivo o None si falla.
+    """
+    supa_url = os.getenv("SUPABASE_URL", "")
+    supa_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+
+    if not supa_url or not supa_key:
+        return None
+
+    try:
+        url = f"{supa_url}/storage/v1/object/ml-models/{remote_path}"
+        ctx = ssl.create_default_context()
+        req = urllib.request.Request(
+            url,
+            headers={
+                "apikey": supa_key,
+                "Authorization": f"Bearer {supa_key}",
+            },
+        )
+        with urllib.request.urlopen(req, context=ctx) as resp:
+            return resp.read()
+    except Exception as e:
+        logger.debug(f"  No se pudo descargar {remote_path} via REST: {e}")
+        return None
 
 
 def run_pipeline(
@@ -155,6 +194,25 @@ def run_pipeline(
     if dry_run:
         logger.info("[DRY RUN] No se entrena. Mostrando solo estadisticas.")
         return stats
+
+    # ================================================================
+    # PASO 2.5: Asegurar que latest_version.txt existe localmente
+    # En GitHub Actions no hay directorio data/models/ local.
+    # Descargar desde Supabase Storage para que el trainer sepa la
+    # version actual y pueda calcular la siguiente (ej: v12 -> v13).
+    # ================================================================
+    from config import MODELS_DIR as _MODELS_DIR_VER
+    local_version_file = _MODELS_DIR_VER / "latest_version.txt"
+    if not local_version_file.exists():
+        logger.info("latest_version.txt no existe localmente, descargando de Supabase Storage...")
+        data = _download_from_supabase_storage("latest_version.txt")
+        if data is not None:
+            version_text = data.decode().strip()
+            _MODELS_DIR_VER.mkdir(parents=True, exist_ok=True)
+            local_version_file.write_text(version_text)
+            logger.info(f"  Descargada version remota: {version_text}")
+        else:
+            logger.warning("  No se pudo descargar latest_version.txt. Se asumira v1.")
 
     # ================================================================
     # PASO 3: Entrenar modelos
@@ -412,7 +470,12 @@ def _load_previous_metadata(
     """
     Carga el metadata.json de la version anterior.
 
-    Intenta primero desde Supabase Storage, luego desde disco local.
+    Estrategia de busqueda (en orden):
+      1. Disco local: data/models/{prev_version}/metadata.json
+      2. Supabase Storage via supabase-py (si el cliente esta disponible)
+      3. Supabase Storage via REST/urllib (fallback sin supabase-py,
+         necesario en GitHub Actions donde no hay disco local ni siempre
+         se dispone de supabase-py)
 
     Args:
         prev_version: Nombre de la version anterior (ej: "v12").
@@ -422,17 +485,7 @@ def _load_previous_metadata(
     Returns:
         Dict con metadata o None si no se encontro.
     """
-    # Intentar desde Supabase Storage
-    if supabase_available and storage_bucket is not None:
-        try:
-            data = storage_bucket.download(f"{prev_version}/metadata.json")
-            metadata = json.loads(data.decode())
-            logger.info(f"  Metadata de {prev_version} cargada desde Supabase Storage")
-            return metadata
-        except Exception as e:
-            logger.debug(f"  No se pudo descargar metadata de {prev_version} de Storage: {e}")
-
-    # Intentar desde disco local
+    # 1. Intentar desde disco local
     try:
         from config import MODELS_DIR as _MODELS_DIR_META
         local_metadata = _MODELS_DIR_META / prev_version / "metadata.json"
@@ -443,6 +496,27 @@ def _load_previous_metadata(
             return metadata
     except Exception as e:
         logger.debug(f"  No se pudo cargar metadata local de {prev_version}: {e}")
+
+    # 2. Intentar desde Supabase Storage via supabase-py
+    if supabase_available and storage_bucket is not None:
+        try:
+            data = storage_bucket.download(f"{prev_version}/metadata.json")
+            metadata = json.loads(data.decode())
+            logger.info(f"  Metadata de {prev_version} cargada desde Supabase Storage (supabase-py)")
+            return metadata
+        except Exception as e:
+            logger.debug(f"  No se pudo descargar metadata de {prev_version} via supabase-py: {e}")
+
+    # 3. Fallback: Supabase Storage via REST/urllib (sin dependencias extra)
+    remote_path = f"{prev_version}/metadata.json"
+    data = _download_from_supabase_storage(remote_path)
+    if data is not None:
+        try:
+            metadata = json.loads(data.decode())
+            logger.info(f"  Metadata de {prev_version} cargada desde Supabase Storage (REST)")
+            return metadata
+        except json.JSONDecodeError as e:
+            logger.debug(f"  metadata.json de {prev_version} no es JSON valido: {e}")
 
     return None
 

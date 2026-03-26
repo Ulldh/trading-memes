@@ -95,7 +95,11 @@ class FeatureSelector:
     # FILTRO 1: VARIANZA NEAR-ZERO
     # ============================================================
 
-    def filter_by_variance(self, min_variance: float = 0.01) -> list[str]:
+    def filter_by_variance(
+        self,
+        min_variance: float = 0.001,
+        min_remaining: int = 20,
+    ) -> list[str]:
         """
         Identifica features con varianza menor al umbral (near-zero variance).
 
@@ -106,15 +110,26 @@ class FeatureSelector:
         La varianza se calcula sobre los datos normalizados (0-1) para que
         sea comparable entre features con diferentes escalas.
 
+        NOTA: En datos crypto, muchas features tienen baja varianza por diseño
+        (flags booleanos como has_mint_authority, metricas de concentracion
+        cercanas a 0, etc.) pero son altamente predictivas. Por eso el umbral
+        default es conservador (0.001) y se garantiza un minimo de features.
+
         Args:
-            min_variance: Umbral minimo de varianza (default 0.01).
+            min_variance: Umbral minimo de varianza (default 0.001).
                           Features con varianza < min_variance se eliminan.
+            min_remaining: Numero minimo de features que deben quedar (default 20).
+                           Si eliminar por varianza dejaria menos de min_remaining
+                           features, se conservan las top-N por varianza en lugar
+                           de eliminar todas las que estan bajo el umbral.
 
         Returns:
             Lista de nombres de features a eliminar (varianza near-zero).
         """
-        logger.info(f"Filtro de varianza: umbral={min_variance}")
+        logger.info(f"Filtro de varianza: umbral={min_variance}, min_remaining={min_remaining}")
 
+        # Calcular varianza normalizada de cada feature
+        variance_scores = {}
         features_to_remove = []
 
         for col in self.feature_names:
@@ -127,6 +142,7 @@ class FeatureSelector:
             col_range = col_data.max() - col_data.min()
             if col_range == 0:
                 # Feature completamente constante
+                variance_scores[col] = 0.0
                 features_to_remove.append(col)
                 logger.debug(f"  {col}: constante (varianza=0)")
                 continue
@@ -134,10 +150,32 @@ class FeatureSelector:
             # Varianza normalizada (entre 0 y ~0.25 para distribuciones uniformes)
             normalized = (col_data - col_data.min()) / col_range
             variance = normalized.var()
+            variance_scores[col] = variance
 
             if variance < min_variance:
                 features_to_remove.append(col)
                 logger.debug(f"  {col}: varianza normalizada={variance:.6f} < {min_variance}")
+
+        # Proteccion: si eliminar dejaria menos de min_remaining features,
+        # conservar las top-N por varianza en lugar de eliminar todas
+        total_available = len([f for f in self.feature_names if f in self.X_train.columns])
+        remaining_after = total_available - len(features_to_remove)
+
+        if remaining_after < min_remaining and len(features_to_remove) > 0:
+            logger.warning(
+                f"Eliminar {len(features_to_remove)} features dejaria solo "
+                f"{remaining_after} (minimo requerido: {min_remaining}). "
+                f"Ajustando: solo se eliminan las de menor varianza."
+            )
+            # Ordenar candidatos a eliminar por varianza (menor primero)
+            # Solo eliminar las que permitan mantener min_remaining
+            max_to_remove = max(0, total_available - min_remaining)
+            sorted_candidates = sorted(features_to_remove, key=lambda f: variance_scores.get(f, 0.0))
+            features_to_remove = sorted_candidates[:max_to_remove]
+            logger.info(
+                f"  Ajustado: eliminando {len(features_to_remove)} de "
+                f"{len(sorted_candidates)} candidatas (conservando min_remaining={min_remaining})"
+            )
 
         self.removal_log["variance"] = features_to_remove
         logger.info(
