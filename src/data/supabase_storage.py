@@ -7,7 +7,13 @@ proyecto pueda usar cualquiera de los dos backends sin cambios.
 Usa supabase-py con service_role key para:
 - Bypass completo de RLS (acceso total desde scripts y GitHub Actions)
 - Operaciones CRUD via PostgREST (tabla API nativa)
-- Consultas SQL arbitrarias via funciones RPC (exec_query/exec_sql)
+- Consultas SQL via funciones RPC (exec_query/exec_sql) con validacion
+
+Seguridad:
+- SQL allowlist: solo SELECT/INSERT/UPDATE/DELETE/WITH permitidos
+- Patrones peligrosos bloqueados (DROP, ALTER, TRUNCATE, etc.)
+- Parametros escapados con proteccion contra inyeccion SQL
+- PostgREST preferido sobre RPC cuando es posible
 
 No requiere psycopg2 ni conexion directa a PostgreSQL.
 Funciona desde cualquier red via HTTPS.
@@ -19,7 +25,9 @@ Uso:
     df = storage.query("SELECT * FROM tokens WHERE chain = ?", ("solana",))
 """
 
+import math
 import json
+import re
 from typing import Optional
 
 import pandas as pd
@@ -90,21 +98,89 @@ class SupabaseStorage:
             raise
 
     # ============================================================
+    # SEGURIDAD: Validacion SQL y escapado de parametros
+    # ============================================================
+
+    # Prefijos SQL permitidos (operaciones CRUD + CTEs)
+    _ALLOWED_SQL_PREFIXES = ("SELECT", "INSERT", "UPDATE", "DELETE", "WITH")
+
+    # Patrones bloqueados — operaciones DDL, acceso a metadatos, comentarios
+    _BLOCKED_PATTERNS = [
+        "DROP ", "ALTER ", "TRUNCATE ", "CREATE ", "GRANT ", "REVOKE ",
+        "pg_", "information_schema",
+        "--",       # Comentarios SQL de linea
+        "/*",       # Comentarios SQL de bloque (apertura)
+        "*/",       # Comentarios SQL de bloque (cierre)
+        "COPY ",    # COPY FROM/TO (lectura/escritura de archivos)
+        "\\\\",     # Backslash escapes
+    ]
+
+    # Regex precompilado para detectar patrones bloqueados (case-insensitive)
+    _BLOCKED_RE = re.compile(
+        "|".join(re.escape(p) for p in _BLOCKED_PATTERNS),
+        re.IGNORECASE,
+    )
+
+    def _validate_sql(self, sql: str):
+        """
+        Valida que el SQL solo contenga operaciones permitidas.
+
+        Defensa en profundidad: bloquea DDL, acceso a catalogo del sistema,
+        comentarios SQL (usados frecuentemente en inyecciones) y otros
+        patrones peligrosos ANTES de enviar al RPC.
+
+        Raises:
+            ValueError: Si el SQL contiene operaciones no permitidas.
+        """
+        sql_stripped = sql.strip()
+        sql_upper = sql_stripped.upper()
+
+        # Verificar prefijo permitido (SELECT, INSERT, UPDATE, DELETE, WITH)
+        if not any(sql_upper.startswith(prefix) for prefix in self._ALLOWED_SQL_PREFIXES):
+            raise ValueError(
+                f"SQL no permitido: debe empezar con "
+                f"{'/'.join(self._ALLOWED_SQL_PREFIXES)}. "
+                f"Recibido: {sql_stripped[:50]}..."
+            )
+
+        # Buscar patrones bloqueados
+        match = self._BLOCKED_RE.search(sql_stripped)
+        if match:
+            raise ValueError(
+                f"SQL contiene patron bloqueado: '{match.group()}' "
+                f"en consulta: {sql_stripped[:80]}..."
+            )
+
+    # ============================================================
     # OPERACIONES GENERICAS (compatibilidad con Storage SQLite)
     # ============================================================
 
     @staticmethod
     def _format_param(param) -> str:
-        """Formatea un parametro Python a literal SQL de PostgreSQL."""
+        """
+        Formatea un parametro Python a literal SQL de PostgreSQL.
+
+        Protecciones aplicadas:
+        - None → NULL
+        - bool → TRUE/FALSE (antes de int, porque bool es subclase de int)
+        - int/float → str directo (con validacion de NaN/Inf)
+        - str → escapado de backslashes, comillas simples, null bytes
+        """
         if param is None:
             return "NULL"
-        elif isinstance(param, bool):
+        if isinstance(param, bool):
             return "TRUE" if param else "FALSE"
-        elif isinstance(param, (int, float)):
+        if isinstance(param, (int, float)):
+            # Proteger contra NaN/Inf que podrian causar errores en PG
+            if isinstance(param, float) and (math.isnan(param) or math.isinf(param)):
+                return "NULL"
             return str(param)
-        else:
-            # Escapar comillas simples para PostgreSQL
-            return "'" + str(param).replace("'", "''") + "'"
+        # Strings: escapar backslashes, comillas simples y null bytes
+        val = str(param)
+        val = val.replace("\\", "\\\\")   # Escapar backslashes primero
+        val = val.replace("'", "''")       # Escapar comillas simples
+        val = val.replace("\x00", "")      # Eliminar null bytes
+        return f"'{val}'"
 
     def _substitute_params(self, sql: str, params: tuple) -> str:
         """
@@ -125,7 +201,12 @@ class SupabaseStorage:
         return result
 
     def _rpc_query(self, sql: str) -> list:
-        """Ejecuta SQL via RPC exec_query y retorna lista de dicts."""
+        """
+        Ejecuta SQL via RPC exec_query y retorna lista de dicts.
+
+        Valida el SQL contra el allowlist antes de enviar al RPC.
+        """
+        self._validate_sql(sql)
         resp = self._client.rpc("exec_query", {"query_text": sql}).execute()
         data = resp.data
         if isinstance(data, str):
@@ -136,7 +217,7 @@ class SupabaseStorage:
         """
         Ejecuta una consulta SQL (SELECT) y devuelve un DataFrame.
 
-        Usa la funcion RPC exec_query() para ejecutar SQL arbitrario.
+        Usa la funcion RPC exec_query() con validacion de seguridad.
         Soporta placeholders ? (SQLite) y %s (PostgreSQL).
 
         Args:
@@ -151,8 +232,13 @@ class SupabaseStorage:
         return pd.DataFrame(data) if data else pd.DataFrame()
 
     def execute(self, sql: str, params: tuple = ()):
-        """Ejecuta una sentencia SQL (INSERT, UPDATE, DELETE) via RPC."""
+        """
+        Ejecuta una sentencia SQL (INSERT, UPDATE, DELETE) via RPC.
+
+        Valida el SQL contra el allowlist antes de enviar al RPC.
+        """
         final_sql = self._substitute_params(sql, params)
+        self._validate_sql(final_sql)
         self._client.rpc("exec_sql", {"query_text": final_sql}).execute()
 
     def execute_many(self, sql: str, params_list: list):
@@ -487,6 +573,8 @@ class SupabaseStorage:
 
     def get_api_usage_stats(self, days: int = 30) -> pd.DataFrame:
         """Obtiene estadisticas de uso de APIs en los ultimos N dias."""
+        # Validar days: debe ser entero positivo, maximo 365
+        days_safe = max(1, min(int(days), 365))
         sql = f"""
             SELECT
                 api_name,
@@ -497,7 +585,7 @@ class SupabaseStorage:
                 SUM(CASE WHEN status_code = 429
                     THEN 1 ELSE 0 END) as rate_limit_hits
             FROM api_usage
-            WHERE timestamp >= NOW() - INTERVAL '{int(days)} days'
+            WHERE timestamp >= NOW() - INTERVAL '{days_safe} days'
             GROUP BY api_name
             ORDER BY COUNT(*) DESC
         """
@@ -506,13 +594,15 @@ class SupabaseStorage:
 
     def get_api_usage_by_day(self, days: int = 30) -> pd.DataFrame:
         """Obtiene uso de APIs agrupado por dia."""
+        # Validar days: debe ser entero positivo, maximo 365
+        days_safe = max(1, min(int(days), 365))
         sql = f"""
             SELECT
                 DATE(timestamp) as date,
                 api_name,
                 COUNT(*) as calls
             FROM api_usage
-            WHERE timestamp >= NOW() - INTERVAL '{int(days)} days'
+            WHERE timestamp >= NOW() - INTERVAL '{days_safe} days'
             GROUP BY DATE(timestamp), api_name
             ORDER BY DATE(timestamp) DESC, api_name
         """
@@ -677,12 +767,17 @@ class SupabaseStorage:
         Returns:
             DataFrame con scores + datos del token (JOIN con tokens).
         """
+        # Validar que min_probability es un numero finito (no inyectable)
+        prob = float(min_probability)
+        if math.isnan(prob) or math.isinf(prob):
+            prob = 0.0
+
         sql = """
             SELECT s.*, t.name, t.symbol, t.chain, t.pool_address
             FROM scores s
             JOIN tokens t ON s.token_id = t.token_id
             WHERE s.probability >= {prob}
-        """.format(prob=float(min_probability))
+        """.format(prob=prob)
 
         if scored_today:
             sql += " AND s.scored_at::date = CURRENT_DATE"
