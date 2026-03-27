@@ -207,7 +207,19 @@ class ModelTrainer:
         2. Archivo JSON de Optuna (tuned_params_file) — si se proporciona.
         3. None — se usaran los defaults regularizados de regularization.py.
 
-        El archivo JSON debe tener la estructura:
+        El archivo JSON acepta dos formatos:
+
+        Formato Optuna (generado por tune_models.py):
+        {
+            "random_forest": {
+                "best_params": {"max_depth": 8, "n_estimators": 200, ...},
+                "best_f1_cv": 0.65, "n_trials": 100, ...
+            },
+            "xgboost": {"best_params": {...}, ...},
+            "lightgbm": {"best_params": {...}, ...}
+        }
+
+        Formato plano (legacy):
         {
             "random_forest": {"max_depth": 8, "n_estimators": 200, ...},
             "xgboost": {"max_depth": 5, "learning_rate": 0.03, ...},
@@ -242,15 +254,21 @@ class ModelTrainer:
                         tuned = json.load(f)
                     logger.info(f"Hiperparametros tuneados cargados de: {tuned_params_file}")
 
-                    # Solo usar del archivo si no se paso parametro directo
+                    # Solo usar del archivo si no se paso parametro directo.
+                    # El JSON de Optuna anida los params reales dentro de
+                    # "best_params"; si esa clave existe la extraemos,
+                    # si no (formato plano legacy) usamos el dict tal cual.
                     if _rf is None and "random_forest" in tuned:
-                        _rf = tuned["random_forest"]
+                        _rf_raw = tuned["random_forest"]
+                        _rf = _rf_raw.get("best_params", _rf_raw)
                         logger.info(f"  RF params de archivo: {list(_rf.keys())}")
                     if _xgb is None and "xgboost" in tuned:
-                        _xgb = tuned["xgboost"]
+                        _xgb_raw = tuned["xgboost"]
+                        _xgb = _xgb_raw.get("best_params", _xgb_raw)
                         logger.info(f"  XGB params de archivo: {list(_xgb.keys())}")
                     if _lgb is None and "lightgbm" in tuned:
-                        _lgb = tuned["lightgbm"]
+                        _lgb_raw = tuned["lightgbm"]
+                        _lgb = _lgb_raw.get("best_params", _lgb_raw)
                         logger.info(f"  LGB params de archivo: {list(_lgb.keys())}")
                 except (json.JSONDecodeError, OSError) as e:
                     logger.error(
