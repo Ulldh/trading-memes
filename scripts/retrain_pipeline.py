@@ -82,6 +82,41 @@ def _download_from_supabase_storage(remote_path: str) -> bytes | None:
         return None
 
 
+def _get_baseline_version() -> str | None:
+    """
+    Obtiene la version de produccion actual (baseline) ANTES de entrenar.
+
+    Busca en orden:
+      1. Disco local: data/models/latest_version.txt
+      2. Supabase Storage: latest_version.txt (REST)
+
+    Returns:
+        Nombre de la version (ej: "v12") o None si no existe.
+    """
+    # 1. Disco local
+    try:
+        from config import MODELS_DIR
+        local_file = MODELS_DIR / "latest_version.txt"
+        if local_file.exists():
+            version = local_file.read_text().strip()
+            if version:
+                logger.info(f"  Baseline de produccion (local): {version}")
+                return version
+    except Exception as e:
+        logger.debug(f"  No se pudo leer latest_version.txt local: {e}")
+
+    # 2. Supabase Storage via REST
+    data = _download_from_supabase_storage("latest_version.txt")
+    if data is not None:
+        version = data.decode().strip()
+        if version:
+            logger.info(f"  Baseline de produccion (remoto): {version}")
+            return version
+
+    logger.info("  No se encontro version baseline. Primera ejecucion.")
+    return None
+
+
 def _load_v12_feature_names() -> list[str]:
     """
     Carga la lista de feature_names del modelo v12.
@@ -162,6 +197,13 @@ def run_pipeline(
     storage = get_storage()
 
     # ================================================================
+    # Guardar version baseline (produccion actual) ANTES de cualquier
+    # cambio, para comparar en Paso 6 contra el mejor modelo real
+    # y no contra una version intermedia fallida.
+    # ================================================================
+    baseline_version = _get_baseline_version()
+
+    # ================================================================
     # PASO 1: Re-etiquetar tokens
     # ================================================================
     if not skip_labels:
@@ -183,6 +225,18 @@ def run_pipeline(
             f"({stats['labels_positive']} positivos) "
             f"en {t1 - t0:.1f}s"
         )
+
+        # Paso 1b: Labels por tiers (mega_gem, standard_gem, etc.)
+        logger.info("-" * 40)
+        logger.info("PASO 1b: Clasificando tokens por tiers")
+        logger.info("-" * 40)
+
+        t0 = time.time()
+        tiered_df = labeler.label_all_tokens_tiered()
+        t1 = time.time()
+
+        tiered_count = len(tiered_df) if not tiered_df.empty else 0
+        logger.info(f"Tiers asignados: {tiered_count} tokens en {t1 - t0:.1f}s")
     else:
         logger.info("PASO 1: Saltando re-etiquetado (--skip-labels)")
         # Cargar labels existentes desde DB
@@ -418,20 +472,20 @@ def run_pipeline(
     logger.info("PASO 6: Validando nuevo modelo vs version anterior")
     logger.info("=" * 60)
 
-    # Determinar version anterior
+    # Determinar version baseline (produccion actual guardada al inicio)
     new_version = stats["model_version"]  # ej: "v13"
-    new_version_num = int(new_version.replace("v", ""))
-    prev_version = f"v{new_version_num - 1}" if new_version_num > 1 else None
+    prev_version = baseline_version  # ej: "v12" (la mejor version en produccion)
 
-    if prev_version is None:
-        logger.info("  Primera version (v1), no hay modelo anterior para comparar.")
+    if prev_version is None or prev_version == new_version:
+        logger.info("  Primera version o sin baseline, no hay modelo anterior para comparar.")
         stats["validation_passed"] = True
 
         # Actualizar latest_version.txt en Supabase (primera version)
         if supabase_available:
             _update_latest_version_remote(storage_bucket, new_version)
     else:
-        # Cargar metadata de la version anterior
+        logger.info(f"  Comparando contra baseline de produccion: {prev_version}")
+        # Cargar metadata de la version baseline (produccion actual)
         prev_metadata = _load_previous_metadata(prev_version, supabase_available,
                                                  storage_bucket if supabase_available else None)
 

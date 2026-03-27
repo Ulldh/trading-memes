@@ -303,9 +303,24 @@ class SupabaseStorage:
         if skipped > 0:
             logger.warning(f"OHLCV: {skipped} filas descartadas por validacion")
 
-        if valid_rows:
+        # Deduplicar por (pool_address, timeframe, timestamp) para evitar
+        # "ON CONFLICT DO UPDATE cannot affect row a second time" en PG
+        seen = set()
+        deduped = []
+        for r in valid_rows:
+            key = (r["pool_address"], r["timeframe"], r["timestamp"])
+            if key not in seen:
+                seen.add(key)
+                deduped.append(r)
+        if len(deduped) < len(valid_rows):
+            logger.warning(
+                f"OHLCV: {len(valid_rows) - len(deduped)} duplicados "
+                f"eliminados del batch"
+            )
+
+        if deduped:
             self._batch_upsert(
-                "ohlcv", valid_rows,
+                "ohlcv", deduped,
                 on_conflict="pool_address,timeframe,timestamp",
             )
 

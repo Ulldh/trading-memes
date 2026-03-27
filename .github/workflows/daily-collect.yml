@@ -19,7 +19,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
 
     env:
       # Backend de almacenamiento
@@ -35,6 +35,8 @@ jobs:
       COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
       BIRDEYE_API_KEY: ${{ secrets.BIRDEYE_API_KEY }}
       X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+      # Limite de tokens para OHLCV update (default 100 para cron, configurable en manual)
+      MAX_TOKENS_OHLCV: ${{ inputs.max_tokens_ohlcv || '100' }}
 
     steps:
       - uses: actions/checkout@v4

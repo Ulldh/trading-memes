@@ -707,7 +707,8 @@ class DataCollector:
     # ================================================================
 
     def run_daily_collection(
-        self, chains: Optional[list[str]] = None
+        self, chains: Optional[list[str]] = None,
+        max_tokens_ohlcv: int = 200,
     ) -> dict:
         """
         Ejecuta el pipeline completo de recopilacion diaria.
@@ -725,6 +726,9 @@ class DataCollector:
         Args:
             chains: Lista de cadenas a procesar. Si es None, usa todas
                 las soportadas (solana, ethereum, base).
+            max_tokens_ohlcv: Maximo de tokens existentes a actualizar en
+                el paso 6 (OHLCV update). Default 200. En CI se controla
+                via env var MAX_TOKENS_OHLCV (default 100 para cron).
 
         Returns:
             Diccionario con estadisticas de la recopilacion:
@@ -767,7 +771,7 @@ class DataCollector:
         self.collect_contract_info(tokens)
 
         # --- Paso 6: Actualizar OHLCV de tokens existentes ---
-        ohlcv_update_stats = self.update_existing_ohlcv(max_tokens=200)
+        ohlcv_update_stats = self.update_existing_ohlcv(max_tokens=max_tokens_ohlcv)
 
         # Calcular duracion total
         duracion = time.time() - inicio
@@ -1393,13 +1397,19 @@ class DataCollector:
 # se ejecuta la recopilacion diaria completa.
 
 if __name__ == "__main__":
+    import os as _os
+
     logger.info("Iniciando recopilacion diaria desde linea de comandos...")
+
+    # Leer limite de tokens OHLCV desde variable de entorno (GitHub Actions lo pasa)
+    max_ohlcv = int(_os.getenv("MAX_TOKENS_OHLCV", "200"))
+    logger.info(f"MAX_TOKENS_OHLCV = {max_ohlcv}")
 
     # Crear el collector con configuracion por defecto
     collector = DataCollector()
 
     # Ejecutar pipeline completo
-    stats = collector.run_daily_collection()
+    stats = collector.run_daily_collection(max_tokens_ohlcv=max_ohlcv)
 
     # Tambien recopilar contexto de mercado
     collector.collect_market_context()

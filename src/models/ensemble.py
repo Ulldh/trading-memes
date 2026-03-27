@@ -203,6 +203,13 @@ class EnsembleBuilder:
 
         logger.info("Entrenando LightGBM...")
 
+        # Calcular scale_pos_weight para manejar desbalance de clases
+        # Mas efectivo que is_unbalance para datasets pequenos con minoria extrema
+        n_neg = int((y_train == 0).sum())
+        n_pos = int((y_train == 1).sum())
+        spw = n_neg / n_pos if n_pos > 0 else 1.0
+        logger.info(f"  Clase positiva: {n_pos}/{len(y_train)} ({100*n_pos/len(y_train):.1f}%), scale_pos_weight={spw:.1f}")
+
         # Parametros optimizados para dataset pequeno + clasificacion binaria
         params = {
             "objective": "binary",
@@ -211,7 +218,8 @@ class EnsembleBuilder:
             "max_depth": 6,         # Profundidad maxima (limita complejidad)
             "learning_rate": 0.05,  # Tasa de aprendizaje baja para convergencia suave
             "n_estimators": 500,    # Maximo de arboles (early stopping lo controla)
-            "is_unbalance": True,   # Maneja automaticamente el desbalance de clases
+            "scale_pos_weight": spw,  # Peso explicito para clase minoritaria (mejor que is_unbalance)
+            "min_child_samples": 5, # Minimo de muestras por hoja (default=20 es mucho para ~4000 muestras)
             "subsample": 0.8,       # Fraccion de datos por arbol (reduce overfitting)
             "colsample_bytree": 0.8,  # Fraccion de features por arbol
             "reg_alpha": 0.1,       # Regularizacion L1
@@ -235,10 +243,26 @@ class EnsembleBuilder:
                     lgb.log_evaluation(period=0),  # Silenciar logs de iteracion
                 ],
             )
-            logger.info(
-                f"  LightGBM entrenado con {model.best_iteration_} iteraciones "
-                f"(de {params['n_estimators']} max)"
-            )
+            # Garantizar minimo 50 iteraciones para evitar underfitting
+            # Con datasets pequenos y desbalanceados, early stopping puede parar
+            # muy pronto (ej: 15 iteraciones) porque logloss converge rapido
+            # prediciendo todo como clase mayoritaria.
+            min_iterations = 50
+            if model.best_iteration_ < min_iterations:
+                logger.warning(
+                    f"  LightGBM paro en {model.best_iteration_} iteraciones (< {min_iterations} minimo). "
+                    f"Re-entrenando con n_estimators={min_iterations} sin early stopping..."
+                )
+                params_retry = dict(params)
+                params_retry["n_estimators"] = min_iterations
+                model = lgb.LGBMClassifier(**params_retry)
+                model.fit(X_train, y_train)
+                logger.info(f"  LightGBM re-entrenado con {min_iterations} iteraciones fijas")
+            else:
+                logger.info(
+                    f"  LightGBM entrenado con {model.best_iteration_} iteraciones "
+                    f"(de {params['n_estimators']} max)"
+                )
         else:
             logger.info("  Sin set de validacion, entrenando sin early stopping")
             model.fit(X_train, y_train)
