@@ -3,6 +3,7 @@ app.py - Dashboard principal del Memecoin Gem Detector.
 
 Ejecutar con: streamlit run dashboard/app.py
 """
+import os
 import sys
 from pathlib import Path
 
@@ -11,9 +12,56 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import streamlit as st
 
+
+# --- Proteccion con contrasena ---
+def check_password():
+    """Verifica contrasena para acceder al dashboard.
+
+    La contrasena se lee de la variable de entorno DASHBOARD_PASSWORD.
+    Si no esta configurada, muestra un error al usuario.
+    Devuelve True si el usuario ya esta autenticado.
+    """
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+
+    if st.session_state.authenticated:
+        return True
+
+    # Pantalla de login — set_page_config solo se llama aqui si NO autenticado
+    st.set_page_config(
+        page_title="Trading Memes - Login",
+        page_icon=":material/lock:",
+        layout="centered",
+    )
+
+    st.title(":material/lock: Trading Memes Dashboard")
+    st.markdown("Introduce la contrasena para acceder.")
+
+    password = st.text_input("Contrasena", type="password", key="password_input")
+
+    if st.button("Acceder", type="primary"):
+        dashboard_password = os.getenv("DASHBOARD_PASSWORD", "")
+        if not dashboard_password:
+            st.error("DASHBOARD_PASSWORD no configurada en el servidor.")
+            return False
+        if password == dashboard_password:
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("Contrasena incorrecta.")
+
+    return False
+
+
+# Gate de autenticacion — bloquea todo hasta que se introduzca la contrasena
+if not check_password():
+    st.stop()
+
+# --- Dashboard principal (solo se ejecuta si esta autenticado) ---
+
 st.set_page_config(
     page_title="Memecoin Gem Detector",
-    page_icon="💎",
+    page_icon=":material/diamond:",
     layout="wide",
 )
 
@@ -39,6 +87,12 @@ pg = st.navigation([
     st.Page(render_watchlist, title="Watchlist", icon=":material/bookmark:", url_path="watchlist"),
     st.Page(render_system_health, title="System Health", icon=":material/health_and_safety:", url_path="system-health"),
 ])
+
+# Boton de cerrar sesion en la barra lateral
+with st.sidebar:
+    if st.button(":material/lock_open: Cerrar sesion"):
+        st.session_state.authenticated = False
+        st.rerun()
 
 st.sidebar.divider()
 st.sidebar.caption(

@@ -16,3 +16,5 @@ services:
         value: supabase
       - key: RENDER
         value: "true"
+      - key: DASHBOARD_PASSWORD
+        sync: false
