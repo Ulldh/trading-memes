@@ -126,6 +126,9 @@ try:
     # Nuevas vistas (Fase C+D)
     from public.signals_v2 import render as render_signals_v2
     from public.track_record import render as render_track_record
+    from public.portfolio import render as render_portfolio
+    from public.alerts_config import render as render_alerts_config
+    from public.pricing import render as render_pricing
     from admin.drift_monitor import render as render_drift_monitor
     from admin.retrain_panel import render as render_retrain_panel
 except ImportError:
@@ -139,6 +142,9 @@ except ImportError:
     from views.watchlist import render as render_watchlist
     render_signals_v2 = None
     render_track_record = None
+    render_portfolio = None
+    render_alerts_config = None
+    render_pricing = None
     render_drift_monitor = None
     render_retrain_panel = None
 
@@ -160,8 +166,12 @@ public_pages.extend([
     st.Page(render_token_lookup, title="Buscar Token", icon=":material/search:", url_path="token-lookup"),
     st.Page(render_watchlist, title="Watchlist", icon=":material/bookmark:", url_path="watchlist"),
 ])
+if render_portfolio:
+    public_pages.append(st.Page(render_portfolio, title="Portfolio", icon=":material/account_balance_wallet:", url_path="portfolio"))
 if render_track_record:
     public_pages.append(st.Page(render_track_record, title="Track Record", icon=":material/emoji_events:", url_path="track-record"))
+if render_alerts_config:
+    public_pages.append(st.Page(render_alerts_config, title="Alertas", icon=":material/notifications:", url_path="alerts"))
 
 # --- Paginas de administracion (solo admin) ---
 admin_pages = []
