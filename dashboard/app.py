@@ -129,6 +129,8 @@ try:
     from public.portfolio import render as render_portfolio
     from public.alerts_config import render as render_alerts_config
     from public.pricing import render as render_pricing
+    from public.profile import render as render_profile
+    from public.legal import render as render_legal
     from admin.drift_monitor import render as render_drift_monitor
     from admin.retrain_panel import render as render_retrain_panel
 except ImportError:
@@ -145,6 +147,8 @@ except ImportError:
     render_portfolio = None
     render_alerts_config = None
     render_pricing = None
+    render_profile = None
+    render_legal = None
     render_drift_monitor = None
     render_retrain_panel = None
 
@@ -172,6 +176,8 @@ if render_track_record:
     public_pages.append(st.Page(render_track_record, title="Track Record", icon=":material/emoji_events:", url_path="track-record"))
 if render_alerts_config:
     public_pages.append(st.Page(render_alerts_config, title="Alertas", icon=":material/notifications:", url_path="alerts"))
+if render_profile:
+    public_pages.append(st.Page(render_profile, title="Mi Perfil", icon=":material/person:", url_path="profile"))
 
 # --- Paginas de administracion (solo admin) ---
 admin_pages = []
@@ -190,9 +196,16 @@ if _is_admin:
         admin_pages.append(st.Page(render_retrain_panel, title="Retrain", icon=":material/model_training:", url_path="retrain"))
 
 # --- Construir navegacion agrupada ---
+# --- Paginas informativas ---
+info_pages = []
+if render_legal:
+    info_pages.append(st.Page(render_legal, title="Legal", icon=":material/gavel:", url_path="legal"))
+
 nav_config = {"Aplicacion": public_pages}
 if admin_pages:
     nav_config["Administracion"] = admin_pages
+if info_pages:
+    nav_config["Informacion"] = info_pages
 
 pg = st.navigation(nav_config)
 
