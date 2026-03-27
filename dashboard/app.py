@@ -123,6 +123,11 @@ try:
     from admin.feature_importance import render as render_feature_importance
     from admin.eda import render as render_eda
     from admin.system_health import render as render_system_health
+    # Nuevas vistas (Fase C+D)
+    from public.signals_v2 import render as render_signals_v2
+    from public.track_record import render as render_track_record
+    from admin.drift_monitor import render as render_drift_monitor
+    from admin.retrain_panel import render as render_retrain_panel
 except ImportError:
     from views.overview import render as render_overview
     from views.eda import render as render_eda
@@ -132,6 +137,10 @@ except ImportError:
     from views.signals import render as render_signals
     from views.system_health import render as render_system_health
     from views.watchlist import render as render_watchlist
+    render_signals_v2 = None
+    render_track_record = None
+    render_drift_monitor = None
+    render_retrain_panel = None
 
 
 # =============================================================================
@@ -141,10 +150,18 @@ except ImportError:
 # --- Paginas publicas (todos los usuarios autenticados) ---
 public_pages = [
     st.Page(render_overview, title="Resumen", icon=":material/dashboard:", url_path="overview"),
-    st.Page(render_signals, title="Senales", icon=":material/trending_up:", url_path="signals"),
+]
+# Usar signals_v2 si disponible, sino fallback a signals original
+if render_signals_v2:
+    public_pages.append(st.Page(render_signals_v2, title="Senales", icon=":material/trending_up:", url_path="signals"))
+else:
+    public_pages.append(st.Page(render_signals, title="Senales", icon=":material/trending_up:", url_path="signals"))
+public_pages.extend([
     st.Page(render_token_lookup, title="Buscar Token", icon=":material/search:", url_path="token-lookup"),
     st.Page(render_watchlist, title="Watchlist", icon=":material/bookmark:", url_path="watchlist"),
-]
+])
+if render_track_record:
+    public_pages.append(st.Page(render_track_record, title="Track Record", icon=":material/emoji_events:", url_path="track-record"))
 
 # --- Paginas de administracion (solo admin) ---
 admin_pages = []
@@ -157,6 +174,10 @@ if _is_admin:
         st.Page(render_eda, title="Exploracion", icon=":material/analytics:", url_path="eda"),
         st.Page(render_system_health, title="Sistema", icon=":material/monitor_heart:", url_path="system-health"),
     ]
+    if render_drift_monitor:
+        admin_pages.append(st.Page(render_drift_monitor, title="Drift Monitor", icon=":material/monitoring:", url_path="drift-monitor"))
+    if render_retrain_panel:
+        admin_pages.append(st.Page(render_retrain_panel, title="Retrain", icon=":material/model_training:", url_path="retrain"))
 
 # --- Construir navegacion agrupada ---
 nav_config = {"Aplicacion": public_pages}
