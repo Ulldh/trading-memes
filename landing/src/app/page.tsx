@@ -1,3 +1,4 @@
+import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import Ticker from "@/components/Ticker";
 import Pipeline from "@/components/Pipeline";
@@ -10,13 +11,19 @@ import Footer from "@/components/Footer";
 export default function Home() {
   return (
     <main className="min-h-screen bg-dark-900">
-      <Ticker />
+      {/* Navbar fija + Ticker debajo */}
+      <Navbar />
+      <div className="pt-14">
+        <Ticker />
+      </div>
+
+      {/* Secciones con IDs para navegacion */}
       <Hero />
-      <Pipeline />
-      <Stats />
-      <Backtesting />
-      <Pricing />
-      <FAQ />
+      <div id="pipeline"><Pipeline /></div>
+      <div id="stats"><Stats /></div>
+      <div id="backtesting"><Backtesting /></div>
+      <div id="pricing"><Pricing /></div>
+      <div id="faq"><FAQ /></div>
       <Footer />
     </main>
   );
