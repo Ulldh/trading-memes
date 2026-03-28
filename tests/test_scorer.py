@@ -170,3 +170,78 @@ def test_score_token_no_features(mock_scorer):
     assert result["signal"] == "NONE"
     assert result["features_used"] == 0
     assert "error" in result
+
+
+# ============================================================
+# FEATURE COLUMNS: PRIORIDAD metadata.json SOBRE feature_columns.json
+# ============================================================
+
+def test_load_feature_columns_prefers_metadata_json(tmp_path, tmp_storage):
+    """metadata.json de la version activa tiene prioridad sobre feature_columns.json."""
+    from sklearn.datasets import make_classification
+    import joblib
+
+    # Features distintos en metadata.json vs feature_columns.json
+    metadata_features = ["alpha", "beta", "gamma", "delta", "epsilon"]
+    stale_features = ["old_a", "old_b", "old_c", "old_d"]
+
+    # Entrenar modelo con 5 features (como metadata_features)
+    X, y = make_classification(n_samples=50, n_features=5, random_state=42)
+    rf = RandomForestClassifier(n_estimators=3, random_state=42)
+    rf.fit(X, y)
+
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    joblib.dump(rf, models_dir / "random_forest.joblib")
+
+    # Crear feature_columns.json VIEJO (no deberia usarse)
+    with open(models_dir / "feature_columns.json", "w") as f:
+        json.dump(stale_features, f)
+
+    # Crear latest_version.txt + metadata.json con features correctos
+    (models_dir / "latest_version.txt").write_text("v99")
+    v99_dir = models_dir / "v99"
+    v99_dir.mkdir()
+    with open(v99_dir / "metadata.json", "w") as f:
+        json.dump({
+            "version": "v99",
+            "feature_names": metadata_features,
+            "results": {
+                "random_forest": {"optimal_threshold": 0.55}
+            },
+        }, f)
+
+    scorer = GemScorer(
+        storage=tmp_storage,
+        model_name="random_forest",
+        models_dir=models_dir,
+    )
+
+    # Debe usar las features de metadata.json, NO de feature_columns.json
+    assert scorer.feature_columns == metadata_features
+    assert scorer.feature_columns != stale_features
+
+
+def test_prepare_features_discards_extra_columns(mock_scorer):
+    """Features extra del builder (no conocidos por el modelo) se descartan."""
+    features = {
+        "token_id": "tok1",
+        "feat_0": 1.0,
+        "feat_1": 2.0,
+        "feat_2": 3.0,
+        "feat_3": 4.0,
+        "feat_4": 5.0,
+        # Features extra que el modelo NO conoce (simulando builder con mas features)
+        "extra_technical_1": 99.0,
+        "extra_interaction_2": 88.0,
+        "extra_sentiment_3": 77.0,
+    }
+    df = mock_scorer._prepare_features(features)
+
+    # Solo debe tener las 5 columnas del modelo
+    assert list(df.columns) == mock_scorer.feature_columns
+    assert len(df.columns) == 5
+    # Las features extra NO deben estar presentes
+    assert "extra_technical_1" not in df.columns
+    assert "extra_interaction_2" not in df.columns
+    assert "extra_sentiment_3" not in df.columns

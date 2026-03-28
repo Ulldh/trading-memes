@@ -120,21 +120,55 @@ class GemScorer:
         )
 
     def _load_feature_columns(self) -> list:
-        """Carga la lista de columnas de features usadas en entrenamiento."""
-        # Intentar desde feature_columns.json
+        """
+        Carga la lista de columnas de features usadas en entrenamiento.
+
+        Prioridad:
+        1. metadata.json de la version activa del modelo (mas confiable)
+        2. feature_columns.json en la raiz de models/ (puede estar desactualizado)
+        3. training_metadata.joblib (legacy)
+        4. X_train.csv (ultimo recurso)
+
+        Es CRITICO usar las features exactas con las que se entreno el modelo.
+        Si el FeatureBuilder genera mas features de las que el modelo conoce,
+        _prepare_features() filtrara y alineara las columnas correctamente.
+        """
         import json
+
+        # 1. Intentar desde metadata.json de la version activa (PRIORIDAD)
+        latest_file = self._models_dir / "latest_version.txt"
+        if latest_file.exists():
+            version = latest_file.read_text().strip()
+            meta_path = self._models_dir / version / "metadata.json"
+            if meta_path.exists():
+                with open(meta_path) as f:
+                    metadata = json.load(f)
+                feature_names = metadata.get("feature_names", [])
+                if feature_names:
+                    logger.info(
+                        f"Feature columns cargadas desde {version}/metadata.json: "
+                        f"{len(feature_names)} features"
+                    )
+                    return feature_names
+
+        # 2. Fallback: feature_columns.json en raiz de models/
         fc_path = self._models_dir / "feature_columns.json"
         if fc_path.exists():
             with open(fc_path) as f:
-                return json.load(f)
+                cols = json.load(f)
+            logger.warning(
+                f"Usando feature_columns.json (puede estar desactualizado): "
+                f"{len(cols)} features"
+            )
+            return cols
 
-        # Intentar desde training_metadata.joblib
+        # 3. Fallback: training_metadata.joblib (legacy)
         meta_path = self._models_dir / "training_metadata.joblib"
         if meta_path.exists():
             metadata = joblib.load(meta_path)
             return metadata.get("feature_names", [])
 
-        # Intentar desde X_train.csv
+        # 4. Ultimo recurso: X_train.csv
         xt_path = PROCESSED_DIR / "X_train.csv"
         if xt_path.exists():
             df = pd.read_csv(xt_path, nrows=1)
@@ -225,11 +259,29 @@ class GemScorer:
                 df[f"chain_{ch}"] = 1 if chain_val == ch else 0
 
         # Alinear columnas con las que espera el modelo
+        # El builder puede generar mas features de las que el modelo conoce
+        # (ej: features nuevos agregados despues del entrenamiento).
+        # Solo usamos las features con las que se entreno el modelo.
         if self.feature_columns:
+            # Detectar columnas extra (generadas pero no usadas por el modelo)
+            extra_cols = set(df.columns) - set(self.feature_columns)
+            if extra_cols:
+                logger.debug(
+                    f"Descartando {len(extra_cols)} features extra no usadas "
+                    f"por el modelo (builder genera {len(df.columns)}, "
+                    f"modelo espera {len(self.feature_columns)})"
+                )
+
             # Agregar columnas faltantes como 0
-            for col in self.feature_columns:
-                if col not in df.columns:
-                    df[col] = 0
+            missing_cols = [col for col in self.feature_columns if col not in df.columns]
+            for col in missing_cols:
+                df[col] = 0.0
+            if missing_cols:
+                logger.debug(
+                    f"Agregando {len(missing_cols)} features faltantes con valor 0: "
+                    f"{missing_cols[:5]}{'...' if len(missing_cols) > 5 else ''}"
+                )
+
             # Seleccionar solo las columnas del modelo, en el orden correcto
             df = df[self.feature_columns]
 
