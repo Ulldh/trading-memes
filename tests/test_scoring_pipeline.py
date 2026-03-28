@@ -345,35 +345,33 @@ class TestGetModelVersion:
 # ============================================================
 
 class TestScoreAndSave:
-    """Tests para GemScorer.score_and_save()."""
+    """Tests para GemScorer.score_and_save() (batch con features de BD)."""
+
+    def _make_features_df(self, token_ids, n_features=5):
+        """Helper: crea un DataFrame de features simulado (como get_features_df)."""
+        data = {"token_id": token_ids}
+        for i in range(n_features):
+            data[f"feat_{i}"] = [0.5 + i * 0.1] * len(token_ids)
+        return pd.DataFrame(data)
 
     def test_happy_path_scores_and_saves(self, scorer_with_mocks, mock_storage):
-        """Califica tokens y guarda scores en Supabase."""
+        """Califica tokens en batch y guarda scores en Supabase."""
         # Simular tokens sin score
         tokens_df = pd.DataFrame({
             "token_id": ["tok_1", "tok_2"],
             "chain": ["solana", "ethereum"],
             "symbol": ["AAA", "BBB"],
         })
+        features_df = self._make_features_df(["tok_1", "tok_2"])
+
         mock_storage.query = MagicMock(return_value=tokens_df)
+        mock_storage.get_features_df = MagicMock(return_value=features_df)
         mock_storage.upsert_scores = MagicMock()
 
-        # Mockear score_token para retornar resultados predecibles
-        fake_result = {
-            "token_id": "tok_1",
-            "probability": 0.85,
-            "signal": "STRONG",
-            "prediction": 1,
-            "features_used": 5,
-            "scored_at": "2026-03-25T10:00:00+00:00",
-        }
         with patch.object(
-            scorer_with_mocks, "score_token", return_value=fake_result
+            scorer_with_mocks, "_get_model_version", return_value="v12"
         ):
-            with patch.object(
-                scorer_with_mocks, "_get_model_version", return_value="v12"
-            ):
-                df = scorer_with_mocks.score_and_save()
+            df = scorer_with_mocks.score_and_save()
 
         # Verificar que retorna DataFrame con resultados
         assert isinstance(df, pd.DataFrame)
@@ -386,6 +384,9 @@ class TestScoreAndSave:
         # Verificar que cada score tiene model_name y model_version
         assert all(s["model_name"] == "random_forest" for s in upsert_arg)
         assert all(s["model_version"] == "v12" for s in upsert_arg)
+
+        # Verificar que NO se llamo a score_token (batch, no loop)
+        # score_and_save ya no usa score_token internamente
 
     def test_no_unscored_tokens_returns_empty(self, scorer_with_mocks,
                                                mock_storage):
@@ -405,44 +406,26 @@ class TestScoreAndSave:
         # No deberia haber intentado upsert
         mock_storage.upsert_scores.assert_not_called()
 
-    def test_scoring_error_continues_other_tokens(self, scorer_with_mocks,
-                                                   mock_storage):
-        """Si un token falla al calificarse, los demas siguen."""
+    def test_empty_features_returns_empty(self, scorer_with_mocks,
+                                           mock_storage):
+        """Si no hay features en BD, retorna DataFrame vacio."""
         tokens_df = pd.DataFrame({
-            "token_id": ["tok_ok", "tok_error", "tok_ok2"],
-            "chain": ["solana", "solana", "ethereum"],
-            "symbol": ["OK", "ERR", "OK2"],
+            "token_id": ["tok_1"],
+            "chain": ["solana"],
+            "symbol": ["AAA"],
         })
         mock_storage.query = MagicMock(return_value=tokens_df)
+        mock_storage.get_features_df = MagicMock(return_value=pd.DataFrame())
         mock_storage.upsert_scores = MagicMock()
 
-        call_count = 0
-
-        def side_effect_score(token_id):
-            nonlocal call_count
-            call_count += 1
-            if token_id == "tok_error":
-                raise ValueError("Error simulado en scoring")
-            return {
-                "token_id": token_id,
-                "probability": 0.6,
-                "signal": "WEAK",
-                "prediction": 1,
-                "features_used": 5,
-                "scored_at": "2026-03-25T10:00:00+00:00",
-            }
-
         with patch.object(
-            scorer_with_mocks, "score_token", side_effect=side_effect_score
+            scorer_with_mocks, "_get_model_version", return_value="v12"
         ):
-            with patch.object(
-                scorer_with_mocks, "_get_model_version", return_value="v12"
-            ):
-                df = scorer_with_mocks.score_and_save()
+            df = scorer_with_mocks.score_and_save()
 
-        # Deberia tener 2 resultados (el que fallo se omitio)
-        assert len(df) == 2
-        assert "tok_error" not in df["token_id"].values
+        assert isinstance(df, pd.DataFrame)
+        assert df.empty
+        mock_storage.upsert_scores.assert_not_called()
 
     def test_upsert_failure_raises(self, scorer_with_mocks, mock_storage):
         """Si upsert_scores falla, se propaga la excepcion."""
@@ -451,28 +434,19 @@ class TestScoreAndSave:
             "chain": ["solana"],
             "symbol": ["AAA"],
         })
+        features_df = self._make_features_df(["tok_1"])
+
         mock_storage.query = MagicMock(return_value=tokens_df)
+        mock_storage.get_features_df = MagicMock(return_value=features_df)
         mock_storage.upsert_scores = MagicMock(
             side_effect=Exception("Error de conexion Supabase")
         )
 
-        fake_result = {
-            "token_id": "tok_1",
-            "probability": 0.7,
-            "signal": "MEDIUM",
-            "prediction": 1,
-            "features_used": 5,
-            "scored_at": "2026-03-25T10:00:00+00:00",
-        }
-
         with patch.object(
-            scorer_with_mocks, "score_token", return_value=fake_result
+            scorer_with_mocks, "_get_model_version", return_value="v12"
         ):
-            with patch.object(
-                scorer_with_mocks, "_get_model_version", return_value="v12"
-            ):
-                with pytest.raises(Exception, match="Error de conexion Supabase"):
-                    scorer_with_mocks.score_and_save()
+            with pytest.raises(Exception, match="Error de conexion Supabase"):
+                scorer_with_mocks.score_and_save()
 
     def test_results_sorted_by_probability(self, scorer_with_mocks,
                                             mock_storage):
@@ -482,57 +456,72 @@ class TestScoreAndSave:
             "chain": ["solana", "solana", "solana"],
             "symbol": ["LOW", "HIGH", "MID"],
         })
+        features_df = self._make_features_df(["tok_low", "tok_high", "tok_mid"])
+
         mock_storage.query = MagicMock(return_value=tokens_df)
+        mock_storage.get_features_df = MagicMock(return_value=features_df)
         mock_storage.upsert_scores = MagicMock()
 
-        def mock_score(token_id):
-            probs = {"tok_low": 0.2, "tok_high": 0.95, "tok_mid": 0.6}
-            prob = probs[token_id]
-            return {
-                "token_id": token_id,
-                "probability": prob,
-                "signal": "STRONG" if prob >= 0.8 else "NONE",
-                "prediction": 1 if prob >= 0.5 else 0,
-                "features_used": 5,
-                "scored_at": "2026-03-25T10:00:00+00:00",
-            }
-
         with patch.object(
-            scorer_with_mocks, "score_token", side_effect=mock_score
+            scorer_with_mocks, "_get_model_version", return_value="v12"
         ):
-            with patch.object(
-                scorer_with_mocks, "_get_model_version", return_value="v12"
-            ):
-                df = scorer_with_mocks.score_and_save()
+            df = scorer_with_mocks.score_and_save()
 
-        # Verificar orden descendente por probabilidad
-        assert df.iloc[0]["token_id"] == "tok_high"
-        assert df.iloc[1]["token_id"] == "tok_mid"
-        assert df.iloc[2]["token_id"] == "tok_low"
+        # Verificar que los resultados estan ordenados por probabilidad desc
+        probs = df["probability"].tolist()
+        assert probs == sorted(probs, reverse=True)
 
-    def test_all_tokens_fail_returns_empty(self, scorer_with_mocks,
-                                            mock_storage):
-        """Si todos los tokens fallan al calificarse, retorna DataFrame vacio."""
+    def test_filters_only_target_tokens(self, scorer_with_mocks,
+                                         mock_storage):
+        """Solo califica tokens que aparecen en la query (sin score previo)."""
+        # Solo tok_1 necesita score
         tokens_df = pd.DataFrame({
-            "token_id": ["tok_fail1", "tok_fail2"],
-            "chain": ["solana", "solana"],
-            "symbol": ["F1", "F2"],
+            "token_id": ["tok_1"],
+            "chain": ["solana"],
+            "symbol": ["AAA"],
         })
+        # Pero la BD tiene features para tok_1 y tok_extra
+        features_df = self._make_features_df(["tok_1", "tok_extra"])
+
         mock_storage.query = MagicMock(return_value=tokens_df)
+        mock_storage.get_features_df = MagicMock(return_value=features_df)
         mock_storage.upsert_scores = MagicMock()
 
         with patch.object(
-            scorer_with_mocks, "score_token",
-            side_effect=ValueError("Todos fallan")
+            scorer_with_mocks, "_get_model_version", return_value="v12"
         ):
+            df = scorer_with_mocks.score_and_save()
+
+        # Solo tok_1 debe tener score
+        assert len(df) == 1
+        assert df.iloc[0]["token_id"] == "tok_1"
+        # tok_extra no debe estar
+        assert "tok_extra" not in df["token_id"].values
+
+    def test_batch_prediction_no_score_token_calls(self, scorer_with_mocks,
+                                                     mock_storage):
+        """score_and_save usa prediccion batch, no llama a score_token."""
+        tokens_df = pd.DataFrame({
+            "token_id": ["tok_1", "tok_2"],
+            "chain": ["solana", "solana"],
+            "symbol": ["A", "B"],
+        })
+        features_df = self._make_features_df(["tok_1", "tok_2"])
+
+        mock_storage.query = MagicMock(return_value=tokens_df)
+        mock_storage.get_features_df = MagicMock(return_value=features_df)
+        mock_storage.upsert_scores = MagicMock()
+
+        with patch.object(
+            scorer_with_mocks, "score_token", wraps=scorer_with_mocks.score_token
+        ) as mock_score:
             with patch.object(
                 scorer_with_mocks, "_get_model_version", return_value="v12"
             ):
-                df = scorer_with_mocks.score_and_save()
+                scorer_with_mocks.score_and_save()
 
-        assert isinstance(df, pd.DataFrame)
-        assert df.empty
-        mock_storage.upsert_scores.assert_not_called()
+        # score_token NO debe haber sido llamado (batch prediction)
+        mock_score.assert_not_called()
 
 
 # ============================================================

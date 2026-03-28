@@ -453,18 +453,108 @@ class GemScorer:
             return latest_file.read_text().strip()
         return "unknown"
 
+    def _extract_estimator(self, model):
+        """
+        Extrae el estimador base de un Pipeline/ImbPipeline.
+
+        RF se almacena como ImbPipeline([("smote", SMOTE), ("rf", RFC)]).
+        Si llamamos predict_proba() sobre el pipeline, SMOTE se aplica
+        a los datos de inferencia y corrompe las predicciones.
+
+        Esta funcion extrae el clasificador final del pipeline para
+        llamar predict_proba directamente sobre el, sin pasar por SMOTE.
+
+        Args:
+            model: Modelo que puede ser Pipeline, ImbPipeline o estimador directo.
+
+        Returns:
+            Estimador listo para predict/predict_proba sin SMOTE.
+        """
+        # Pipeline / ImbPipeline: tienen atributo 'steps' (lista de tuplas)
+        if hasattr(model, "steps"):
+            estimator = model.steps[-1][1]
+            logger.debug(
+                f"Estimador extraido de pipeline: {type(estimator).__name__}"
+            )
+            return estimator
+        # named_steps (alternativa menos comun)
+        if hasattr(model, "named_steps"):
+            estimator = list(model.named_steps.values())[-1]
+            logger.debug(
+                f"Estimador extraido de named_steps: {type(estimator).__name__}"
+            )
+            return estimator
+        # CalibratedClassifierCV o modelo directo: retornar tal cual
+        return model
+
+    def _prepare_features_batch(self, features_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Prepara un DataFrame completo de features para prediccion batch.
+
+        Aplica one-hot encoding de chain, alinea columnas con el modelo,
+        reemplaza infinitos/NaN con medianas de training, y retorna
+        la matriz lista para predict_proba.
+
+        Args:
+            features_df: DataFrame con features de multiples tokens (de BD).
+
+        Returns:
+            DataFrame con las columnas correctas para el modelo.
+        """
+        df = features_df.copy()
+
+        # Eliminar columnas no-feature (token_id se usa como indice, no como feature)
+        non_feature_cols = ["token_id", "computed_at"]
+        for col in non_feature_cols:
+            if col in df.columns:
+                df = df.drop(columns=[col])
+
+        # One-hot encoding de chain si existe
+        if "chain" in df.columns:
+            for ch in ["solana", "ethereum", "base"]:
+                df[f"chain_{ch}"] = (df["chain"] == ch).astype(int)
+            df = df.drop(columns=["chain"])
+
+        # Alinear columnas con las que espera el modelo
+        if self.feature_columns:
+            # Agregar columnas faltantes como 0
+            missing_cols = [col for col in self.feature_columns if col not in df.columns]
+            for col in missing_cols:
+                df[col] = 0.0
+            if missing_cols:
+                logger.debug(
+                    f"Batch: {len(missing_cols)} features faltantes agregados con valor 0"
+                )
+
+            # Seleccionar solo las columnas del modelo, en el orden correcto
+            df = df[self.feature_columns]
+
+        # Reemplazar infinitos con NaN para que las medianas los manejen
+        df = df.replace([np.inf, -np.inf], np.nan)
+
+        # Rellenar NaN con medianas de training (consistencia train/inference)
+        if self.train_medians:
+            df = df.fillna(self.train_medians)
+
+        # Fallback: rellenar restantes con 0 y convertir tipos
+        df = df.infer_objects(copy=False).fillna(0)
+
+        return df
+
     def score_and_save(self, min_ohlcv_days: int = 7) -> pd.DataFrame:
         """
-        Califica tokens nuevos y guarda los scores en Supabase.
+        Califica tokens usando features pre-calculados de la BD (batch).
 
-        Flujo completo para el step de scoring en daily-collect.yml:
-        1. Obtiene tokens sin score para la version actual del modelo.
-        2. Calcula features y genera predicciones (RF).
-        3. Upsert de scores en la tabla 'scores' via SupabaseStorage.
+        Optimizado para velocidad: carga TODOS los features de una vez
+        desde la tabla features (1 query) en lugar de recalcularlos
+        por token (N llamadas API). Prediccion vectorizada con numpy.
 
-        Tokens "sin score" = tokens con features + >=7d OHLCV que NO
-        tienen un registro en 'scores' con el model_version actual.
-        Esto permite re-scoring al cambiar de version de modelo.
+        Flujo:
+        1. Identifica tokens sin score para la version actual del modelo.
+        2. Carga features pre-calculados de la BD (1 query).
+        3. Prepara la matriz de features (alineacion, encoding, imputacion).
+        4. Prediccion batch (vectorizada, no loop).
+        5. Upsert de scores en la tabla 'scores' via SupabaseStorage.
 
         Args:
             min_ohlcv_days: Minimo dias de OHLCV requeridos (default 7).
@@ -478,8 +568,7 @@ class GemScorer:
             f"version={model_version}, min_ohlcv={min_ohlcv_days}d"
         )
 
-        # Obtener tokens con features + OHLCV suficiente pero sin score
-        # para la version actual del modelo
+        # Paso 1: Obtener token_ids sin score para la version actual
         tokens_df = self.storage.query("""
             SELECT DISTINCT t.token_id, t.chain, t.symbol
             FROM tokens t
@@ -497,21 +586,82 @@ class GemScorer:
             logger.info("score_and_save: no hay tokens nuevos para calificar")
             return pd.DataFrame()
 
-        logger.info(f"score_and_save: calificando {len(tokens_df)} tokens...")
+        target_token_ids = set(tokens_df["token_id"].tolist())
+        logger.info(f"score_and_save: {len(target_token_ids)} tokens por calificar")
 
-        # Calificar cada token
+        # Paso 2: Cargar features pre-calculados de la BD (1 query)
+        all_features_df = self.storage.get_features_df()
+        if all_features_df.empty:
+            logger.warning("score_and_save: no hay features en la BD")
+            return pd.DataFrame()
+
+        # Filtrar solo los tokens que necesitan score
+        features_df = all_features_df[
+            all_features_df["token_id"].isin(target_token_ids)
+        ].copy()
+
+        if features_df.empty:
+            logger.warning(
+                "score_and_save: tokens sin score no tienen features en BD"
+            )
+            return pd.DataFrame()
+
+        logger.info(
+            f"score_and_save: {len(features_df)} tokens con features cargados "
+            f"de BD (de {len(target_token_ids)} sin score)"
+        )
+
+        # Paso 3: Preparar matriz de features para prediccion batch
+        # Guardar token_ids antes de preparar (se elimina en _prepare_features_batch)
+        scored_token_ids = features_df["token_id"].values.copy()
+
+        try:
+            X = self._prepare_features_batch(features_df)
+        except Exception as e:
+            logger.error(f"score_and_save: error preparando features: {e}")
+            return pd.DataFrame()
+
+        # Paso 4: Prediccion batch vectorizada
+        # Extraer estimador base del pipeline (evitar SMOTE en inferencia)
+        estimator = self._extract_estimator(self.model)
+
+        try:
+            probabilities = estimator.predict_proba(X)[:, 1]
+        except Exception as e:
+            logger.error(f"score_and_save: error en predict_proba: {e}")
+            return pd.DataFrame()
+
+        # Paso 5: Construir resultados
+        # Crear lookup de chain/symbol desde tokens_df
+        token_info = tokens_df.set_index("token_id")[["chain", "symbol"]].to_dict("index")
+        scored_at = datetime.now(timezone.utc).isoformat()
+
         results = []
-        for _, row in tokens_df.iterrows():
-            token_id = row["token_id"]
-            try:
-                result = self.score_token(token_id)
-                result["chain"] = row["chain"]
-                result["symbol"] = row.get("symbol", "")
-                result["model_name"] = self.model_name
-                result["model_version"] = model_version
-                results.append(result)
-            except Exception as e:
-                logger.warning(f"Error scoring {token_id[:10]}: {e}")
+        for i, token_id in enumerate(scored_token_ids):
+            prob = float(probabilities[i])
+            prediction = int(prob >= self.optimal_threshold)
+
+            # Determinar senal
+            signal = "NONE"
+            for level, threshold in sorted(
+                SIGNAL_THRESHOLDS.items(), key=lambda x: -x[1]
+            ):
+                if prob >= threshold:
+                    signal = level
+                    break
+
+            info = token_info.get(token_id, {})
+            results.append({
+                "token_id": token_id,
+                "probability": round(prob, 4),
+                "signal": signal,
+                "prediction": prediction,
+                "chain": info.get("chain", ""),
+                "symbol": info.get("symbol", ""),
+                "model_name": self.model_name,
+                "model_version": model_version,
+                "scored_at": scored_at,
+            })
 
         if not results:
             logger.info("score_and_save: ningun token pudo ser calificado")
@@ -530,7 +680,7 @@ class GemScorer:
                 "prediction": int(row["prediction"]),
                 "model_name": row["model_name"],
                 "model_version": row["model_version"],
-                "scored_at": row.get("scored_at"),
+                "scored_at": row["scored_at"],
             }
             for _, row in df.iterrows()
         ]
