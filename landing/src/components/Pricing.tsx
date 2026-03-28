@@ -16,7 +16,7 @@ const plans = [
       { text: "Backtesting", included: false },
     ],
     cta: "Crear cuenta",
-    href: "https://app.memedetector.es/register",
+    href: "https://app.memedetector.es",
   },
   {
     name: "PRO",
@@ -33,7 +33,7 @@ const plans = [
       { text: "Track record", included: true },
     ],
     cta: "Empezar →",
-    href: "https://app.memedetector.es/checkout/pro",
+    href: "https://buy.stripe.com/bJe8wPgnT7Ai6RT4xCaZi00",
   },
   {
     name: "ENTERPRISE",
