@@ -11,20 +11,22 @@ import Footer from "@/components/Footer";
 export default function Home() {
   return (
     <main className="min-h-screen bg-dark-900">
-      {/* Navbar fija + Ticker debajo */}
-      <Navbar />
-      <div className="pt-14">
+      {/* Header fijo: Navbar + Ticker (siempre visibles) */}
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <Navbar />
         <Ticker />
       </div>
 
-      {/* Secciones con IDs para navegacion */}
-      <Hero />
-      <div id="pipeline"><Pipeline /></div>
-      <div id="stats"><Stats /></div>
-      <div id="backtesting"><Backtesting /></div>
-      <div id="pricing"><Pricing /></div>
-      <div id="faq"><FAQ /></div>
-      <Footer />
+      {/* Contenido con padding para compensar header fijo */}
+      <div className="pt-[88px]">
+        <Hero />
+        <div id="pipeline"><Pipeline /></div>
+        <div id="stats"><Stats /></div>
+        <div id="backtesting"><Backtesting /></div>
+        <div id="pricing"><Pricing /></div>
+        <div id="faq"><FAQ /></div>
+        <Footer />
+      </div>
     </main>
   );
 }
