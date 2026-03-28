@@ -5,8 +5,8 @@ score_tokens.py - Califica tokens con modelos ML despues de la recoleccion diari
 Flujo:
   1. Descarga modelos desde Supabase Storage (si no existen localmente).
   2. Inicializa GemScorer con el modelo descargado.
-  3. Califica todos los tokens nuevos (sin label, con OHLCV suficiente).
-  4. Guarda senales en CSV local y muestra resumen.
+  3. Califica tokens nuevos y guarda scores en Supabase (tabla scores).
+  4. Guarda copia local en CSV y muestra resumen.
 
 Manejo de errores:
   - Si no hay modelos en Supabase Storage: warning y exit 0 (no falla el workflow).
@@ -107,9 +107,14 @@ def main(model_name: str = "random_forest", min_ohlcv_days: int = 7) -> int:
         logger.error(f"Error inicializando GemScorer: {e}")
         return 1
 
-    logger.info("Calificando tokens nuevos...")
+    # score_and_save() califica tokens nuevos Y persiste los scores
+    # en la tabla 'scores' de Supabase via storage.upsert_scores().
+    # Usa una query mas inteligente que score_all_new(): busca tokens
+    # con features + OHLCV suficiente que NO tengan score para la
+    # version actual del modelo (permite re-scoring al cambiar version).
+    logger.info("Calificando tokens nuevos y guardando en Supabase...")
     try:
-        results_df = scorer.score_all_new(min_ohlcv_days=min_ohlcv_days)
+        results_df = scorer.score_and_save(min_ohlcv_days=min_ohlcv_days)
     except Exception as e:
         logger.error(f"Error durante scoring: {e}")
         return 1
@@ -119,16 +124,16 @@ def main(model_name: str = "random_forest", min_ohlcv_days: int = 7) -> int:
         return 0
 
     # ================================================================
-    # Paso 3: Guardar resultados y mostrar resumen
+    # Paso 3: Guardar copia local en CSV y mostrar resumen
     # ================================================================
-    logger.info(f"\n[3/3] Guardando senales ({len(results_df)} tokens)...")
+    logger.info(f"\n[3/3] Guardando copia local de senales ({len(results_df)} tokens)...")
 
     try:
         output_path = scorer.save_signals(results_df)
-        logger.info(f"Senales guardadas en: {output_path}")
+        logger.info(f"Senales guardadas en CSV local: {output_path}")
     except Exception as e:
         logger.warning(f"Error guardando senales a CSV: {e}")
-        # No fatal: los resultados ya se mostraron en logs
+        # No fatal: los scores ya se guardaron en Supabase en el paso 2
 
     # Resumen final
     logger.info("\n" + "=" * 60)
