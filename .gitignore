@@ -45,5 +45,8 @@ logs/
 # === Cache ===
 .cache/
 
+# === Security ===
+deploy/secrets_to_purge.txt
+
 # === GGA ===
 .gga
