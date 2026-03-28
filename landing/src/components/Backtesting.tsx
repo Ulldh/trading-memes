@@ -208,11 +208,14 @@ export default function Backtesting() {
           transition={{ duration: 0.5 }}
           className="text-center mb-12"
         >
-          <h2 className="text-3xl md:text-5xl font-bold text-white font-mono">
-            Backtesting Simulator
+          <h2 className="text-3xl md:text-5xl font-bold text-white font-mono inline-flex items-center justify-center gap-3 flex-wrap">
+            Simulaci&oacute;n Estimada
+            <span className="text-xs font-bold tracking-widest uppercase bg-gem-yellow/20 text-gem-yellow border border-gem-yellow/40 px-2 py-1 rounded">
+              SIMULACI&Oacute;N
+            </span>
           </h2>
-          <p className="text-gray-500 text-sm mt-4 font-mono">
-            &iquest;Qu&eacute; habr&iacute;a pasado si hubieras seguido nuestras se&ntilde;ales?
+          <p className="text-primary/80 text-sm mt-4 font-mono font-semibold">
+            Basado en las m&eacute;tricas del modelo (F1 Score: 0.67), no en datos hist&oacute;ricos reales.
           </p>
         </motion.div>
 
@@ -361,6 +364,13 @@ export default function Backtesting() {
             </div>
           </div>
 
+          {/* Nota de transparencia sobre el chart */}
+          <div className="border border-dark-600 bg-dark-900/50 p-3 mb-4">
+            <p className="text-[11px] text-gray-500 font-mono leading-relaxed">
+              Esta simulaci&oacute;n usa un modelo matem&aacute;tico basado en la tasa de acierto del 67% y retornos promedio observados en validaci&oacute;n. No representa rendimiento real pasado.
+            </p>
+          </div>
+
           {/* Chart */}
           <div className="h-[280px] w-full mb-6">
             <ResponsiveContainer width="100%" height="100%">
@@ -435,10 +445,9 @@ export default function Backtesting() {
           <div className="border border-gem-yellow/20 bg-gem-yellow/5 p-4">
             <p className="text-xs text-gem-yellow/80 font-mono leading-relaxed">
               <span className="text-gem-yellow font-bold">&#9888; AVISO:</span>{" "}
-              Rendimiento pasado no garantiza resultados futuros. Simulaci&oacute;n
-              basada en datos hist&oacute;ricos del modelo v12. Los resultados reales
-              pueden variar significativamente. Esto no constituye asesor&iacute;a
-              financiera.
+              Simulaci&oacute;n estimada basada en m&eacute;tricas del modelo v12. Track record
+              verificable con datos reales disponible pr&oacute;ximamente (estamos acumulando
+              datos desde marzo 2026). Rendimiento pasado no garantiza resultados futuros.
             </p>
           </div>
         </motion.div>

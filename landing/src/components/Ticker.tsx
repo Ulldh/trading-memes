@@ -43,11 +43,11 @@ function SignalItem({
 export default function Ticker() {
   return (
     <div className="relative w-full bg-dark-800 border-b border-dark-600 overflow-hidden">
-      {/* LIVE indicator */}
+      {/* DEMO indicator */}
       <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center bg-dark-800 pl-3 pr-4 border-r border-dark-600">
-        <span className="pulse-dot inline-block w-2 h-2 bg-gem-red rounded-full mr-2" />
-        <span className="text-[10px] text-gem-red font-bold tracking-widest uppercase">
-          LIVE
+        <span className="inline-block w-2 h-2 bg-gem-yellow rounded-full mr-2" />
+        <span className="text-[10px] text-gem-yellow font-bold tracking-widest uppercase">
+          DEMO
         </span>
       </div>
 
