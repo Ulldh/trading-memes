@@ -47,8 +47,8 @@ const plans = [
       { text: "Soporte prioritario", included: true },
       { text: "Datos export", included: true },
     ],
-    cta: "Contactar",
-    href: "mailto:info@memedetector.es?subject=Enterprise",
+    cta: "Empezar →",
+    href: "https://buy.stripe.com/8x2fZh4Fbg6Oekld48aZi01",
   },
 ];
 

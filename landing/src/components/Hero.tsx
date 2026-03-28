@@ -102,14 +102,24 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.8 }}
         >
-          <a
-            href="https://app.memedetector.es"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block border-2 border-primary text-primary px-8 py-4 text-sm font-semibold tracking-wider uppercase hover:bg-primary hover:text-dark-900 transition-all duration-300"
-          >
-            Accede a las señales →
-          </a>
+          <div className="flex gap-4 justify-center flex-wrap">
+            <a
+              href="https://app.memedetector.es"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block border-2 border-primary text-primary px-8 py-4 text-sm font-semibold tracking-wider uppercase hover:bg-primary hover:text-dark-900 transition-all duration-300"
+            >
+              Crear cuenta gratis →
+            </a>
+            <a
+              href="https://app.memedetector.es"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block border-2 border-dark-600 text-gray-400 px-8 py-4 text-sm font-semibold tracking-wider uppercase hover:border-gray-400 hover:text-white transition-all duration-300"
+            >
+              Iniciar sesión
+            </a>
+          </div>
         </motion.div>
 
         {/* Bottom terminal line */}
