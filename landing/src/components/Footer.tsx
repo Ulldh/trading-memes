@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Link from "next/link";
 
 export default function Footer() {
   return (
@@ -44,23 +45,19 @@ export default function Footer() {
 
           {/* Center: legal links */}
           <div className="flex items-center gap-4">
-            <a
-              href="https://app.memedetector.es/legal"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href="/legal"
               className="hover:text-primary transition-colors duration-200"
             >
               Legal
-            </a>
+            </Link>
             <span className="text-dark-600">|</span>
-            <a
-              href="https://app.memedetector.es/privacidad"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href="/legal#privacidad"
               className="hover:text-primary transition-colors duration-200"
             >
               Privacidad
-            </a>
+            </Link>
           </div>
 
           {/* Right: contact */}
