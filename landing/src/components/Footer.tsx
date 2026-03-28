@@ -45,7 +45,7 @@ export default function Footer() {
           {/* Center: legal links */}
           <div className="flex items-center gap-4">
             <a
-              href="https://www.memedetector.es/legal"
+              href="https://app.memedetector.es/legal"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-primary transition-colors duration-200"
@@ -54,7 +54,7 @@ export default function Footer() {
             </a>
             <span className="text-dark-600">|</span>
             <a
-              href="https://www.memedetector.es/privacidad"
+              href="https://app.memedetector.es/privacidad"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-primary transition-colors duration-200"

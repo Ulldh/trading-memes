@@ -103,7 +103,7 @@ export default function Hero() {
           transition={{ duration: 0.7, delay: 0.8 }}
         >
           <a
-            href="https://www.memedetector.es"
+            href="https://app.memedetector.es"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block border-2 border-primary text-primary px-8 py-4 text-sm font-semibold tracking-wider uppercase hover:bg-primary hover:text-dark-900 transition-all duration-300"
