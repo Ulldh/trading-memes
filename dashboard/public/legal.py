@@ -8,7 +8,7 @@ Texto legal adaptado a la legislacion espanola y europea:
 - Directiva ePrivacy (2002/58/CE)
 
 Servicio: MemeDetector — analisis de senales de criptomonedas (memecoins).
-Titular: Ulises Diaz Hernandez, Las Palmas de Gran Canaria, Espana.
+Titular: ULL MIDDLE MOORE S.L., Carretera General La Perdoma 35, La Orotava, Santa Cruz de Tenerife, España.
 Contacto: info@memedetector.es
 """
 
@@ -28,9 +28,9 @@ siguientes datos identificativos del titular del sitio web:
 
 | | |
 |---|---|
-| **Titular** | Ulises Diaz Hernandez |
-| **NIF** | [NIF pendiente de incluir] |
-| **Domicilio** | Las Palmas de Gran Canaria, Espana |
+| **Titular** | ULL MIDDLE MOORE S.L. |
+| **NIF** | B76672864 |
+| **Domicilio** | Carretera General La Perdoma 35, La Orotava, Santa Cruz de Tenerife, España |
 | **Correo electronico** | info@memedetector.es |
 | **Sitio web** | www.memedetector.es |
 | **Actividad** | Prestacion de servicios de analisis de datos sobre criptomonedas (memecoins) mediante modelos de Machine Learning |
@@ -222,7 +222,7 @@ cuenta sin penalizacion.
 El presente Aviso Legal se rige e interpreta conforme a la **legislacion espanola**.
 
 Para la resolucion de cualquier controversia que pudiera derivarse del acceso o uso del
-Servicio, las partes se someten a los **Juzgados y Tribunales de Las Palmas de Gran
+Servicio, las partes se someten a los **Juzgados y Tribunales de Santa Cruz de Tenerife de Gran
 Canaria (Espana)**, sin perjuicio de lo dispuesto en la normativa vigente en materia de
 consumidores y usuarios, que podra determinar la competencia del tribunal del domicilio
 del consumidor.
@@ -261,9 +261,9 @@ digitales (LOPD-GDD)**.
 
 | | |
 |---|---|
-| **Responsable** | Ulises Diaz Hernandez |
-| **NIF** | [NIF pendiente de incluir] |
-| **Domicilio** | Las Palmas de Gran Canaria, Espana |
+| **Responsable** | ULL MIDDLE MOORE S.L. |
+| **NIF** | B76672864 |
+| **Domicilio** | Carretera General La Perdoma 35, La Orotava, Santa Cruz de Tenerife, España |
 | **Correo electronico** | info@memedetector.es |
 | **Sitio web** | www.memedetector.es |
 

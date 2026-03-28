@@ -70,9 +70,9 @@ export default function LegalPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm border border-dark-600">
                     <tbody>
-                      <tr className="border-b border-dark-600"><td className="py-2 px-3 text-gray-400 font-semibold w-44">Titular</td><td className="py-2 px-3">Ulises Diaz Hernandez</td></tr>
-                      <tr className="border-b border-dark-600"><td className="py-2 px-3 text-gray-400 font-semibold">NIF</td><td className="py-2 px-3">[NIF pendiente de incluir]</td></tr>
-                      <tr className="border-b border-dark-600"><td className="py-2 px-3 text-gray-400 font-semibold">Domicilio</td><td className="py-2 px-3">Las Palmas de Gran Canaria, Espana</td></tr>
+                      <tr className="border-b border-dark-600"><td className="py-2 px-3 text-gray-400 font-semibold w-44">Titular</td><td className="py-2 px-3">ULL MIDDLE MOORE S.L.</td></tr>
+                      <tr className="border-b border-dark-600"><td className="py-2 px-3 text-gray-400 font-semibold">NIF</td><td className="py-2 px-3">B76672864</td></tr>
+                      <tr className="border-b border-dark-600"><td className="py-2 px-3 text-gray-400 font-semibold">Domicilio</td><td className="py-2 px-3">Carretera General La Perdoma 35, La Orotava, Santa Cruz de Tenerife, España</td></tr>
                       <tr className="border-b border-dark-600"><td className="py-2 px-3 text-gray-400 font-semibold">Correo electronico</td><td className="py-2 px-3">info@memedetector.es</td></tr>
                       <tr className="border-b border-dark-600"><td className="py-2 px-3 text-gray-400 font-semibold">Sitio web</td><td className="py-2 px-3">www.memedetector.es</td></tr>
                       <tr><td className="py-2 px-3 text-gray-400 font-semibold">Actividad</td><td className="py-2 px-3">Prestacion de servicios de analisis de datos sobre criptomonedas (memecoins) mediante modelos de Machine Learning</td></tr>
@@ -241,7 +241,7 @@ export default function LegalPage() {
                 </p>
                 <p className="mb-3">
                   Para la resolucion de cualquier controversia que pudiera derivarse del acceso o uso del
-                  Servicio, las partes se someten a los <strong>Juzgados y Tribunales de Las Palmas de Gran
+                  Servicio, las partes se someten a los <strong>Juzgados y Tribunales de Santa Cruz de Gran
                   Canaria (Espana)</strong>, sin perjuicio de lo dispuesto en la normativa vigente en materia de
                   consumidores y usuarios, que podra determinar la competencia del tribunal del domicilio
                   del consumidor.
@@ -293,9 +293,9 @@ export default function LegalPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm border border-dark-600">
                     <tbody>
-                      <tr className="border-b border-dark-600"><td className="py-2 px-3 text-gray-400 font-semibold w-44">Responsable</td><td className="py-2 px-3">Ulises Diaz Hernandez</td></tr>
-                      <tr className="border-b border-dark-600"><td className="py-2 px-3 text-gray-400 font-semibold">NIF</td><td className="py-2 px-3">[NIF pendiente de incluir]</td></tr>
-                      <tr className="border-b border-dark-600"><td className="py-2 px-3 text-gray-400 font-semibold">Domicilio</td><td className="py-2 px-3">Las Palmas de Gran Canaria, Espana</td></tr>
+                      <tr className="border-b border-dark-600"><td className="py-2 px-3 text-gray-400 font-semibold w-44">Responsable</td><td className="py-2 px-3">ULL MIDDLE MOORE S.L.</td></tr>
+                      <tr className="border-b border-dark-600"><td className="py-2 px-3 text-gray-400 font-semibold">NIF</td><td className="py-2 px-3">B76672864</td></tr>
+                      <tr className="border-b border-dark-600"><td className="py-2 px-3 text-gray-400 font-semibold">Domicilio</td><td className="py-2 px-3">Carretera General La Perdoma 35, La Orotava, Santa Cruz de Tenerife, España</td></tr>
                       <tr className="border-b border-dark-600"><td className="py-2 px-3 text-gray-400 font-semibold">Correo electronico</td><td className="py-2 px-3">info@memedetector.es</td></tr>
                       <tr><td className="py-2 px-3 text-gray-400 font-semibold">Sitio web</td><td className="py-2 px-3">www.memedetector.es</td></tr>
                     </tbody>
