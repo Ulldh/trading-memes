@@ -6,6 +6,10 @@ y control de acceso basado en roles (admin/pro/free).
 
 Usa SUPABASE_ANON_KEY (no service_role) porque Supabase Auth
 requiere la anon key para operaciones de autenticacion.
+
+NOTA: Los emails de confirmacion y reset se configuran en:
+Supabase Dashboard → Authentication → Email Templates
+URL: https://supabase.com/dashboard/project/xayfwuqbbqtyerxzjbec/auth/templates
 """
 import os
 import streamlit as st
@@ -95,7 +99,10 @@ def register(email: str, password: str) -> bool:
             "password": password
         })
         if response.user:
-            st.success("Cuenta creada. Revisa tu email para confirmar.")
+            st.success(
+                "Cuenta creada. Revisa tu email para confirmar "
+                "y luego ya puedes iniciar sesion."
+            )
             return True
         return False
     except Exception as e:
@@ -198,11 +205,29 @@ def require_pro():
         st.stop()
 
 
+def reset_password(email: str) -> bool:
+    """Envia email de restablecimiento de contrasena via Supabase Auth.
+
+    Retorna True si el email se envio correctamente (o si Supabase
+    no reporta error, por seguridad no revela si el email existe).
+    """
+    client = get_supabase_client()
+    if not client:
+        return False
+    try:
+        client.auth.reset_password_email(email)
+        return True
+    except Exception as e:
+        st.error(f"Error al enviar email de recuperacion: {e}")
+        return False
+
+
 def render_login_page():
     """Renderiza la pagina de login/registro con tabs.
 
     Incluye validacion de campos, confirmacion de contrasena
-    en registro, y longitud minima de contrasena (6 chars).
+    en registro, longitud minima de contrasena (6 chars),
+    recuperacion de contrasena y aviso de terminos de servicio.
     """
     st.title("🔒 Trading Memes")
     st.markdown("Detector de Gems en Memecoins con Machine Learning")
@@ -210,6 +235,7 @@ def render_login_page():
     tab_login, tab_register = st.tabs(["Iniciar Sesion", "Crear Cuenta"])
 
     with tab_login:
+        # --- Formulario de login ---
         email = st.text_input("Email", key="login_email")
         password = st.text_input("Contrasena", type="password", key="login_password")
         if st.button("Acceder", type="primary", key="btn_login"):
@@ -219,9 +245,30 @@ def render_login_page():
             else:
                 st.warning("Introduce email y contrasena.")
 
+        # --- Recuperar contrasena ---
+        st.markdown("---")
+        with st.expander("¿Olvidaste tu contrasena?"):
+            reset_email = st.text_input(
+                "Introduce tu email para restablecer la contrasena",
+                key="reset_email",
+            )
+            if st.button("Enviar enlace de recuperacion", key="btn_reset"):
+                if reset_email:
+                    if reset_password(reset_email):
+                        st.success(
+                            "Te hemos enviado un email para restablecer "
+                            "tu contrasena. Revisa tu bandeja de entrada."
+                        )
+                else:
+                    st.warning("Introduce tu email.")
+
     with tab_register:
         reg_email = st.text_input("Email", key="reg_email")
-        reg_pass = st.text_input("Contrasena", type="password", key="reg_password")
+        reg_pass = st.text_input(
+            "Contrasena", type="password", key="reg_password",
+            help="Minimo 6 caracteres",
+        )
+        st.caption("Minimo 6 caracteres")
         reg_pass2 = st.text_input(
             "Confirmar contrasena", type="password", key="reg_password2"
         )
@@ -234,6 +281,9 @@ def render_login_page():
                 st.error("La contrasena debe tener al menos 6 caracteres.")
             else:
                 register(reg_email, reg_pass)
+
+        # Aviso de terminos de servicio
+        st.caption("Al crear tu cuenta aceptas los [Terminos de Servicio](legal).")
 
 
 def render_sidebar_user_info():

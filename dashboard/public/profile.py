@@ -10,6 +10,18 @@ import streamlit as st
 
 from src.data.supabase_storage import get_storage as _get_storage
 
+# Importar stripe_client con try/except (las keys pueden no estar configuradas)
+try:
+    from src.billing.stripe_client import (
+        create_checkout_session as _create_checkout,
+        create_portal_session as _create_portal,
+        is_configured as _stripe_configured,
+    )
+except Exception:
+    _create_checkout = None  # type: ignore[assignment]
+    _create_portal = None  # type: ignore[assignment]
+    _stripe_configured = lambda: False  # noqa: E731
+
 
 # ============================================================
 # HELPERS
@@ -194,26 +206,54 @@ def render():
     st.write("")
 
     # CTA segun plan actual
+    _stripe_ok = callable(_stripe_configured) and _stripe_configured()
+
     if plan == "free":
         st.info(
             "Estas en el plan gratuito. Suscribete a **Pro** para desbloquear "
             "todas las senales, busqueda de tokens, alertas Telegram y mas."
         )
-        # TODO: Reemplazar con URL real de Stripe Checkout cuando este listo
-        stripe_url = st.session_state.get("stripe_checkout_url", "#")
-        st.link_button(
-            "Mejorar a Pro — $29/mes",
-            stripe_url,
-            type="primary",
-        )
+        if _stripe_ok and _create_checkout is not None:
+            try:
+                checkout_url = _create_checkout(user_email=email, plan="pro")
+            except Exception:
+                checkout_url = ""
+            if checkout_url:
+                st.link_button(
+                    "Mejorar a Pro — $29/mes",
+                    checkout_url,
+                    type="primary",
+                )
+            else:
+                st.info(
+                    "💳 Pagos próximamente. Contacta info@memedetector.es "
+                    "para más información."
+                )
+        else:
+            st.info(
+                "💳 Pagos próximamente. Contacta info@memedetector.es "
+                "para más información."
+            )
     elif plan in ("pro", "enterprise"):
         st.success(f"Tienes el plan **{plan_label}** activo.")
-        # TODO: Reemplazar con URL real del portal de Stripe
-        portal_url = st.session_state.get("stripe_portal_url", "#")
-        st.link_button(
-            "Gestionar suscripcion (Stripe)",
-            portal_url,
-        )
+        stripe_customer_id = profile.get("stripe_customer_id", "")
+        if _stripe_ok and _create_portal is not None and stripe_customer_id:
+            try:
+                portal_url = _create_portal(stripe_customer_id)
+            except Exception:
+                portal_url = ""
+            if portal_url:
+                st.link_button(
+                    "Gestionar suscripcion (Stripe)",
+                    portal_url,
+                )
+            else:
+                st.caption("No se pudo generar el enlace al portal de Stripe.")
+        else:
+            st.caption(
+                "Gestion de suscripcion no disponible. "
+                "Contacta info@memedetector.es."
+            )
 
     st.divider()
 

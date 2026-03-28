@@ -47,9 +47,14 @@ def _legacy_check_password():
 
     # Pantalla de login legacy
     st.set_page_config(
-        page_title="Trading Memes - Login",
-        page_icon=":material/lock:",
+        page_title="Meme Detector — Login",
+        page_icon="💎",
         layout="centered",
+        menu_items={
+            "Get Help": "https://t.me/Ull_trading_bot",
+            "Report a Bug": "mailto:info@memedetector.es",
+            "About": "Meme Detector analiza miles de memecoins con ML para encontrar las próximas gems 10x+. https://www.memedetector.es",
+        },
     )
 
     st.title(":material/lock: Trading Memes Dashboard")
@@ -89,9 +94,14 @@ else:
 # =============================================================================
 
 st.set_page_config(
-    page_title="Trading Memes - Gem Detector",
-    page_icon=":material/diamond:",
+    page_title="Meme Detector — Detecta Gems en Memecoins",
+    page_icon="💎",
     layout="wide",
+    menu_items={
+        "Get Help": "https://t.me/Ull_trading_bot",
+        "Report a Bug": "mailto:info@memedetector.es",
+        "About": "Meme Detector analiza miles de memecoins con ML para encontrar las próximas gems 10x+. https://www.memedetector.es",
+    },
 )
 
 
@@ -131,6 +141,7 @@ try:
     from public.pricing import render as render_pricing
     from public.profile import render as render_profile
     from public.legal import render as render_legal
+    from public.welcome import render as render_welcome
     from admin.drift_monitor import render as render_drift_monitor
     from admin.retrain_panel import render as render_retrain_panel
 except ImportError:
@@ -149,6 +160,7 @@ except ImportError:
     render_pricing = None
     render_profile = None
     render_legal = None
+    render_welcome = None
     render_drift_monitor = None
     render_retrain_panel = None
 

@@ -1,7 +1,35 @@
 """
 paywall.py — Componente de paywall para features premium.
+
+Si Stripe esta configurado (STRIPE_SECRET_KEY + STRIPE_PRICE_ID_PRO),
+genera una URL de checkout real. Si no, muestra mensaje "Proximamente".
 """
 import streamlit as st
+
+# Importar stripe_client con try/except (las keys pueden no estar configuradas)
+try:
+    from src.billing.stripe_client import create_checkout_session, is_configured as _stripe_configured
+except Exception:
+    create_checkout_session = None  # type: ignore[assignment]
+    _stripe_configured = lambda: False  # noqa: E731
+
+
+def _get_checkout_url(plan: str = "pro") -> str:
+    """Genera URL de Stripe Checkout para el usuario actual.
+
+    Retorna la URL o cadena vacia si Stripe no esta configurado.
+    """
+    if create_checkout_session is None or not _stripe_configured():
+        return ""
+
+    email = st.session_state.get("user", {}).get("email", "")
+    if not email:
+        return ""
+
+    try:
+        return create_checkout_session(user_email=email, plan=plan) or ""
+    except Exception:
+        return ""
 
 
 def check_feature_access(feature: str) -> bool:
@@ -25,7 +53,11 @@ def check_feature_access(feature: str) -> bool:
 
 
 def show_upgrade_prompt(feature_name: str = "esta función"):
-    """Muestra prompt de upgrade cuando el usuario no tiene acceso."""
+    """Muestra prompt de upgrade cuando el usuario no tiene acceso.
+
+    Si Stripe esta configurado, genera una URL de checkout real.
+    Si no, muestra un mensaje de "Proximamente".
+    """
     st.warning(f"🔒 {feature_name} requiere suscripción Pro.")
 
     col1, col2 = st.columns(2)
@@ -47,9 +79,17 @@ def show_upgrade_prompt(feature_name: str = "esta función"):
         - ✅ Soporte prioritario
         """)
 
-    # TODO: Replace with actual Stripe Checkout URL
-    stripe_url = st.session_state.get("stripe_checkout_url", "#")
-    st.link_button("🚀 Suscribirse", stripe_url, type="primary")
+    # Intentar obtener URL real de Stripe Checkout
+    checkout_url = _get_checkout_url("pro")
+
+    if checkout_url:
+        st.link_button("🚀 Suscribirse", checkout_url, type="primary")
+    else:
+        # Stripe no configurado — mostrar mensaje informativo
+        st.info(
+            "💳 Pagos próximamente. Estamos configurando el sistema de "
+            "suscripciones. Contacta info@memedetector.es para más información."
+        )
 
 
 def limit_signals(df, plan: str = "free"):

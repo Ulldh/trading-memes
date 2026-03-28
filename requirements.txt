@@ -38,5 +38,8 @@ tqdm>=4.66
 jupyter>=1.0
 ipykernel>=6.25
 
+# --- Payments ---
+stripe>=7.0
+
 # --- Testing ---
 pytest>=7.4

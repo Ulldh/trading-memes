@@ -1,0 +1,6 @@
+# Este archivo debe subirse a /home/plames/memedetector.es/.htaccess en cPanel
+# Redirige memedetector.es → www.memedetector.es (Render)
+
+RewriteEngine On
+RewriteCond %{HTTP_HOST} ^memedetector\.es$ [NC]
+RewriteRule ^(.*)$ https://www.memedetector.es/$1 [R=301,L]

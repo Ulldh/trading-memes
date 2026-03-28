@@ -24,3 +24,6 @@ python-dotenv>=1.0
 # --- Storage ---
 pyarrow>=14.0
 supabase>=2.0
+
+# --- Payments ---
+stripe>=7.0
