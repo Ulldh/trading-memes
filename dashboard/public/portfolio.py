@@ -18,6 +18,7 @@ Datos:
 """
 
 from datetime import date, datetime
+from html import escape
 from typing import Optional
 
 import streamlit as st
@@ -543,7 +544,7 @@ def _render_performance_metrics(positions: list[dict]):
     win_rate = (wins / len(priced)) * 100 if priced else 0
 
     # Mejor trade
-    best_name = best_trade.get("symbol") or best_trade["token_address"][:12]
+    best_name = escape(str(best_trade.get("symbol") or best_trade["token_address"][:12]))
     st.markdown(
         f"**Mejor trade**  \n"
         f"<span style='color: {_pnl_color(best_trade['pnl_pct'])}; "
@@ -556,7 +557,7 @@ def _render_performance_metrics(positions: list[dict]):
     st.markdown("---")
 
     # Peor trade
-    worst_name = worst_trade.get("symbol") or worst_trade["token_address"][:12]
+    worst_name = escape(str(worst_trade.get("symbol") or worst_trade["token_address"][:12]))
     st.markdown(
         f"**Peor trade**  \n"
         f"<span style='color: {_pnl_color(worst_trade['pnl_pct'])}; "

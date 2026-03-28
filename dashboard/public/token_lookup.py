@@ -16,6 +16,7 @@ Permite:
 import json
 import sys
 import time
+from html import escape
 from pathlib import Path
 import streamlit as st
 import pandas as pd
@@ -555,12 +556,13 @@ def render():
     if not df_label.empty:
         label_info = df_label.iloc[0]
         label_multi = label_info.get("label_multi", "N/A")
+        safe_label_multi = escape(str(label_multi))
         label_color = LABEL_COLORS.get(label_multi, "#95a5a6")
 
         st.markdown(
             f"**Clasificacion conocida:** "
             f"<span style='color: {label_color}; font-weight: bold; font-size: 1.2em;'>"
-            f"{label_multi.upper()}</span>",
+            f"{safe_label_multi.upper()}</span>",
             unsafe_allow_html=True,
         )
 
@@ -963,10 +965,12 @@ def render():
             pred_color = LABEL_COLORS.get(pred_label, "#95a5a6")
             pred_emoji = ""
 
+        safe_prediction = escape(str(pred_label))
+
         st.markdown(
             f"### Prediccion: "
             f"<span style='color: {pred_color}; font-weight: bold;'>"
-            f"{pred_label}</span>",
+            f"{safe_prediction}</span>",
             unsafe_allow_html=True,
         )
 

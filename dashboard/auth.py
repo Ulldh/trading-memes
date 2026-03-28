@@ -266,9 +266,9 @@ def render_login_page():
         reg_email = st.text_input("Email", key="reg_email")
         reg_pass = st.text_input(
             "Contrasena", type="password", key="reg_password",
-            help="Minimo 6 caracteres",
+            help="Minimo 8 caracteres, al menos una mayuscula y un numero",
         )
-        st.caption("Minimo 6 caracteres")
+        st.caption("Minimo 8 caracteres, al menos una mayuscula y un numero")
         reg_pass2 = st.text_input(
             "Confirmar contrasena", type="password", key="reg_password2"
         )
@@ -277,8 +277,12 @@ def render_login_page():
                 st.warning("Completa todos los campos.")
             elif reg_pass != reg_pass2:
                 st.error("Las contrasenas no coinciden.")
-            elif len(reg_pass) < 6:
-                st.error("La contrasena debe tener al menos 6 caracteres.")
+            elif len(reg_pass) < 8:
+                st.error("La contrasena debe tener al menos 8 caracteres.")
+            elif not any(c.isupper() for c in reg_pass):
+                st.error("La contrasena debe contener al menos una mayuscula.")
+            elif not any(c.isdigit() for c in reg_pass):
+                st.error("La contrasena debe contener al menos un numero.")
             else:
                 register(reg_email, reg_pass)
 

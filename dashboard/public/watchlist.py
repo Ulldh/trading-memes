@@ -6,6 +6,8 @@ Permite al usuario:
 - Eliminar tokens de la watchlist
 - Ver un resumen rapido de cada token monitoreado
 """
+from html import escape
+
 import streamlit as st
 import pandas as pd
 
@@ -55,18 +57,23 @@ def render():
         volume = row.get("volume_24h")
         liquidity = row.get("liquidity_usd")
 
+        # Sanitizar variables antes de interpolar en HTML
+        safe_name = escape(str(name))
+        safe_symbol = escape(str(symbol))
+
         # Label badge
         label_html = ""
         if label:
+            safe_label = escape(str(label))
             color = LABEL_COLORS.get(label, "#95a5a6")
-            label_html = f" <span style='color:{color}; font-weight:bold;'>[{label.upper()}]</span>"
+            label_html = f" <span style='color:{color}; font-weight:bold;'>[{safe_label.upper()}]</span>"
 
         with st.container():
             col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 0.5])
 
             with col1:
                 st.markdown(
-                    f"**{name}** ({symbol}){label_html} - {chain.title()}",
+                    f"**{safe_name}** ({safe_symbol}){label_html} - {chain.title()}",
                     unsafe_allow_html=True,
                 )
                 st.caption(truncate_address(token_id, chars=8))
