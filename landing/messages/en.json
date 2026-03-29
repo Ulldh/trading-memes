@@ -44,7 +44,8 @@
     "disclaimer_link": "Read full disclaimer"
   },
   "ticker": {
-    "demo_label": "DEMO"
+    "demo_label": "DEMO",
+    "live_label": "LIVE"
   },
   "pipeline": {
     "section_title": "The Machine",

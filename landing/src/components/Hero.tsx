@@ -9,9 +9,24 @@ export default function Hero() {
   const [tokenCount, setTokenCount] = useState(5000);
 
   useEffect(() => {
+    // Cargar el conteo real de tokens desde la API
+    fetch("/api/stats")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && typeof data.tokens === "number") {
+          setTokenCount(data.tokens);
+        }
+      })
+      .catch(() => {
+        // Mantener el valor por defecto
+      });
+  }, []);
+
+  // Incremento lento para dar sensacion de actividad
+  useEffect(() => {
     const interval = setInterval(() => {
       setTokenCount((prev) => prev + Math.floor(Math.random() * 3) + 1);
-    }, 2000);
+    }, 4000);
     return () => clearInterval(interval);
   }, []);
 

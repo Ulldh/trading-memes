@@ -1,57 +1,106 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
-// TODO: Reemplazar datos hardcoded con senales reales de Supabase
-const signals = [
-  { symbol: "PEPE", change: "+340%", positive: true },
-  { symbol: "WIF", change: "+120%", positive: true },
-  { symbol: "RUG3", change: "-92%", positive: false },
-  { symbol: "BONK", change: "+89%", positive: true },
-  { symbol: "SCAM7", change: "-98%", positive: false },
-  { symbol: "GEM1", change: "+1.200%", positive: true },
-  { symbol: "DOGE2", change: "+45%", positive: true },
-  { symbol: "FLOKI", change: "+210%", positive: true },
-  { symbol: "RUG9", change: "-87%", positive: false },
-  { symbol: "MYRO", change: "+560%", positive: true },
-  { symbol: "POPCAT", change: "+180%", positive: true },
-  { symbol: "DUMP4", change: "-95%", positive: false },
+interface TickerSignal {
+  symbol: string;
+  chain: string;
+  probability: string;
+  signal: string;
+}
+
+// Fallback mientras carga o si falla la API
+const FALLBACK_SIGNALS: TickerSignal[] = [
+  { symbol: "KIN", chain: "SOL", probability: "2.6%", signal: "NONE" },
+  { symbol: "EUSX", chain: "SOL", probability: "2.1%", signal: "NONE" },
+  { symbol: "LIQ", chain: "SOL", probability: "1.6%", signal: "NONE" },
+  { symbol: "ZKP", chain: "SOL", probability: "1.5%", signal: "NONE" },
+  { symbol: "SKR", chain: "SOL", probability: "1.5%", signal: "NONE" },
+  { symbol: "HOWL", chain: "SOL", probability: "1.5%", signal: "NONE" },
+  { symbol: "KAMA", chain: "SOL", probability: "1.4%", signal: "NONE" },
+  { symbol: "A2Z", chain: "ETH", probability: "1.4%", signal: "NONE" },
 ];
 
-function SignalItem({
-  symbol,
-  change,
-  positive,
-}: {
-  symbol: string;
-  change: string;
-  positive: boolean;
-}) {
+function signalColor(signal: string): string {
+  switch (signal) {
+    case "STRONG":
+      return "text-primary glow-green";
+    case "MEDIUM":
+      return "text-gem-yellow";
+    default:
+      return "text-gray-400";
+  }
+}
+
+function chainBadgeColor(chain: string): string {
+  switch (chain) {
+    case "SOL":
+      return "text-purple-400";
+    case "ETH":
+      return "text-blue-400";
+    case "BASE":
+      return "text-sky-400";
+    default:
+      return "text-gray-500";
+  }
+}
+
+function SignalItem({ signal }: { signal: TickerSignal }) {
   return (
     <span className="inline-flex items-center mx-6 whitespace-nowrap">
-      <span className={positive ? "text-primary" : "text-gem-red"}>
-        {positive ? "\u25B2" : "\u25BC"}
+      <span className={`text-[9px] font-mono mr-1.5 ${chainBadgeColor(signal.chain)}`}>
+        {signal.chain}
       </span>
-      <span className="text-gray-400 mx-1.5 font-semibold">{symbol}</span>
-      <span
-        className={`font-bold ${positive ? "text-primary glow-green" : "text-gem-red glow-red"}`}
-      >
-        {change}
+      <span className="text-gray-400 font-semibold">{signal.symbol}</span>
+      <span className={`ml-1.5 font-bold ${signalColor(signal.signal)}`}>
+        {signal.probability}
       </span>
+      {signal.signal !== "NONE" && (
+        <span className={`ml-1 text-[9px] font-mono ${signalColor(signal.signal)}`}>
+          {signal.signal}
+        </span>
+      )}
     </span>
   );
 }
 
 export default function Ticker() {
   const t = useTranslations("ticker");
+  const [signals, setSignals] = useState<TickerSignal[]>(FALLBACK_SIGNALS);
+  const [isLive, setIsLive] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/signals")
+      .then((r) => r.json())
+      .then((data: TickerSignal[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setSignals(data);
+          setIsLive(true);
+        }
+      })
+      .catch(() => {
+        // Mantener fallback
+      });
+  }, []);
+
+  const statusLabel = isLive ? t("live_label") : t("demo_label");
 
   return (
     <div className="relative w-full bg-dark-800 border-b border-dark-600 overflow-hidden">
-      {/* DEMO indicator */}
+      {/* Status indicator */}
       <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center bg-dark-800 pl-3 pr-4 border-r border-dark-600">
-        <span className="inline-block w-2 h-2 bg-gem-yellow rounded-full mr-2" />
-        <span className="text-[10px] text-gem-yellow font-bold tracking-widest uppercase">
-          {t("demo_label")}
+        <span
+          className={`inline-block w-2 h-2 rounded-full mr-2 ${
+            isLive ? "bg-primary animate-pulse" : "bg-gem-yellow"
+          }`}
+        />
+        <span
+          className={`text-[10px] font-bold tracking-widest uppercase ${
+            isLive ? "text-primary" : "text-gem-yellow"
+          }`}
+        >
+          {statusLabel}
         </span>
       </div>
 
@@ -60,10 +109,10 @@ export default function Ticker() {
         <div className="animate-ticker inline-flex text-xs">
           {/* Duplicamos para loop infinito */}
           {signals.map((s, i) => (
-            <SignalItem key={`a-${i}`} {...s} />
+            <SignalItem key={`a-${i}`} signal={s} />
           ))}
           {signals.map((s, i) => (
-            <SignalItem key={`b-${i}`} {...s} />
+            <SignalItem key={`b-${i}`} signal={s} />
           ))}
         </div>
       </div>

@@ -44,7 +44,8 @@
     "disclaimer_link": "Vollst\u00e4ndigen Haftungsausschluss lesen"
   },
   "ticker": {
-    "demo_label": "DEMO"
+    "demo_label": "DEMO",
+    "live_label": "LIVE"
   },
   "pipeline": {
     "section_title": "Die Maschine",

@@ -44,7 +44,8 @@
     "disclaimer_link": "Voir l'avertissement complet"
   },
   "ticker": {
-    "demo_label": "D\u00c9MO"
+    "demo_label": "D\u00c9MO",
+    "live_label": "LIVE"
   },
   "pipeline": {
     "section_title": "La Machine",

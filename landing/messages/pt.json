@@ -44,7 +44,8 @@
     "disclaimer_link": "Ver aviso legal completo"
   },
   "ticker": {
-    "demo_label": "DEMO"
+    "demo_label": "DEMO",
+    "live_label": "LIVE"
   },
   "pipeline": {
     "section_title": "A M\u00e1quina",

@@ -4,16 +4,19 @@ import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
 import { useTranslations } from "next-intl";
 
-// TODO: Conectar a Supabase para obtener datos reales
-// import { createClient } from "@supabase/supabase-js";
-// const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
-
 interface StatItem {
   value: number;
   suffix?: string;
   prefix?: string;
   label: string;
   decimals?: number;
+}
+
+interface StatsData {
+  tokens: number;
+  ohlcv: number;
+  scores: number;
+  gems: number;
 }
 
 function useCountUp(
@@ -28,6 +31,9 @@ function useCountUp(
 
   useEffect(() => {
     if (!inView) return;
+
+    // Reset para re-animar si el target cambia
+    startTime.current = null;
 
     const animate = (timestamp: number) => {
       if (!startTime.current) startTime.current = timestamp;
@@ -85,13 +91,34 @@ function StatCard({ item, index }: { item: StatItem; index: number }) {
   );
 }
 
+// Valores por defecto (actualizados 2026-03-29)
+const DEFAULT_STATS: StatsData = {
+  tokens: 5748,
+  ohlcv: 134900,
+  scores: 1389,
+  gems: 140,
+};
+
 export default function Stats() {
   const t = useTranslations("stats");
+  const [stats, setStats] = useState<StatsData>(DEFAULT_STATS);
 
-  // Los valores numericos no cambian, solo los labels se traducen
+  useEffect(() => {
+    fetch("/api/stats")
+      .then((r) => r.json())
+      .then((data: StatsData) => {
+        if (data && typeof data.tokens === "number") {
+          setStats(data);
+        }
+      })
+      .catch(() => {
+        // Mantener valores por defecto
+      });
+  }, []);
+
   const statsData: StatItem[] = [
-    { value: 5329, label: t("items.0.label") },
-    { value: 88522, label: t("items.1.label") },
+    { value: stats.tokens, label: t("items.0.label") },
+    { value: stats.ohlcv, label: t("items.1.label") },
     { value: 94, label: t("items.2.label") },
     { value: 67, suffix: "%", label: t("items.3.label") },
     { value: 3, label: t("items.4.label") },
@@ -125,7 +152,6 @@ export default function Stats() {
             {t("section_title")}
           </h2>
           <p className="text-gray-600 text-sm mt-4 font-mono">
-            {/* TODO: Actualizar dinamicamente desde Supabase */}
             {t("section_subtitle")}
           </p>
         </motion.div>
