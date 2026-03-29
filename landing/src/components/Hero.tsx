@@ -134,6 +134,23 @@ export default function Hero() {
           <span className="text-gem-green">F1:</span> 0.726 &middot;{" "}
           <span className="text-gem-green">PRECISION:</span> 72.6%
         </motion.div>
+
+        {/* Disclaimer banner */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1, delay: 1.5 }}
+          className="mt-6 text-[10px] sm:text-xs text-gray-500"
+        >
+          Herramienta de analisis de datos. No es asesoramiento financiero.{" "}
+          <a
+            href="/disclaimer"
+            className="text-gem-yellow/70 hover:text-gem-yellow underline underline-offset-2 transition-colors"
+          >
+            Ver disclaimer completo
+          </a>
+          .
+        </motion.div>
       </div>
     </section>
   );

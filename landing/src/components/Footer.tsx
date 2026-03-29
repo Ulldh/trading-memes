@@ -46,6 +46,13 @@ export default function Footer() {
           {/* Center: legal links */}
           <div className="flex items-center gap-4">
             <Link
+              href="/disclaimer"
+              className="hover:text-gem-yellow transition-colors duration-200 text-gem-yellow/70 font-semibold"
+            >
+              Disclaimer
+            </Link>
+            <span className="text-dark-600">|</span>
+            <Link
               href="/legal"
               className="hover:text-primary transition-colors duration-200"
             >

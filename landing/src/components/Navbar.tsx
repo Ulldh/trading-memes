@@ -9,6 +9,7 @@ const navLinks = [
   { label: "Planes", href: "#pricing" },
   { label: "FAQ", href: "#faq" },
   { label: "Academia", href: "/academia" },
+  { label: "Disclaimer", href: "/disclaimer" },
 ];
 
 export default function Navbar() {
