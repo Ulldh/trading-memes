@@ -1,0 +1,197 @@
+{
+  "name": "MEME — Auto Post Daily Signals",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "node-cron",
+      "name": "Daily 08:00 UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://xayfwuqbbqtyerxzjbec.supabase.co/rest/v1/rpc/exec_query",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "SUPABASE_SERVICE_ROLE_KEY"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer SUPABASE_SERVICE_ROLE_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query_text\": \"SELECT s.token_id, s.probability, s.signal, s.prediction, s.model_name, s.model_version, s.scored_at, t.name, t.symbol, t.chain, t.pool_address FROM scores s JOIN tokens t ON s.token_id = t.token_id WHERE s.scored_at::date = CURRENT_DATE AND s.signal IN ('STRONG','MEDIUM') ORDER BY s.probability DESC LIMIT 10\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "node-query-scores",
+      "name": "Query Top Scores Today",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// === Auto Post Daily Signals — Code Node ===\n// Lee los scores del dia desde Supabase y formatea el mensaje\n// para Telegram (y futuro Twitter).\n\nconst items = $input.all();\nconst today = new Date().toISOString().slice(0, 10);\n\n// Verificar si hubo error en la query\nif (!items || items.length === 0 || items[0].json?.error) {\n  const errorMsg = items?.[0]?.json?.message || items?.[0]?.json?.error || 'Error desconocido';\n  return [{\n    json: {\n      telegram_text: `\\u26a0\\ufe0f <b>Meme Detector</b> — ${today}\\n\\nNo se pudieron obtener las senales de hoy.\\nError: ${errorMsg}\\n\\nVerificar daily-collect workflow.`,\n      tweet_text: `\\u26a0\\ufe0f Meme Detector — Sin senales hoy (${today}). Verificando sistema...`,\n      has_signals: false\n    }\n  }];\n}\n\n// Parsear resultados — exec_query devuelve array de rows\nlet candidates = [];\nif (Array.isArray(items[0].json)) {\n  candidates = items[0].json;\n} else if (items[0].json?.result && Array.isArray(items[0].json.result)) {\n  candidates = items[0].json.result;\n} else {\n  // Intentar con todos los items como filas individuales\n  candidates = items.map(i => i.json).filter(j => j.token_id);\n}\n\nif (candidates.length === 0) {\n  return [{\n    json: {\n      telegram_text: `\\u{1f48e} <b>Senales del dia</b> — ${today}\\n\\nSin senales gem hoy. El modelo no detecto candidatos con probabilidad suficiente.\\n\\n\\u{1f4ca} Modelo v16 | F1: 0.839`,\n      tweet_text: `\\u{1f48e} Senales del dia — Meme Detector\\n\\nSin candidatos gem hoy. El modelo analizo +5,000 tokens pero ninguno supero el umbral.\\n\\n\\u{1f4ca} Modelo v16 | F1: 0.839\\n\\u26a0\\ufe0f No es consejo financiero`,\n      has_signals: false\n    }\n  }];\n}\n\n// --- Formatear mensaje Telegram (HTML) ---\nconst signalEmoji = { STRONG: '\\u{1f7e2}', MEDIUM: '\\u{1f7e1}', WEAK: '\\u{1f7e0}' };\nconst chainLabel = { solana: 'Solana', ethereum: 'ETH', base: 'Base' };\n\nlet tgMsg = `\\u{1f48e} <b>Senales del dia</b> — Meme Detector\\n<i>${today}</i>\\n\\n`;\n\n// Top 3 para version publica\nconst top3 = candidates.slice(0, 3);\ntop3.forEach((c, i) => {\n  const emoji = signalEmoji[c.signal] || '\\u26aa';\n  const chain = chainLabel[c.chain] || c.chain || '?';\n  const prob = (c.probability * 100).toFixed(0);\n  const symbol = c.symbol || c.name || c.token_id.slice(0, 8);\n  const dexLink = `https://dexscreener.com/${c.chain}/${c.pool_address || c.token_id}`;\n\n  tgMsg += `${emoji} <b>$${symbol}</b> (${chain}) — Score: ${prob}% ${c.signal}\\n`;\n  tgMsg += `    <a href=\"${dexLink}\">Ver en DexScreener</a>\\n\\n`;\n});\n\nif (candidates.length > 3) {\n  tgMsg += `+${candidates.length - 3} senales mas en memedetector.es (Pro)\\n\\n`;\n}\n\nconst version = candidates[0]?.model_version || 'v16';\ntgMsg += `\\u{1f4ca} Modelo ${version} | F1: 0.839\\n`;\ntgMsg += `\\u26a0\\ufe0f No es consejo financiero. DYOR.\\n\\n`;\ntgMsg += `Mas senales \\u2192 memedetector.es`;\n\n// --- Formatear tweet (texto plano, max ~280 chars) ---\nlet tweetMsg = `\\u{1f48e} Senales del dia — Meme Detector\\n\\n`;\ntop3.forEach(c => {\n  const emoji = signalEmoji[c.signal] || '\\u26aa';\n  const chain = chainLabel[c.chain] || c.chain || '?';\n  const prob = (c.probability * 100).toFixed(0);\n  const symbol = c.symbol || c.name || '???';\n  tweetMsg += `${emoji} $${symbol} (${chain}) — Score: ${prob}% ${c.signal}\\n`;\n});\ntweetMsg += `\\n\\u{1f4ca} Modelo ${version} | F1: 0.839\\n`;\ntweetMsg += `\\u26a0\\ufe0f No es consejo financiero\\n\\n`;\ntweetMsg += `Mas senales \\u2192 memedetector.es`;\n\nreturn [{\n  json: {\n    telegram_text: tgMsg,\n    tweet_text: tweetMsg,\n    has_signals: true,\n    signal_count: candidates.length,\n    top_signals: top3.map(c => ({\n      symbol: c.symbol,\n      chain: c.chain,\n      probability: c.probability,\n      signal: c.signal\n    }))\n  }\n}];"
+      },
+      "id": "node-format",
+      "name": "Format Signal Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "1558705287",
+        "text": "={{ $json.telegram_text }}",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        }
+      },
+      "id": "node-telegram",
+      "name": "Send to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [940, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAM_CREDENTIAL_ID",
+          "name": "Meme Detector Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.has_signals }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-if-signals",
+      "name": "Has Signals?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [940, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "// === Twitter Post Placeholder ===\n// TODO: Cuando se obtenga Twitter API key ($100/mes plan Basic),\n// reemplazar este nodo por un HTTP Request a:\n//   POST https://api.twitter.com/2/tweets\n//   Headers: Authorization: Bearer {TWITTER_BEARER_TOKEN}\n//   Body: { \"text\": $json.tweet_text }\n//\n// Por ahora, solo logueamos el tweet que se publicaria.\n\nconst tweet = $input.first().json.tweet_text;\n\nconsole.log('=== TWEET QUE SE PUBLICARIA ===');\nconsole.log(tweet);\nconsole.log('=== FIN TWEET ===');\nconsole.log(`Caracteres: ${tweet.length}/280`);\n\nreturn [{\n  json: {\n    status: 'twitter_not_configured',\n    message: 'Twitter API no configurada. Tweet preparado pero no enviado.',\n    tweet_text: tweet,\n    char_count: tweet.length,\n    within_limit: tweet.length <= 280\n  }\n}];"
+      },
+      "id": "node-twitter-placeholder",
+      "name": "Twitter (Placeholder)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1180, 520]
+    }
+  ],
+  "connections": {
+    "Daily 08:00 UTC": {
+      "main": [
+        [
+          {
+            "node": "Query Top Scores Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Top Scores Today": {
+      "main": [
+        [
+          {
+            "node": "Format Signal Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Signal Message": {
+      "main": [
+        [
+          {
+            "node": "Send to Telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Has Signals?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Signals?": {
+      "main": [
+        [
+          {
+            "node": "Twitter (Placeholder)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "UTC"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "MEME",
+      "id": "tag-meme"
+    },
+    {
+      "name": "signals",
+      "id": "tag-signals"
+    }
+  ],
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "meme-detector"
+  },
+  "pinData": {}
+}
