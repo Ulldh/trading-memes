@@ -1,0 +1,130 @@
+{
+  "app": {
+    "page_title": "Meme Detector — Spot Gems in Memecoins",
+    "login_page_title": "Meme Detector — Login",
+    "about": "Meme Detector analyzes thousands of memecoins with ML to find the next 10x+ gems.",
+    "sidebar_description": "**Gem Detector** - Machine Learning tool to analyze memecoins and detect which ones have potential to be 'gems' (10x+).",
+    "logout": "Log out"
+  },
+  "auth": {
+    "login_title": "Trading Memes",
+    "login_subtitle": "Memecoin Gem Detector powered by Machine Learning",
+    "tab_login": "Log In",
+    "tab_register": "Create Account",
+    "email": "Email",
+    "password": "Password",
+    "confirm_password": "Confirm password",
+    "password_hint": "Minimum 8 characters, at least one uppercase letter and one number",
+    "login_btn": "Log in",
+    "register_btn": "Create account",
+    "forgot_password": "Forgot your password?",
+    "reset_email_label": "Enter your email to reset your password",
+    "reset_btn": "Send recovery link",
+    "reset_success": "We have sent you an email to reset your password. Check your inbox.",
+    "register_success": "Account created. Check your email to confirm and then you can log in.",
+    "tos_notice": "By creating your account you accept the Terms of Service.",
+    "error_invalid_credentials": "Incorrect email or password.",
+    "error_auth": "Authentication error",
+    "error_already_registered": "This email is already registered. Try logging in.",
+    "error_register": "Registration error",
+    "error_reset": "Error sending recovery email",
+    "error_empty_fields": "Enter email and password.",
+    "error_empty_email": "Enter your email.",
+    "error_fill_all": "Fill in all fields.",
+    "error_password_mismatch": "Passwords do not match.",
+    "error_password_length": "Password must be at least 8 characters long.",
+    "error_password_uppercase": "Password must contain at least one uppercase letter.",
+    "error_password_digit": "Password must contain at least one number.",
+    "error_no_password_configured": "DASHBOARD_PASSWORD not configured on the server.",
+    "error_wrong_password": "Incorrect password.",
+    "legacy_prompt": "Enter the password to access."
+  },
+  "nav": {
+    "app_section": "Application",
+    "admin_section": "Administration",
+    "info_section": "Information",
+    "overview": "Overview",
+    "signals": "Signals",
+    "token_lookup": "Token Search",
+    "watchlist": "Watchlist",
+    "portfolio": "Portfolio",
+    "track_record": "Track Record",
+    "alerts": "Alerts",
+    "profile": "My Profile",
+    "academy": "Academy",
+    "models": "Models",
+    "features": "Features",
+    "exploration": "Exploration",
+    "system": "System",
+    "drift": "Drift Monitor",
+    "retrain": "Retrain",
+    "legal": "Legal"
+  },
+  "roles": {
+    "admin": "Admin",
+    "pro": "Pro",
+    "free": "Free",
+    "plan_label": "Plan"
+  },
+  "paywall": {
+    "requires_pro": "requires a Pro subscription.",
+    "plan_pro_title": "Pro Plan — $29/mo",
+    "plan_pro_features": [
+      "All daily signals",
+      "Unlimited token search",
+      "SHAP analysis",
+      "Telegram alerts",
+      "Watchlist of 10 tokens"
+    ],
+    "plan_enterprise_title": "Enterprise Plan — $99/mo",
+    "plan_enterprise_features": [
+      "Everything in Pro",
+      "API access",
+      "Unlimited watchlist",
+      "Priority support"
+    ],
+    "subscribe_btn": "Subscribe",
+    "payments_coming_soon": "Payments coming soon. We are setting up the subscription system. Contact info@memedetector.es for more information.",
+    "signals_limited": "Showing {visible} of {total} signals. Subscribe to Pro to see all.",
+    "requires_pro_generic": "This feature requires a Pro subscription.",
+    "subscribe_link": "Subscribe →"
+  },
+  "access": {
+    "admin_required": "Restricted access. Administrator role required."
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "no_data": "No data available",
+    "error": "Error",
+    "success": "Success",
+    "close": "Close",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "refresh": "Refresh",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "labels": {
+    "gem": "Gem",
+    "moderate_success": "Moderate success",
+    "neutral": "Neutral",
+    "failure": "Failure",
+    "rug": "Rug",
+    "no_label": "No label"
+  },
+  "signals": {
+    "strong": "STRONG",
+    "medium": "MEDIUM",
+    "weak": "WEAK",
+    "none": "NONE"
+  }
+}

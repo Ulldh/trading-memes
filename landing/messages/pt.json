@@ -1,0 +1,255 @@
+{
+  "meta": {
+    "title": "Meme Detector — Detecte as próximas gems 10x em memecoins",
+    "description": "Machine Learning analisa +5.000 memecoins diariamente em Solana, Ethereum e Base para detectar as próximas gems antes de todo mundo.",
+    "og_title": "Meme Detector — Gems 10x em Memecoins",
+    "og_description": "ML analisa +5.000 memecoins diariamente. Sinais de trading com IA.",
+    "twitter_title": "Meme Detector — Detecte Gems 10x",
+    "twitter_description": "ML analisa +5.000 memecoins diariamente."
+  },
+  "nav": {
+    "pipeline": "A Máquina",
+    "stats": "Números",
+    "backtesting": "Backtesting",
+    "pricing": "Planos",
+    "faq": "FAQ",
+    "academy": "Academia",
+    "disclaimer": "Aviso Legal",
+    "login": "Entrar",
+    "signup": "Criar conta"
+  },
+  "hero": {
+    "terminal_cmd": "meme-detector",
+    "terminal_scan": "scan",
+    "terminal_live": "live",
+    "title_line1": "Detecte",
+    "title_highlight": "gems",
+    "title_line2": "antes de todo mundo",
+    "subtitle_prefix": "Machine Learning analisa",
+    "subtitle_suffix": "memecoins diariamente em Solana, Ethereum e Base",
+    "stat_features": "features",
+    "stat_blockchains": "blockchains",
+    "stat_daily_signals": "UTC sinais diários",
+    "cta_signup": "Criar conta grátis →",
+    "cta_login": "Entrar",
+    "status_online": "ONLINE",
+    "status_model": "MODELO",
+    "status_f1": "F1",
+    "status_precision": "PRECISÃO",
+    "disclaimer_text": "Ferramenta de análise de dados. Não é assessoria financeira.",
+    "disclaimer_link": "Ver aviso legal completo"
+  },
+  "ticker": {
+    "demo_label": "DEMO"
+  },
+  "pipeline": {
+    "section_title": "A Máquina",
+    "section_subtitle": "De dados brutos a sinais acionáveis",
+    "step1_title": "DADOS",
+    "step1_stats": ["5.329 tokens", "3 blockchains", "11 APIs ativas"],
+    "step1_detail": "Coletamos dados de Solana, Ethereum e Base todos os dias a partir de 11 fontes diferentes.",
+    "step2_title": "FEATURES",
+    "step2_stats": ["94 características", "Holders, liquidez", "Volume, momentum"],
+    "step2_detail": "Cada token é descrito com 94 variáveis numéricas: concentração de holders, profundidade de LP, volume, volatilidade e mais.",
+    "step3_title": "MODELO",
+    "step3_stats": ["RF + XGB + LGB", "Ensemble ML", "F1 Score: 0.67"],
+    "step3_detail": "Três algoritmos votam em conjunto. Apenas os sinais com consenso passam pelo filtro.",
+    "step4_title": "SINAL",
+    "step4_stats": ["STRONG / MEDIUM", "Todo dia 07:30", "Telegram + Web"],
+    "step4_detail": "Você recebe o sinal classificado por confiança diretamente no seu Telegram."
+  },
+  "stats": {
+    "section_title": "Números que falam",
+    "section_subtitle": "Dados atualizados do pipeline v12",
+    "tokens_analyzed": "tokens analisados",
+    "candles_ohlcv": "candles OHLCV",
+    "features_per_token": "features / token",
+    "hit_rate": "hit rate",
+    "blockchains": "blockchains",
+    "daily_signals": "sinais diários (UTC)",
+    "scoring_time": "scoring time",
+    "monitoring": "monitoramento"
+  },
+  "backtesting": {
+    "section_title": "Simulação Estimada",
+    "section_badge": "SIMULAÇÃO",
+    "section_subtitle": "Baseado nas métricas do modelo (F1 Score: 0.67), não em dados históricos reais.",
+    "label_investment": "Investimento inicial",
+    "label_period": "Período",
+    "label_strategy": "Estratégia",
+    "period_1m": "1 mês",
+    "period_3m": "3 meses",
+    "period_6m": "6 meses",
+    "strategy_strong": "Apenas STRONG",
+    "strategy_strong_medium": "STRONG + MEDIUM",
+    "strategy_all": "Todas",
+    "result_header": "Resultado simulado",
+    "metric_investment": "Investimento",
+    "metric_final_value": "Valor final",
+    "metric_win_rate": "Win rate",
+    "metric_best_trade": "Melhor trade",
+    "metric_worst_trade": "Pior trade",
+    "metric_total_trades": "Trades totais",
+    "chart_day_label": "Dia",
+    "chart_investment_label": "Investimento",
+    "transparency_note": "Esta simulação usa um modelo matemático baseado na taxa de acerto de 67% e retornos médios observados em validação. Não representa desempenho real passado.",
+    "disclaimer_warning": "AVISO:",
+    "disclaimer_text": "Simulação estimada baseada nas métricas do modelo v12. Track record verificável com dados reais disponível em breve (estamos acumulando dados desde março de 2026). Desempenho passado não garante resultados futuros.",
+    "tooltip_day": "Dia",
+    "tooltip_start": "Início"
+  },
+  "pricing": {
+    "section_cmd": "cat /plans",
+    "section_title": "Acesso",
+    "plan_free_name": "FREE",
+    "plan_free_price": "$0",
+    "plan_free_period": "/mês",
+    "plan_free_features": [
+      "3 sinais/dia",
+      "Watchlist (3)",
+      "Token search",
+      "Telegram alerts",
+      "Backtesting"
+    ],
+    "plan_free_cta": "Criar conta",
+    "plan_pro_name": "PRO",
+    "plan_pro_price": "$29",
+    "plan_pro_period": "/mês",
+    "plan_pro_features": [
+      "Todos os sinais",
+      "Token search",
+      "Telegram alerts",
+      "Watchlist (10)",
+      "SHAP analysis",
+      "Track record"
+    ],
+    "plan_pro_cta": "Começar →",
+    "plan_enterprise_name": "ENTERPRISE",
+    "plan_enterprise_price": "$99",
+    "plan_enterprise_period": "/mês",
+    "plan_enterprise_features": [
+      "Tudo do Pro",
+      "API access",
+      "Watchlist ∞",
+      "Suporte prioritário",
+      "Exportação de dados"
+    ],
+    "plan_enterprise_cta": "Começar →"
+  },
+  "faq": {
+    "section_cmd": "man meme-detector",
+    "section_title": "Perguntas frequentes",
+    "items": [
+      {
+        "question": "O que é um gem?",
+        "answer": "Um token que sobe 10x ou mais desde o preço inicial. Nosso modelo classifica tokens em 5 categorias: rug (perda total), loss (>50% de queda), neutral, winner (2-10x) e gem (10x+)."
+      },
+      {
+        "question": "Como funciona o modelo de ML?",
+        "answer": "Ensemble de Random Forest + XGBoost + LightGBM. Treinado com 94 features extraídas de mais de 5.000 tokens. Métricas atuais: F1 Score 0,667, Precision 0,726. O modelo analisa tokenomics, liquidez, price action, concentração de holders e contexto de mercado."
+      },
+      {
+        "question": "Quais blockchains são suportadas?",
+        "answer": "Solana, Ethereum e Base. Dados coletados do GeckoTerminal (preço/volume), DexScreener (buyers/sellers), Helius RPC (holders Solana), Etherscan (verificação de contratos) e Birdeye (dados complementares)."
+      },
+      {
+        "question": "Com que frequência os sinais são atualizados?",
+        "answer": "Coleta diária às 06:00 UTC. Scoring às 07:30 UTC. O modelo é retreinado semanalmente com detecção automática de drift — se a distribuição dos dados muda significativamente, um retrain antecipado é acionado."
+      },
+      {
+        "question": "Posso perder dinheiro?",
+        "answer": "Sim. Memecoins são extremamente voláteis. Nosso modelo acerta ~67% das vezes. Os 33% restantes são perdas. Isto NÃO é conselho financeiro. DYOR (Do Your Own Research). Nunca invista mais do que pode se dar ao luxo de perder."
+      },
+      {
+        "question": "Posso cancelar a qualquer momento?",
+        "answer": "Sim. Sem permanência nem compromisso. Cancele pelo seu perfil ou diretamente pelo portal do Stripe. Seu acesso continua até o final do período faturado."
+      },
+      {
+        "question": "Quais dados vocês coletam?",
+        "answer": "E-mail e Telegram ID (opcional para alertas). Não vendemos dados a terceiros. Conformidade total com LGPD/RGPD. Você pode solicitar a exclusão dos seus dados a qualquer momento. Veja nossa Política de Privacidade."
+      }
+    ]
+  },
+  "footer": {
+    "disclaimer_label": "DISCLAIMER:",
+    "disclaimer_text": "Meme Detector é uma ferramenta de análise automatizada. Não constitui assessoria financeira. Memecoins são ativos altamente especulativos e você pode perder a totalidade do seu investimento. DYOR.",
+    "brand": "Meme Detector",
+    "link_disclaimer": "Disclaimer",
+    "link_legal": "Legal",
+    "link_privacy": "Privacidade",
+    "contact_telegram": "Telegram: @Ull_trading_bot"
+  },
+  "disclaimer_page": {
+    "back_link": "memedetector.es",
+    "nav_sections": {
+      "que-somos": "O que somos",
+      "que-no-somos": "O que NÃO somos",
+      "marco-regulatorio": "Regulatório",
+      "senales": "Sinais",
+      "riesgos": "Riscos",
+      "responsabilidad": "Sua responsabilidade",
+      "contacto": "Contato"
+    },
+    "page_title": "O que somos e o que NÃO somos",
+    "page_subtitle": "Disclaimer · Isenção de responsabilidade · Marco regulatório",
+    "section1_title": "1. O que é o Meme Detector",
+    "section1_items": [
+      "Somos uma ferramenta de software de análise automatizada de dados. Nosso produto é tecnologia, não assessoria financeira.",
+      "Utilizamos Machine Learning para analisar características públicas de tokens em blockchains como Solana, Ethereum e Base. Os modelos identificam padrões estatísticos em dados históricos.",
+      "Fornecemos informação estatística e análise de dados, NÃO recomendações de investimento. A interpretação e as decisões são de responsabilidade exclusiva do usuário.",
+      "Somos uma empresa de tecnologia espanhola: ULL MIDDLE MOORE S.L., NIF B76672864, com sede em Carretera General La Perdoma 35, La Orotava, Santa Cruz de Tenerife, Espanha."
+    ],
+    "section2_title": "2. O que NÃO somos",
+    "section2_intro": "É fundamental que você entenda o que o Meme Detector NÃO é:",
+    "section2_items": [
+      "NÃO somos uma empresa de assessoria financeira. Não fornecemos recomendações personalizadas baseadas nas suas circunstâncias individuais.",
+      "NÃO estamos registrados nem autorizados pela CNMV, SEC, FCA nem por nenhum regulador financeiro. Não somos uma Empresa de Serviços de Investimento (ESI).",
+      "NÃO fornecemos recomendações de compra, venda ou manutenção de nenhum ativo. As pontuações são indicadores estatísticos, não instruções operacionais.",
+      "NÃO somos um broker, exchange, nem intermediário financeiro. Não intermediamos na compra ou venda de nenhum criptoativo.",
+      "NÃO gerenciamos carteiras nem fundos de investimento. Não temos acesso aos seus fundos nem às suas wallets.",
+      "NÃO garantimos rentabilidade nem resultados de nenhum tipo. Desempenhos passados não garantem resultados futuros.",
+      "NÃO somos responsáveis pelas decisões de investimento dos nossos usuários. Cada usuário assume a total responsabilidade por suas operações."
+    ],
+    "section3_title": "3. Marco regulatório",
+    "section3_mifid_title": "MiFID II — Diretiva 2014/65/UE",
+    "section3_mifid_text": "Nosso serviço NÃO constitui \"assessoria em matéria de investimento\" segundo o artigo 4(1)(4) da Diretiva 2014/65/UE, pois não fornecemos recomendações personalizadas baseadas nas circunstâncias individuais do cliente. O Meme Detector é uma ferramenta de análise automatizada que gera indicadores estatísticos genéricos, sem considerar a situação financeira, objetivos de investimento nem perfil de risco de nenhum usuário concreto.",
+    "section3_mica_title": "MiCA — Regulamento UE 2023/1114",
+    "section3_mica_text": "Os criptoativos tipo memecoins NÃO estão classificados como tokens referenciados a ativos (ART) nem tokens de dinheiro eletrônico (EMT) sob o Regulamento de Mercados de Criptoativos. São criptoativos que ficam fora do âmbito regulatório específico do MiCA. O Meme Detector não emite, oferece ao público nem solicita a admissão à negociação de nenhum criptoativo. Somos exclusivamente um provedor de ferramentas de análise de dados.",
+    "section3_cnmv_title": "CNMV — Comissão Nacional do Mercado de Valores",
+    "section3_cnmv_text": "Não estamos registrados como empresa de serviços de investimento (ESI) na CNMV. Não precisamos estar porque NÃO fornecemos assessoria financeira, gestão de carteiras, nem intermediação na compra e venda de valores ou criptoativos. Nosso serviço é análise de dados automatizada: um software que processa informação pública de blockchains e gera métricas estatísticas.",
+    "section3_aml_title": "Lei 10/2010 — Prevenção de lavagem de dinheiro",
+    "section3_aml_text": "Não intermediamos com fundos de clientes. Não custodiamos, transferimos nem gerenciamos criptoativos ou dinheiro fiat dos nossos usuários. Os pagamentos de assinatura são processados exclusivamente pelo Stripe (certificado PCI DSS Level 1), um processador de pagamentos regulado. Em nenhum momento temos acesso aos dados de pagamento completos do usuário.",
+    "section4_title": "4. Natureza dos \"sinais\"",
+    "section4_items": [
+      "Os \"sinais\" gerados pelo Meme Detector são resultado de um algoritmo de Machine Learning (Random Forest + XGBoost). São cálculos matemáticos, não opiniões nem recomendações.",
+      "São indicadores estatísticos baseados em dados públicos de blockchain (preços, volumes, liquidez, holders, etc.), NÃO recomendações de investimento.",
+      "Um \"score alto\" significa que o algoritmo detectou padrões similares a tokens que historicamente tiveram valorização. NÃO significa que o token vai subir. Correlação não implica causalidade.",
+      "O modelo tem uma taxa de acerto de ~67% (F1-score). Isso implica que aproximadamente ~33% dos sinais NÃO se concretizam. Nenhum modelo de Machine Learning é perfeito.",
+      "Desempenhos passados NÃO garantem resultados futuros. O mercado de memecoins é altamente imprevisível e os padrões históricos podem deixar de funcionar a qualquer momento."
+    ],
+    "section5_title": "5. Riscos dos memecoins",
+    "section5_intro": "Aviso de risco — Leitura obrigatória",
+    "section5_items": [
+      "Memecoins são ativos altamente especulativos e voláteis. Podem perder 90-100% do seu valor em minutos.",
+      "Você pode perder 100% do seu investimento. Este cenário não é improvável, é estatisticamente frequente em memecoins.",
+      "Memecoins não têm valor intrínseco nem lastro em ativos. Seu preço depende exclusivamente da especulação e do sentimento do mercado.",
+      "São suscetíveis a manipulação de mercado: pump & dump, rug pulls, wash trading, insider trading e outras práticas fraudulentas.",
+      "A liquidez pode desaparecer em segundos. É possível que você não consiga vender sua posição quando quiser.",
+      "Não estão protegidos por nenhum fundo de garantia de depósitos nem de investimentos. Se você perder seu dinheiro, ninguém vai devolvê-lo."
+    ],
+    "section6_title": "6. Sua responsabilidade",
+    "section6_items": [
+      "O usuário é o único responsável por suas decisões de investimento. O Meme Detector não tem nenhum controle nem influência sobre as operações que você realizar.",
+      "Você deve fazer sua própria pesquisa (DYOR — Do Your Own Research) antes de qualquer operação. Os sinais do Meme Detector são um ponto de partida para sua análise, não uma conclusão.",
+      "Não invista dinheiro que não pode se dar ao luxo de perder. Memecoins devem representar apenas uma fração marginal do seu patrimônio, e somente se você compreender e aceitar os riscos.",
+      "Consulte um assessor financeiro registrado se precisar de assessoria personalizada. Profissionais registrados na CVM/CNMV estão qualificados para avaliar sua situação individual.",
+      "Ao usar o Meme Detector, você aceita estes termos e a isenção de responsabilidade em sua totalidade. Se não concordar, não utilize o serviço."
+    ],
+    "section7_title": "7. Contato regulatório",
+    "section7_intro": "Se você considerar que nosso serviço descumpre alguma norma aplicável, pode se dirigir a:",
+    "last_updated": "Última atualização: março 2026 · ULL MIDDLE MOORE S.L. · NIF B76672864",
+    "link_legal_notice": "Aviso Legal",
+    "link_privacy": "Privacidade",
+    "link_back_home": "Voltar ao início"
+  }
+}

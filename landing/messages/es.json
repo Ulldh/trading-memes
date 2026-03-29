@@ -1,0 +1,212 @@
+{
+  "meta": {
+    "title": "Meme Detector — Detecta las próximas gems 10x en memecoins",
+    "description": "Machine Learning analiza +5,000 memecoins diariamente en Solana, Ethereum y Base para detectar las próximas gems antes que nadie.",
+    "keywords": ["memecoin", "gem detector", "crypto", "solana", "machine learning", "trading signals"],
+    "og_title": "Meme Detector — Gems 10x en Memecoins",
+    "og_description": "ML analiza +5,000 memecoins diariamente. Señales de trading con IA.",
+    "twitter_title": "Meme Detector — Detecta Gems 10x",
+    "twitter_description": "ML analiza +5,000 memecoins diariamente."
+  },
+  "nav": {
+    "brand": "MEME DETECTOR",
+    "pipeline": "La Máquina",
+    "stats": "Números",
+    "backtesting": "Backtesting",
+    "pricing": "Planes",
+    "faq": "FAQ",
+    "academy": "Academia",
+    "disclaimer": "Disclaimer",
+    "login": "Iniciar sesión",
+    "signup": "Crear cuenta"
+  },
+  "hero": {
+    "terminal_prompt": "$ meme-detector --scan --live",
+    "title_line1": "Detecta",
+    "title_highlight": "gems",
+    "title_line2": "antes que nadie",
+    "subtitle_prefix": "Machine Learning analiza",
+    "subtitle_suffix": "memecoins diariamente en Solana, Ethereum y Base",
+    "stat_features": "features",
+    "stat_blockchains": "blockchains",
+    "stat_signals": "UTC señales diarias",
+    "cta_signup": "Crear cuenta gratis →",
+    "cta_login": "Iniciar sesión",
+    "status_label": "STATUS:",
+    "status_value": "ONLINE",
+    "model_label": "MODELO:",
+    "model_value": "v12",
+    "f1_label": "F1:",
+    "f1_value": "0.726",
+    "precision_label": "PRECISION:",
+    "precision_value": "72.6%",
+    "disclaimer_text": "Herramienta de análisis de datos. No es asesoramiento financiero.",
+    "disclaimer_link": "Ver disclaimer completo"
+  },
+  "ticker": {
+    "demo_label": "DEMO"
+  },
+  "pipeline": {
+    "section_title": "La Máquina",
+    "section_subtitle": "De datos crudos a señales accionables",
+    "steps": [
+      {
+        "title": "DATOS",
+        "icon": "{ }",
+        "stats": ["5,329 tokens", "3 blockchains", "11 APIs activas"],
+        "detail": "Recopilamos datos de Solana, Ethereum y Base cada día desde 11 fuentes distintas."
+      },
+      {
+        "title": "FEATURES",
+        "icon": "f(x)",
+        "stats": ["94 características", "Holders, liquidez", "Volumen, momentum"],
+        "detail": "Cada token se describe con 94 variables numéricas: concentración de holders, profundidad de LP, volumen, volatilidad y más."
+      },
+      {
+        "title": "MODELO",
+        "icon": "ML",
+        "stats": ["RF + XGB + LGB", "Ensemble ML", "F1 Score: 0.67"],
+        "detail": "Tres algoritmos votan en conjunto. Solo las señales con consenso pasan el filtro."
+      },
+      {
+        "title": "SEÑAL",
+        "icon": ">>",
+        "stats": ["STRONG / MEDIUM", "Cada día 07:30", "Telegram + Web"],
+        "detail": "Recibes la señal clasificada por confianza directamente en tu Telegram."
+      }
+    ]
+  },
+  "stats": {
+    "section_title": "Números que hablan",
+    "section_subtitle": "Datos actualizados del pipeline v12",
+    "items": [
+      { "label": "tokens analizados" },
+      { "label": "candles OHLCV" },
+      { "label": "features / token" },
+      { "label": "hit rate" },
+      { "label": "blockchains" },
+      { "label": "señales diarias (UTC)" },
+      { "label": "scoring time" },
+      { "label": "monitoreo" }
+    ]
+  },
+  "backtesting": {
+    "section_title": "Simulación Estimada",
+    "simulation_badge": "SIMULACIÓN",
+    "section_subtitle": "Basado en las métricas del modelo (F1 Score: 0.67), no en datos históricos reales.",
+    "investment_label": "Inversión inicial",
+    "period_label": "Período",
+    "strategy_label": "Estrategia",
+    "period_options": {
+      "1m": "1 mes",
+      "3m": "3 meses",
+      "6m": "6 meses"
+    },
+    "strategy_options": {
+      "strong": "Solo STRONG",
+      "strong_medium": "STRONG + MEDIUM",
+      "all": "Todas"
+    },
+    "result_header": "Resultado simulado",
+    "investment_metric": "Inversión",
+    "final_value_metric": "Valor final",
+    "win_rate_metric": "Win rate",
+    "best_trade_metric": "Mejor trade",
+    "worst_trade_metric": "Peor trade",
+    "total_trades_metric": "Trades totales",
+    "chart_x_label": "Día",
+    "chart_ref_label": "Inversión",
+    "tooltip_day": "Día",
+    "transparency_note": "Esta simulación usa un modelo matemático basado en la tasa de acierto del 67% y retornos promedio observados en validación. No representa rendimiento real pasado.",
+    "disclaimer": "AVISO: Simulación estimada basada en métricas del modelo v12. Track record verificable con datos reales disponible próximamente (estamos acumulando datos desde marzo 2026). Rendimiento pasado no garantiza resultados futuros.",
+    "start_label": "Inicio"
+  },
+  "pricing": {
+    "terminal_prompt": "$ cat /plans",
+    "section_title": "Acceso",
+    "plans": [
+      {
+        "name": "FREE",
+        "price": "$0",
+        "period": "/mes",
+        "features": [
+          { "text": "3 señales/día", "included": true },
+          { "text": "Watchlist (3)", "included": true },
+          { "text": "Token search", "included": false },
+          { "text": "Telegram alerts", "included": false },
+          { "text": "Backtesting", "included": false }
+        ],
+        "cta": "Crear cuenta"
+      },
+      {
+        "name": "PRO",
+        "price": "$29",
+        "period": "/mes",
+        "features": [
+          { "text": "Todas las señales", "included": true },
+          { "text": "Token search", "included": true },
+          { "text": "Telegram alerts", "included": true },
+          { "text": "Watchlist (10)", "included": true },
+          { "text": "SHAP analysis", "included": true },
+          { "text": "Track record", "included": true }
+        ],
+        "cta": "Empezar →"
+      },
+      {
+        "name": "ENTERPRISE",
+        "price": "$99",
+        "period": "/mes",
+        "features": [
+          { "text": "Todo de Pro", "included": true },
+          { "text": "API access", "included": true },
+          { "text": "Watchlist ∞", "included": true },
+          { "text": "Soporte prioritario", "included": true },
+          { "text": "Datos export", "included": true }
+        ],
+        "cta": "Empezar →"
+      }
+    ]
+  },
+  "faq": {
+    "terminal_prompt": "$ man meme-detector",
+    "section_title": "Preguntas frecuentes",
+    "items": [
+      {
+        "question": "¿Qué es un gem?",
+        "answer": "Un token que sube 10x o más desde su precio inicial. Nuestro modelo clasifica tokens en 5 categorías: rug (pérdida total), loss (>50% caída), neutral, winner (2-10x), y gem (10x+)."
+      },
+      {
+        "question": "¿Cómo funciona el modelo ML?",
+        "answer": "Ensemble de Random Forest + XGBoost + LightGBM. Entrenado con 94 features extraídas de 5,000+ tokens. Métricas actuales: F1 Score 0.667, Precision 0.726. El modelo analiza tokenomics, liquidez, price action, concentración de holders y contexto de mercado."
+      },
+      {
+        "question": "¿Qué blockchains soportáis?",
+        "answer": "Solana, Ethereum y Base. Datos recopilados de GeckoTerminal (precio/volumen), DexScreener (buyers/sellers), Helius RPC (holders Solana), Etherscan (verificación de contratos) y Birdeye (datos complementarios)."
+      },
+      {
+        "question": "¿Con qué frecuencia se actualizan las señales?",
+        "answer": "Recolección diaria a las 06:00 UTC. Scoring a las 07:30 UTC. El modelo se reentrena semanalmente con drift detection automático — si la distribución de datos cambia significativamente, se dispara un retrain anticipado."
+      },
+      {
+        "question": "¿Puedo perder dinero?",
+        "answer": "Sí. Los memecoins son extremadamente volátiles. Nuestro modelo acierta ~67% de las veces. El 33% restante son pérdidas. Esto NO es consejo financiero. DYOR (Do Your Own Research). Nunca inviertas más de lo que puedas permitirte perder."
+      },
+      {
+        "question": "¿Puedo cancelar en cualquier momento?",
+        "answer": "Sí. Sin permanencia ni compromiso. Cancela desde tu perfil o directamente desde el portal de Stripe. Tu acceso continúa hasta el final del período facturado."
+      },
+      {
+        "question": "¿Qué datos recopiláis?",
+        "answer": "Email y Telegram ID (opcional para alertas). No vendemos datos a terceros. Cumplimiento total con RGPD. Puedes solicitar la eliminación de tus datos en cualquier momento. Ver nuestra Política de Privacidad."
+      }
+    ]
+  },
+  "footer": {
+    "disclaimer": "DISCLAIMER: Meme Detector es una herramienta de análisis automatizado. No constituye asesoramiento financiero. Los memecoins son activos altamente especulativos y puedes perder la totalidad de tu inversión. DYOR.",
+    "brand": "Meme Detector",
+    "link_disclaimer": "Disclaimer",
+    "link_legal": "Legal",
+    "link_privacy": "Privacidad",
+    "telegram_label": "Telegram: @Ull_trading_bot"
+  }
+}

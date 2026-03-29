@@ -1,0 +1,130 @@
+{
+  "app": {
+    "page_title": "Meme Detector — Detecta Gems en Memecoins",
+    "login_page_title": "Meme Detector — Login",
+    "about": "Meme Detector analiza miles de memecoins con ML para encontrar las próximas gems 10x+.",
+    "sidebar_description": "**Gem Detector** - Herramienta de Machine Learning para analizar memecoins y detectar cuales tienen potencial de ser 'gems' (10x+).",
+    "logout": "Cerrar sesión"
+  },
+  "auth": {
+    "login_title": "Trading Memes",
+    "login_subtitle": "Detector de Gems en Memecoins con Machine Learning",
+    "tab_login": "Iniciar Sesión",
+    "tab_register": "Crear Cuenta",
+    "email": "Email",
+    "password": "Contraseña",
+    "confirm_password": "Confirmar contraseña",
+    "password_hint": "Minimo 8 caracteres, al menos una mayúscula y un número",
+    "login_btn": "Acceder",
+    "register_btn": "Crear cuenta",
+    "forgot_password": "¿Olvidaste tu contraseña?",
+    "reset_email_label": "Introduce tu email para restablecer la contraseña",
+    "reset_btn": "Enviar enlace de recuperacion",
+    "reset_success": "Te hemos enviado un email para restablecer tu contraseña. Revisa tu bandeja de entrada.",
+    "register_success": "Cuenta creada. Revisa tu email para confirmar y luego ya puedes iniciar sesión.",
+    "tos_notice": "Al crear tu cuenta aceptas los Terminos de Servicio.",
+    "error_invalid_credentials": "Email o contraseña incorrectos.",
+    "error_auth": "Error de autenticación",
+    "error_already_registered": "Este email ya esta registrado. Intenta iniciar sesión.",
+    "error_register": "Error en registro",
+    "error_reset": "Error al enviar email de recuperacion",
+    "error_empty_fields": "Introduce email y contraseña.",
+    "error_empty_email": "Introduce tu email.",
+    "error_fill_all": "Completa todos los campos.",
+    "error_password_mismatch": "Las contraseñas no coinciden.",
+    "error_password_length": "La contraseña debe tener al menos 8 caracteres.",
+    "error_password_uppercase": "La contraseña debe contener al menos una mayúscula.",
+    "error_password_digit": "La contraseña debe contener al menos un número.",
+    "error_no_password_configured": "DASHBOARD_PASSWORD no configurada en el servidor.",
+    "error_wrong_password": "Contraseña incorrecta.",
+    "legacy_prompt": "Introduce la contraseña para acceder."
+  },
+  "nav": {
+    "app_section": "Aplicacion",
+    "admin_section": "Administracion",
+    "info_section": "Informacion",
+    "overview": "Resumen",
+    "signals": "Señales",
+    "token_lookup": "Buscar Token",
+    "watchlist": "Watchlist",
+    "portfolio": "Portfolio",
+    "track_record": "Track Record",
+    "alerts": "Alertas",
+    "profile": "Mi Perfil",
+    "academy": "Academia",
+    "models": "Modelos",
+    "features": "Features",
+    "exploration": "Exploracion",
+    "system": "Sistema",
+    "drift": "Drift Monitor",
+    "retrain": "Retrain",
+    "legal": "Legal"
+  },
+  "roles": {
+    "admin": "Admin",
+    "pro": "Pro",
+    "free": "Free",
+    "plan_label": "Plan"
+  },
+  "paywall": {
+    "requires_pro": "requiere suscripción Pro.",
+    "plan_pro_title": "Plan Pro — $29/mes",
+    "plan_pro_features": [
+      "Todas las señales diarias",
+      "Búsqueda de tokens ilimitada",
+      "Análisis SHAP",
+      "Alertas Telegram",
+      "Watchlist de 10 tokens"
+    ],
+    "plan_enterprise_title": "Plan Enterprise — $99/mes",
+    "plan_enterprise_features": [
+      "Todo lo de Pro",
+      "API access",
+      "Watchlist ilimitada",
+      "Soporte prioritario"
+    ],
+    "subscribe_btn": "Suscribirse",
+    "payments_coming_soon": "Pagos próximamente. Estamos configurando el sistema de suscripciones. Contacta info@memedetector.es para más información.",
+    "signals_limited": "Mostrando {visible} de {total} señales. Suscríbete a Pro para ver todas.",
+    "requires_pro_generic": "Esta función requiere suscripción Pro.",
+    "subscribe_link": "Suscribirse →"
+  },
+  "access": {
+    "admin_required": "Acceso restringido. Se requiere rol de administrador."
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "loading": "Cargando...",
+    "no_data": "No hay datos disponibles",
+    "error": "Error",
+    "success": "Éxito",
+    "close": "Cerrar",
+    "confirm": "Confirmar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "export": "Exportar",
+    "refresh": "Actualizar",
+    "back": "Volver",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "yes": "Sí",
+    "no": "No"
+  },
+  "labels": {
+    "gem": "Gem",
+    "moderate_success": "Éxito moderado",
+    "neutral": "Neutral",
+    "failure": "Fracaso",
+    "rug": "Rug",
+    "no_label": "Sin label"
+  },
+  "signals": {
+    "strong": "STRONG",
+    "medium": "MEDIUM",
+    "weak": "WEAK",
+    "none": "NONE"
+  }
+}
