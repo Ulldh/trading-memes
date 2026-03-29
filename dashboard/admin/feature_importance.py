@@ -7,13 +7,6 @@ Muestra:
 - Dependencia de features individuales
 - Interpretacion de cada feature top
 """
-# Guard de acceso — solo admin
-try:
-    from dashboard.auth import require_admin
-    require_admin()
-except ImportError:
-    pass  # Fallback: sin auth module, acceso libre (desarrollo)
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -124,6 +117,13 @@ FEATURE_INTERPRETATIONS = {
 
 def render():
     """Renderiza la pagina de Importancia de Features."""
+    # Guard de acceso — solo admin
+    try:
+        from dashboard.auth import require_admin
+        require_admin()
+    except ImportError:
+        pass
+
     st.title("Importancia de Features (SHAP)")
 
     st.info(

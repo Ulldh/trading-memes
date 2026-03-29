@@ -8,13 +8,6 @@ Muestra:
 - Estadísticas de espacio en disco
 - Estado de servicios launchd
 """
-# Guard de acceso — solo admin
-try:
-    from dashboard.auth import require_admin
-    require_admin()
-except ImportError:
-    pass  # Fallback: sin auth module, acceso libre (desarrollo)
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -51,6 +44,13 @@ def get_storage():
 
 def render():
     """Renderiza la pagina de System Health."""
+    # Guard de acceso — solo admin
+    try:
+        from dashboard.auth import require_admin
+        require_admin()
+    except ImportError:
+        pass
+
     st.title("🏥 System Health - Estado del Sistema")
 
     st.info(

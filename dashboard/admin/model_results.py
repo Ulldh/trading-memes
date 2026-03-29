@@ -7,13 +7,6 @@ Muestra:
 - Curvas ROC y Precision-Recall
 - Reporte de clasificacion completo
 """
-# Guard de acceso — solo admin
-try:
-    from dashboard.auth import require_admin
-    require_admin()
-except ImportError:
-    pass  # Fallback: sin auth module, acceso libre (desarrollo)
-
 import json
 import streamlit as st
 import pandas as pd
@@ -46,6 +39,13 @@ def load_evaluation_results():
 
 def render():
     """Renderiza la pagina de Resultados del Modelo."""
+    # Guard de acceso — solo admin
+    try:
+        from dashboard.auth import require_admin
+        require_admin()
+    except ImportError:
+        pass
+
     st.title("Resultados del Modelo")
 
     st.info(

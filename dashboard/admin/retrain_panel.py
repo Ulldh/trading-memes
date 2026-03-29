@@ -11,13 +11,6 @@ Muestra:
 Los retrains se ejecutan via GitHub Actions (manual-retrain.yml)
 o mediante el pipeline local (scripts/retrain_pipeline.py).
 """
-# Guard de acceso — solo admin
-try:
-    from dashboard.auth import require_admin
-    require_admin()
-except ImportError:
-    pass  # Fallback: sin auth module, acceso libre (desarrollo)
-
 import json
 import streamlit as st
 import pandas as pd
@@ -151,6 +144,13 @@ def _load_feature_columns() -> dict | None:
 
 def render():
     """Panel de control de retrain — ver versiones, comparar, ejecutar."""
+    # Guard de acceso — solo admin
+    try:
+        from dashboard.auth import require_admin
+        require_admin()
+    except ImportError:
+        pass
+
     st.header("Control de Retrain")
 
     st.info(

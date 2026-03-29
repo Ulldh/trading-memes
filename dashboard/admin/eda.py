@@ -7,13 +7,6 @@ Permite explorar visualmente los features calculados:
 - Mapa de correlaciones (heatmap)
 - Box plots comparativos por categoria de label
 """
-# Guard de acceso — solo admin
-try:
-    from dashboard.auth import require_admin
-    require_admin()
-except ImportError:
-    pass  # Fallback: sin auth module, acceso libre (desarrollo)
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -134,6 +127,13 @@ FEATURE_DESCRIPTIONS = {
 
 def render():
     """Renderiza la pagina de Análisis Exploratorio."""
+    # Guard de acceso — solo admin
+    try:
+        from dashboard.auth import require_admin
+        require_admin()
+    except ImportError:
+        pass
+
     st.title("Análisis Exploratorio (EDA)")
 
     st.info(

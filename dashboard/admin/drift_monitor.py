@@ -11,13 +11,6 @@ Muestra:
 Los reportes se generan automáticamente los lunes a las 08:00 UTC
 via GitHub Actions (check-retrain.yml).
 """
-# Guard de acceso — solo admin
-try:
-    from dashboard.auth import require_admin
-    require_admin()
-except ImportError:
-    pass  # Fallback: sin auth module, acceso libre (desarrollo)
-
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
@@ -51,6 +44,13 @@ def _load_drift_reports(limit: int = 50) -> pd.DataFrame:
 
 def render():
     """Monitor de drift — visualizacion de reportes de drift detection."""
+    # Guard de acceso — solo admin
+    try:
+        from dashboard.auth import require_admin
+        require_admin()
+    except ImportError:
+        pass
+
     st.header("Drift Monitor")
 
     st.info(
