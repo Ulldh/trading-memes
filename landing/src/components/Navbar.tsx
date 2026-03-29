@@ -8,6 +8,7 @@ const navLinks = [
   { label: "Backtesting", href: "#backtesting" },
   { label: "Planes", href: "#pricing" },
   { label: "FAQ", href: "#faq" },
+  { label: "Academia", href: "/academia" },
 ];
 
 export default function Navbar() {

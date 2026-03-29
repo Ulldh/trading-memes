@@ -142,6 +142,7 @@ try:
     from public.profile import render as render_profile
     from public.legal import render as render_legal
     from public.welcome import render as render_welcome
+    from public.academy import render as render_academy
     from admin.drift_monitor import render as render_drift_monitor
     from admin.retrain_panel import render as render_retrain_panel
 except ImportError:
@@ -161,6 +162,7 @@ except ImportError:
     render_profile = None
     render_legal = None
     render_welcome = None
+    render_academy = None
     render_drift_monitor = None
     render_retrain_panel = None
 
@@ -190,6 +192,8 @@ if render_alerts_config:
     public_pages.append(st.Page(render_alerts_config, title="Alertas", icon=":material/notifications:", url_path="alerts"))
 if render_profile:
     public_pages.append(st.Page(render_profile, title="Mi Perfil", icon=":material/person:", url_path="profile"))
+if render_academy:
+    public_pages.append(st.Page(render_academy, title="Academia", icon=":material/school:", url_path="academy"))
 
 # --- Paginas de administracion (solo admin) ---
 admin_pages = []
