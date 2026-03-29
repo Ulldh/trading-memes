@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react";
 
 const navLinks = [
-  { label: "La Máquina", href: "#pipeline" },
-  { label: "Números", href: "#stats" },
-  { label: "Backtesting", href: "#backtesting" },
-  { label: "Planes", href: "#pricing" },
-  { label: "FAQ", href: "#faq" },
+  { label: "La Máquina", href: "/#pipeline" },
+  { label: "Números", href: "/#stats" },
+  { label: "Backtesting", href: "/#backtesting" },
+  { label: "Planes", href: "/#pricing" },
+  { label: "FAQ", href: "/#faq" },
   { label: "Academia", href: "/academia" },
   { label: "Disclaimer", href: "/disclaimer" },
 ];
