@@ -11,6 +11,13 @@ const sections = [
   { id: "riesgo", label: "Riesgo" },
   { id: "como-comprar", label: "Como comprar" },
   { id: "red-flags", label: "Red Flags" },
+  { id: "anatomia-pump", label: "Anatomia Pump" },
+  { id: "narrativas", label: "Narrativas" },
+  { id: "donde-nacen", label: "Donde nacen" },
+  { id: "smart-money", label: "Smart Money" },
+  { id: "suma-negativa", label: "Suma negativa" },
+  { id: "gestion-emocional", label: "Emociones" },
+  { id: "metricas-clave", label: "Metricas" },
 ];
 
 export default function AcademiaPage() {
@@ -523,6 +530,963 @@ export default function AcademiaPage() {
                     Verifica siempre los enlaces oficiales desde fuentes confiables.
                   </p>
                 </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        {/* ========== SECCION 7: ANATOMIA DE UN PUMP ========== */}
+        <section id="anatomia-pump" className="scroll-mt-28">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-16">
+            <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
+              Anatomia de un pump
+            </h2>
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">Las 5 fases de un pump</h3>
+                <p className="mb-4">
+                  Casi todos los pumps de memecoins siguen un patron predecible. Entender estas fases te permite
+                  identificar <strong className="text-primary">donde estas</strong> en el ciclo y tomar mejores decisiones.
+                </p>
+                <div className="space-y-4">
+                  <div className="border border-dark-600 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-primary font-mono font-bold">FASE 1</span>
+                      <span className="text-white font-semibold">Acumulacion silenciosa</span>
+                    </div>
+                    <p className="text-gray-400">
+                      Los &quot;insiders&quot; o wallets informadas compran grandes cantidades cuando nadie esta mirando.
+                      El precio apenas se mueve. El volumen es bajo pero constante. Las redes sociales estan en silencio.
+                      <strong className="text-primary"> Es el mejor momento para entrar, pero el mas dificil de detectar.</strong>
+                    </p>
+                    <p className="text-gray-500 text-xs mt-2">
+                      Senales: Volumen bajo pero creciente, holders aumentando gradualmente, compras grandes sin movimiento de precio.
+                    </p>
+                  </div>
+
+                  <div className="border border-dark-600 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-primary font-mono font-bold">FASE 2</span>
+                      <span className="text-white font-semibold">Primer pump</span>
+                    </div>
+                    <p className="text-gray-400">
+                      El precio explota entre un 200% y un 1000% en horas. El volumen se multiplica por 5x-20x.
+                      Twitter y Telegram se llenan de posts. Los influencers empiezan a mencionarlo.
+                      <strong className="text-gem-yellow"> Si no entraste en la Fase 1, aun hay oportunidad, pero con mas riesgo.</strong>
+                    </p>
+                    <p className="text-gray-500 text-xs mt-2">
+                      Senales: Volumen explosivo, trending en DexScreener, menciones organicas en redes sociales.
+                    </p>
+                  </div>
+
+                  <div className="border border-dark-600 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-primary font-mono font-bold">FASE 3</span>
+                      <span className="text-white font-semibold">Consolidacion</span>
+                    </div>
+                    <p className="text-gray-400">
+                      El precio corrige un 30-60% desde el maximo. Los &quot;manos debiles&quot; venden en panico.
+                      Pero los holders comprometidos mantienen. El volumen baja pero se estabiliza. Se forma un{" "}
+                      <strong className="text-primary">soporte claro</strong>. Es una segunda ventana de entrada mas segura que la Fase 2.
+                    </p>
+                    <p className="text-gray-500 text-xs mt-2">
+                      Senales: Precio formando rango lateral, soporte respetado 2-3 veces, volumen estable, comunidad activa.
+                    </p>
+                  </div>
+
+                  <div className="border border-dark-600 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-primary font-mono font-bold">FASE 4</span>
+                      <span className="text-white font-semibold">Segundo pump (si ocurre)</span>
+                    </div>
+                    <p className="text-gray-400">
+                      Si la comunidad sobrevive la consolidacion, puede haber un segundo rally. A menudo
+                      impulsado por un <strong>catalizador</strong>: listing en un exchange centralizado (CEX),
+                      mencion de un influencer grande, o una narrativa renovada.
+                      El precio puede superar el maximo anterior.
+                    </p>
+                    <p className="text-gray-500 text-xs mt-2">
+                      Senales: Breakout del rango con volumen alto, nuevo ATH, noticias de CEX listing.
+                    </p>
+                  </div>
+
+                  <div className="border border-dark-600 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-gem-red font-mono font-bold">FASE 5</span>
+                      <span className="text-white font-semibold">Distribucion</span>
+                    </div>
+                    <p className="text-gem-red/80">
+                      Las ballenas y los primeros inversores venden gradualmente mientras los compradores tardios entran
+                      por FOMO. El volumen de venta supera al de compra. Las redes sociales estan en maxima euforia
+                      (ironicamente, la senal mas peligrosa). <strong>Si entras aqui, probablemente estas comprando
+                      la bolsa de alguien mas.</strong>
+                    </p>
+                    <p className="text-gray-500 text-xs mt-2">
+                      Senales: Precio estancado con volumen alto, grandes ventas on-chain, &quot;compra ahora o nunca&quot; en redes,
+                      divergencia bajista en RSI.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">Patrones de precio tipicos en memecoins</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="border border-dark-600 p-4">
+                    <p className="text-primary font-semibold mb-2">V-Shape (recuperacion en V)</p>
+                    <p className="text-gray-400 text-xs">
+                      Caida fuerte seguida de recuperacion igual de fuerte. Ocurre cuando una venta de panico es
+                      absorbida rapidamente por compradores. Tipico en memecoins con comunidad solida.
+                    </p>
+                  </div>
+                  <div className="border border-dark-600 p-4">
+                    <p className="text-primary font-semibold mb-2">Staircase (escalera)</p>
+                    <p className="text-gray-400 text-xs">
+                      Subidas escalonadas con consolidaciones entre cada escalon. Es el patron mas saludable: indica
+                      acumulacion organica y demanda sostenida. Los soportes se forman en cada &quot;escalon&quot;.
+                    </p>
+                  </div>
+                  <div className="border border-dark-600 p-4">
+                    <p className="text-gem-red font-semibold mb-2">Pump &amp; Dump</p>
+                    <p className="text-gray-400 text-xs">
+                      Subida vertical sin consolidacion seguida de caida total. El precio nunca se recupera.
+                      Es el patron de las estafas y tokens sin comunidad real. Sube un 1000%, cae un 99%.
+                    </p>
+                  </div>
+                  <div className="border border-dark-600 p-4">
+                    <p className="text-gem-yellow font-semibold mb-2">Slow Bleed (sangrado lento)</p>
+                    <p className="text-gray-400 text-xs">
+                      Caida gradual durante dias o semanas. El volumen desaparece, los holders se cansan y venden.
+                      No hay un crash dramatico, sino una muerte lenta. La mayoria de memecoins terminan asi.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">Timeframes: la velocidad del juego</h3>
+                <p>
+                  A diferencia de acciones o incluso Bitcoin, los memecoins se mueven <strong className="text-primary">extremadamente
+                  rapido</strong>. La mayoria de los pumps significativos ocurren en una ventana de{" "}
+                  <strong className="text-white">24 a 72 horas</strong>.
+                </p>
+                <ul className="list-disc list-inside space-y-2 ml-2 mt-3">
+                  <li>
+                    <strong className="text-white">Primeras 1-6 horas:</strong> El pump inicial. Los que entran
+                    aqui tienen el mayor potencial de ganancia (y riesgo).
+                  </li>
+                  <li>
+                    <strong className="text-white">6-24 horas:</strong> La consolidacion. El mercado digiere el
+                    movimiento. Se define si el token tiene fuerza para continuar.
+                  </li>
+                  <li>
+                    <strong className="text-white">24-72 horas:</strong> El segundo intento. Si supera el maximo
+                    anterior, puede ser un token con longevidad. Si no, empieza el declive.
+                  </li>
+                  <li>
+                    <strong className="text-gem-yellow">Despues de 72 horas:</strong> Si no ha habido segundo pump,
+                    la probabilidad de que ocurra cae drasticamente. Los memecoins tienen una vida media muy corta.
+                  </li>
+                </ul>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        {/* ========== SECCION 8: TIPOS DE MEMECOINS POR NARRATIVA ========== */}
+        <section id="narrativas" className="scroll-mt-28">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-16">
+            <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
+              Tipos de memecoins por narrativa
+            </h2>
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">Las narrativas mueven el mercado</h3>
+                <p>
+                  En el mundo de los memecoins, la <strong className="text-primary">narrativa</strong> lo es todo.
+                  No importa la tecnologia (no la hay), importa la <strong>historia que se cuenta</strong> y si
+                  esa historia conecta con el momento cultural. Cada narrativa tiene su propio ciclo de vida:
+                  nace, explota, se satura y muere. Entender en que fase esta una narrativa es tan importante
+                  como analizar el token individual.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="border border-dark-600 bg-dark-800/50 p-5">
+                  <p className="text-primary font-bold text-lg mb-1">Dog Tokens</p>
+                  <p className="text-gray-500 text-xs mb-3">DOGE, SHIB, BONK, WIF, FLOKI</p>
+                  <p>
+                    La narrativa original de los memecoins. Tokens con tematica de perros. Tienen
+                    las <strong className="text-white">comunidades mas grandes y leales</strong> del espacio.
+                    DOGE fue el primero, SHIB demostro que podia replicarse el exito, y cada blockchain
+                    busca su propio &quot;dog token&quot; insignia.
+                  </p>
+                  <p className="text-gray-500 text-xs mt-2">
+                    Ciclo: maduro. Los nuevos dog tokens compiten con gigantes establecidos.
+                  </p>
+                </div>
+
+                <div className="border border-dark-600 bg-dark-800/50 p-5">
+                  <p className="text-primary font-bold text-lg mb-1">Cultura / Meme Puro</p>
+                  <p className="text-gray-500 text-xs mb-3">PEPE, WOJAK, BRETT, GIGACHAD</p>
+                  <p>
+                    Tokens basados en memes iconicos de internet. Su valor reside en el{" "}
+                    <strong className="text-white">reconocimiento cultural universal</strong>. PEPE es
+                    el ejemplo perfecto: la rana Pepe es uno de los memes mas reconocidos del mundo,
+                    y eso se tradujo en una comunidad masiva desde el dia 1.
+                  </p>
+                  <p className="text-gray-500 text-xs mt-2">
+                    Ciclo: ciclico. Resurgen con cada bull market, especialmente los memes &quot;evergreen&quot;.
+                  </p>
+                </div>
+
+                <div className="border border-dark-600 bg-dark-800/50 p-5">
+                  <p className="text-gem-red font-bold text-lg mb-1">Celebrity / Influencer</p>
+                  <p className="text-gray-500 text-xs mb-3">Tokens de famosos, streamers, politicos</p>
+                  <p>
+                    Tokens lanzados por o asociados con celebridades. Generan un{" "}
+                    <strong className="text-gem-red">hype inicial explosivo</strong> pero
+                    historicamente tienen una tasa de supervivencia muy baja. El famoso lanza,
+                    los fans compran, el famoso pierde interes, el precio colapsa.
+                  </p>
+                  <p className="text-gem-red text-xs mt-2">
+                    Riesgo: extremo. La mayoria pierden 90%+ tras el hype inicial.
+                  </p>
+                </div>
+
+                <div className="border border-dark-600 bg-dark-800/50 p-5">
+                  <p className="text-primary font-bold text-lg mb-1">AI + Meme</p>
+                  <p className="text-gray-500 text-xs mb-3">Tokens que combinan IA con cultura meme</p>
+                  <p>
+                    La tendencia de 2025-2026. Tokens que integran narrativa de inteligencia artificial
+                    con elementos meme. Algunos tienen <strong className="text-white">utilidad parcial</strong>{" "}
+                    (chatbots, agentes IA), lo que les da un argumento adicional, aunque la realidad
+                    tecnologica suele estar muy por debajo del marketing.
+                  </p>
+                  <p className="text-gray-500 text-xs mt-2">
+                    Ciclo: en expansion. Mientras la IA sea tendencia global, estos tokens tendran traccion.
+                  </p>
+                </div>
+
+                <div className="border border-dark-600 bg-dark-800/50 p-5">
+                  <p className="text-gem-yellow font-bold text-lg mb-1">Political Memecoins</p>
+                  <p className="text-gray-500 text-xs mb-3">Tokens de figuras politicas o eventos politicos</p>
+                  <p>
+                    Tokens creados alrededor de figuras politicas, elecciones o eventos geopoliticos.
+                    Tienen <strong className="text-gem-yellow">volatilidad extrema</strong> porque
+                    dependen de noticias impredecibles. Un tweet, un discurso o un resultado
+                    electoral puede mover el precio un 500% en minutos.
+                  </p>
+                  <p className="text-gem-yellow text-xs mt-2">
+                    Riesgo: muy alto. Imposible predecir los catalizadores politicos.
+                  </p>
+                </div>
+
+                <div className="border border-dark-600 bg-dark-800/50 p-5">
+                  <p className="text-primary font-bold text-lg mb-1">Cat Tokens</p>
+                  <p className="text-gray-500 text-xs mb-3">MEW, POPCAT, CATIZEN</p>
+                  <p>
+                    La &quot;anti-dog&quot; narrativa. Surgen como contraparte a los dog tokens,
+                    capitalizando en la eterna rivalidad gatos vs perros de internet. Han demostrado
+                    que pueden generar comunidades fuertes, especialmente en <strong className="text-white">Solana</strong>,
+                    donde POPCAT y MEW alcanzaron market caps de cientos de millones.
+                  </p>
+                  <p className="text-gray-500 text-xs mt-2">
+                    Ciclo: en crecimiento. Aun no tan saturado como los dog tokens.
+                  </p>
+                </div>
+              </div>
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">Ciclo de vida de una narrativa</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="border border-primary/30 p-3 text-center">
+                    <p className="text-primary font-bold text-sm">1. Nacimiento</p>
+                    <p className="text-gray-500 text-xs mt-1">Un token pionero demuestra que la narrativa funciona. Pocos lo notan.</p>
+                  </div>
+                  <div className="border border-primary/30 p-3 text-center">
+                    <p className="text-primary font-bold text-sm">2. Explosion</p>
+                    <p className="text-gray-500 text-xs mt-1">Docenas de imitadores. Los que llegan pronto pueden ganar mucho.</p>
+                  </div>
+                  <div className="border border-gem-yellow/30 p-3 text-center">
+                    <p className="text-gem-yellow font-bold text-sm">3. Saturacion</p>
+                    <p className="text-gray-500 text-xs mt-1">Cientos de copias. La atencion se fragmenta. Rendimientos decrecientes.</p>
+                  </div>
+                  <div className="border border-gem-red/30 p-3 text-center">
+                    <p className="text-gem-red font-bold text-sm">4. Muerte</p>
+                    <p className="text-gray-500 text-xs mt-1">La narrativa se agota. Solo sobreviven 2-3 tokens de los cientos lanzados.</p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        {/* ========== SECCION 9: DONDE NACEN LOS MEMECOINS ========== */}
+        <section id="donde-nacen" className="scroll-mt-28">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-16">
+            <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
+              Donde nacen los memecoins
+            </h2>
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">Pump.fun (Solana)</h3>
+                <p>
+                  La <strong className="text-primary">fabrica de memecoins mas grande del mundo</strong>.
+                  Lanzada en 2024, permite a cualquier persona crear un token en segundos sin necesidad
+                  de conocimientos tecnicos. Cada dia se lanzan mas de <strong className="text-white">10,000
+                  tokens nuevos</strong> en Pump.fun.
+                </p>
+                <div className="mt-3 border border-gem-red/30 bg-gem-red/5 p-3">
+                  <p className="text-gem-red font-semibold text-xs">
+                    Realidad: el 99.9% de los tokens lanzados en Pump.fun mueren en las primeras horas.
+                    Solo un punado llega a &quot;graduarse&quot; (alcanzar suficiente liquidez para migrar a Raydium).
+                    De los que se graduan, la mayoria tambien mueren.
+                  </p>
+                </div>
+                <p className="mt-3 text-gray-400">
+                  <strong className="text-white">Como funciona:</strong> Pump.fun usa un sistema de{" "}
+                  <strong className="text-primary">bonding curve</strong> (curva de vinculacion). El precio
+                  empieza casi en cero y sube automaticamente con cada compra. Cuando se alcanza un threshold
+                  de liquidez (~85 SOL), el token se &quot;gradua&quot; y migra automaticamente a Raydium con
+                  un pool de liquidez propio.
+                </p>
+              </div>
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">Blockchains principales para memecoins</h3>
+                <div className="overflow-x-auto mt-3">
+                  <table className="w-full text-sm border border-dark-600">
+                    <thead>
+                      <tr className="border-b border-dark-600 bg-dark-700">
+                        <th className="py-2 px-3 text-left text-primary font-semibold">Blockchain</th>
+                        <th className="py-2 px-3 text-left text-primary font-semibold">Ventajas</th>
+                        <th className="py-2 px-3 text-left text-primary font-semibold">Desventajas</th>
+                        <th className="py-2 px-3 text-left text-primary font-semibold">DEXs principales</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-dark-600">
+                        <td className="py-2 px-3 text-white font-semibold">Solana</td>
+                        <td className="py-2 px-3">Fees &lt;$0.01, transacciones en 1-2s, ecosistema de memecoins mas activo</td>
+                        <td className="py-2 px-3">Menor descentralizacion, caidas de red ocasionales</td>
+                        <td className="py-2 px-3">Jupiter, Raydium, Pump.fun</td>
+                      </tr>
+                      <tr className="border-b border-dark-600">
+                        <td className="py-2 px-3 text-white font-semibold">Ethereum</td>
+                        <td className="py-2 px-3">Mayor liquidez, red mas segura y descentralizada, los OG memecoins (PEPE, SHIB)</td>
+                        <td className="py-2 px-3">Gas fees $5-50+ por transaccion, hace inviable operar con cantidades pequenas</td>
+                        <td className="py-2 px-3">Uniswap, SushiSwap</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-3 text-white font-semibold">Base</td>
+                        <td className="py-2 px-3">Fees muy bajas (L2 de Ethereum), respaldada por Coinbase, seguridad de Ethereum</td>
+                        <td className="py-2 px-3">Ecosistema mas joven, menos liquidez que Solana/Ethereum</td>
+                        <td className="py-2 px-3">Aerodrome, BaseSwap</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">Como se lanza un memecoin</h3>
+                <div className="space-y-3">
+                  <div className="border border-dark-600 p-3">
+                    <p className="text-primary font-semibold mb-1">Bonding Curve (Pump.fun y similares)</p>
+                    <p className="text-gray-400 text-xs">
+                      El precio empieza cercano a cero y sube automaticamente con cada compra segun una formula matematica.
+                      No hay liquidez previa &mdash; los compradores SON la liquidez. Ventaja: no hay presale ni insiders.
+                      Desventaja: el primero que vende en grande puede vaciar el pool.
+                    </p>
+                  </div>
+                  <div className="border border-dark-600 p-3">
+                    <p className="text-primary font-semibold mb-1">Fair Launch</p>
+                    <p className="text-gray-400 text-xs">
+                      El creador anade liquidez a un DEX (ej: Raydium, Uniswap) y renuncia al control del contrato.
+                      Todos tienen la misma oportunidad de comprar al mismo precio. Es el modelo mas &quot;justo&quot;, pero
+                      los bots suelen snipear los primeros bloques.
+                    </p>
+                  </div>
+                  <div className="border border-dark-600 p-3">
+                    <p className="text-gem-red font-semibold mb-1">Presale / Private Sale</p>
+                    <p className="text-gray-400 text-xs">
+                      Los insiders compran antes del lanzamiento publico a un precio mucho mas bajo.
+                      Cuando el token se lanza, los compradores de presale ya tienen ganancias y pueden vender sobre ti.
+                      <strong className="text-gem-red"> Aumenta significativamente el riesgo de dump temprano.</strong>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">El ciclo de vida completo</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  <div className="border border-primary/30 p-2 text-center">
+                    <p className="text-primary font-bold text-xs">LAUNCH</p>
+                    <p className="text-gray-500 text-xs mt-1">Token creado. Primeros compradores.</p>
+                  </div>
+                  <div className="border border-primary/30 p-2 text-center">
+                    <p className="text-primary font-bold text-xs">HYPE</p>
+                    <p className="text-gray-500 text-xs mt-1">Viralidad. Social media explota.</p>
+                  </div>
+                  <div className="border border-gem-yellow/30 p-2 text-center">
+                    <p className="text-gem-yellow font-bold text-xs">PEAK</p>
+                    <p className="text-gray-500 text-xs mt-1">Maximo precio. Maxima euforia.</p>
+                  </div>
+                  <div className="border border-gem-red/30 p-2 text-center">
+                    <p className="text-gem-red font-bold text-xs">DUMP</p>
+                    <p className="text-gray-500 text-xs mt-1">Ventas masivas. Panico.</p>
+                  </div>
+                  <div className="border border-dark-600 p-2 text-center">
+                    <p className="text-gray-400 font-bold text-xs">SURVIVE?</p>
+                    <p className="text-gray-500 text-xs mt-1">Solo el 1% construye comunidad y sobrevive.</p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        {/* ========== SECCION 10: SMART MONEY VS DUMB MONEY ========== */}
+        <section id="smart-money" className="scroll-mt-28">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-16">
+            <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
+              Smart Money vs Dumb Money
+            </h2>
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">Que es el &quot;Smart Money&quot;</h3>
+                <p>
+                  En crypto, <strong className="text-primary">smart money</strong> se refiere a wallets que
+                  tienen un <strong>historial demostrable de operaciones rentables</strong>. Son traders
+                  profesionales, fondos de inversion, o individuos con acceso a informacion privilegiada
+                  o herramientas avanzadas de analisis. Cuando estas wallets compran un memecoin antes de
+                  que explote, no es casualidad &mdash; tienen un edge (ventaja).
+                </p>
+                <p className="mt-3">
+                  <strong className="text-white">&quot;Dumb money&quot;</strong> se refiere al dinero que entra por
+                  FOMO, sin analisis, normalmente tarde en el ciclo. Es el comprador que ve que un token
+                  ya subio un 500% y piensa &quot;todavia puede subir mas&quot;.
+                </p>
+              </div>
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">Herramientas para rastrear smart money</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="border border-dark-600 p-4">
+                    <p className="text-primary font-semibold mb-1">Arkham Intelligence</p>
+                    <p className="text-gray-400 text-xs">
+                      Plataforma que identifica y etiqueta wallets de entidades conocidas (fondos, exchanges, ballenas).
+                      Permite ver que estan comprando los grandes jugadores en tiempo real.
+                    </p>
+                  </div>
+                  <div className="border border-dark-600 p-4">
+                    <p className="text-primary font-semibold mb-1">Nansen</p>
+                    <p className="text-gray-400 text-xs">
+                      Analisis on-chain avanzado. Clasifica wallets por su historial de rentabilidad
+                      (&quot;Smart Money&quot; label). Permite crear alertas cuando wallets inteligentes mueven fondos.
+                    </p>
+                  </div>
+                  <div className="border border-dark-600 p-4">
+                    <p className="text-primary font-semibold mb-1">DeBank</p>
+                    <p className="text-gray-400 text-xs">
+                      Portfolio tracker que permite ver las posiciones completas de cualquier wallet publica.
+                      Util para seguir a traders especificos y ver sus movimientos historicos.
+                    </p>
+                  </div>
+                  <div className="border border-dark-600 p-4">
+                    <p className="text-primary font-semibold mb-1">BubbleMaps</p>
+                    <p className="text-gray-400 text-xs">
+                      Visualiza la distribucion de holders de un token como burbujas. Detecta wallets
+                      conectadas (cluster analysis) y concentracion sospechosa de supply.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">Senales de smart money</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="border border-primary/30 p-4">
+                    <p className="text-primary font-semibold mb-2">Entrando (bullish)</p>
+                    <ul className="list-disc list-inside space-y-1 text-gray-400 text-xs">
+                      <li>Compras grandes sin mover el precio (ordenes OTC o divididas en multiples transacciones)</li>
+                      <li>Wallets con historial de 5x+ entrando en un token antes de que sea trending</li>
+                      <li>Acumulacion durante periodos de bajo volumen y caidas de precio</li>
+                      <li>Multiples wallets inteligentes comprando el mismo token en un periodo corto</li>
+                    </ul>
+                  </div>
+                  <div className="border border-gem-red/30 p-4">
+                    <p className="text-gem-red font-semibold mb-2">Saliendo (bearish)</p>
+                    <ul className="list-disc list-inside space-y-1 text-gray-400 text-xs">
+                      <li>Ventas graduales y escalonadas (no de golpe, para no mover el precio)</li>
+                      <li>Transferencias de tokens a exchanges centralizados (paso previo a venta)</li>
+                      <li>Reduccion de posicion mientras el precio sigue subiendo</li>
+                      <li>Retirada de liquidez del pool (si son los creadores/LP providers)</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border border-gem-yellow/30 bg-gem-yellow/5 p-5">
+                <h3 className="text-gem-yellow font-semibold text-base mb-3">Cuando seguir smart money NO funciona</h3>
+                <ul className="list-disc list-inside space-y-2 text-gray-400 text-xs">
+                  <li>
+                    <strong className="text-white">Latencia:</strong> Cuando tu ves la transaccion, el smart money ya compro.
+                    Si el precio ya subio un 100% desde su compra, el riesgo/recompensa cambia drasticamente.
+                  </li>
+                  <li>
+                    <strong className="text-white">Fake wallets:</strong> Algunos crean wallets con &quot;historial perfecto&quot;
+                    operando consigo mismos para manipular a los seguidores.
+                  </li>
+                  <li>
+                    <strong className="text-white">Tamaño diferente:</strong> Un fondo que compra $500K puede
+                    permitirse perder $500K. Tu no. Su gestion de riesgo es diferente a la tuya.
+                  </li>
+                  <li>
+                    <strong className="text-white">Diversificacion oculta:</strong> Ves que una wallet inteligente
+                    compro un token, pero no ves que tambien compro otros 49 tokens. Solo necesita que 1 de 50 funcione.
+                  </li>
+                </ul>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        {/* ========== SECCION 11: EL JUEGO DE SUMA NEGATIVA ========== */}
+        <section id="suma-negativa" className="scroll-mt-28">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-16">
+            <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
+              El juego de suma negativa
+            </h2>
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+
+              <div className="border-2 border-gem-red bg-gem-red/5 p-5">
+                <p className="text-gem-red font-bold text-base mb-2">LA VERDAD INCOMODA</p>
+                <p>
+                  El trading de memecoins no es un juego de suma cero (donde lo que uno gana, otro pierde).
+                  Es un <strong className="text-gem-red">juego de suma negativa</strong>: las fees, el gas,
+                  el slippage y los impuestos hacen que, en conjunto, <strong>se pierda mas dinero del que
+                  se gana</strong>. Por cada persona que hace 10x, hay 9 que pierden su inversion.
+                </p>
+              </div>
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">Donde se va tu dinero (costes ocultos)</h3>
+                <div className="space-y-3">
+                  <div className="border border-dark-600 p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-gem-red font-mono text-lg">!</span>
+                      <p className="text-white font-semibold">Fees del DEX</p>
+                    </div>
+                    <p className="text-gray-400 text-xs">
+                      Cada swap tiene una comision. En Uniswap es 0.3%, en Raydium 0.25%.
+                      Si compras y vendes, pagas fee dos veces. Con 10 operaciones al dia durante un mes,
+                      las fees pueden comerse un 15-20% de tu capital aunque no pierdas en ningun trade.
+                    </p>
+                  </div>
+                  <div className="border border-dark-600 p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-gem-red font-mono text-lg">!</span>
+                      <p className="text-white font-semibold">Gas fees</p>
+                    </div>
+                    <p className="text-gray-400 text-xs">
+                      El coste de procesar tu transaccion en la blockchain. En Ethereum puede ser $5-50+ por transaccion.
+                      En Solana es &lt;$0.01 normalmente, pero en momentos de alta congestion puede subir.
+                      Si operas con cantidades pequenas en Ethereum, el gas puede ser mayor que tu ganancia.
+                    </p>
+                  </div>
+                  <div className="border border-dark-600 p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-gem-red font-mono text-lg">!</span>
+                      <p className="text-white font-semibold">Slippage</p>
+                    </div>
+                    <p className="text-gray-400 text-xs">
+                      La diferencia entre el precio esperado y el precio real de ejecucion. En tokens con baja liquidez,
+                      el slippage puede ser del 5-10%. Si compras un token y el precio &quot;real&quot; que pagas es un 5% mas alto,
+                      ya empiezas perdiendo. Y al vender, pierdes otro 5%.
+                    </p>
+                  </div>
+                  <div className="border border-dark-600 p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-gem-red font-mono text-lg">!</span>
+                      <p className="text-white font-semibold">MEV (Bots de front-running)</p>
+                    </div>
+                    <p className="text-gray-400 text-xs">
+                      Bots sofisticados que detectan tu orden pendiente y ejecutan una compra justo antes que tu,
+                      subiendo el precio. Luego venden justo despues. Te pagaste un precio mas alto sin saberlo.
+                      En Ethereum esto es especialmente agresivo. En Solana, Jupiter ofrece proteccion parcial contra MEV.
+                    </p>
+                  </div>
+                  <div className="border border-dark-600 p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-gem-yellow font-mono text-lg">!</span>
+                      <p className="text-white font-semibold">Impuestos (Espana)</p>
+                    </div>
+                    <p className="text-gray-400 text-xs">
+                      En Espana, las ganancias por criptomonedas tributan en el IRPF como ganancias patrimoniales:
+                      <strong className="text-white"> 19% hasta 6.000 EUR, 21% de 6.000 a 50.000 EUR, 23% de 50.000 a 200.000 EUR,
+                      27% de 200.000 a 300.000 EUR, y 28% a partir de 300.000 EUR</strong>.
+                      Esto aplica a cada operacion con ganancia, no solo al retirar a tu banco.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">Tu edge: la ventaja que necesitas</h3>
+                <p className="mb-4">
+                  Para ganar consistentemente en un juego de suma negativa, necesitas una{" "}
+                  <strong className="text-primary">ventaja (edge)</strong> que te ponga por delante del 90% de participantes.
+                  Hay tres tipos de edge:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="border border-primary/30 p-3">
+                    <p className="text-primary font-semibold text-sm mb-1">Edge informacional</p>
+                    <p className="text-gray-400 text-xs">
+                      Saber algo que otros no saben. Estar en el grupo de Telegram correcto, seguir a los
+                      insiders correctos, detectar tendencias antes que la masa. Es el edge mas comun pero
+                      tambien el mas fragil.
+                    </p>
+                  </div>
+                  <div className="border border-primary/30 p-3">
+                    <p className="text-primary font-semibold text-sm mb-1">Edge temporal</p>
+                    <p className="text-gray-400 text-xs">
+                      Ser mas rapido que otros. Tener bots de trading, alertas automatizadas, o simplemente
+                      estar despierto en el momento correcto. En memecoins, 30 minutos de diferencia pueden
+                      significar un 500% de diferencia en precio de entrada.
+                    </p>
+                  </div>
+                  <div className="border border-primary/30 p-3">
+                    <p className="text-primary font-semibold text-sm mb-1">Edge analitico</p>
+                    <p className="text-gray-400 text-xs">
+                      Analizar datos que otros no analizan. Esto es exactamente lo que hace{" "}
+                      <strong className="text-primary">Meme Detector</strong>: nuestro ML analiza 94 features
+                      por token (liquidez, holders, volumen, precio, contrato) que un humano no puede procesar
+                      manualmente.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        {/* ========== SECCION 12: GESTION EMOCIONAL ========== */}
+        <section id="gestion-emocional" className="scroll-mt-28">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-16">
+            <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
+              Gestion emocional del trader
+            </h2>
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">Las emociones son tu peor enemigo</h3>
+                <p>
+                  El mercado de memecoins esta disenado para explotar tus emociones. La volatilidad extrema,
+                  las ganancias rapidas de otros, los graficos verdes en redes sociales... todo esta pensado
+                  para que <strong className="text-gem-red">actues impulsivamente</strong>.
+                  Los traders profesionales no son los que mejor predicen el mercado, sino los que mejor
+                  controlan sus emociones.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="border border-gem-red/30 bg-gem-red/5 p-5">
+                  <p className="text-gem-red font-bold text-base mb-2">FOMO</p>
+                  <p className="text-gray-400 text-xs mb-2">Fear Of Missing Out (Miedo a perderte la oportunidad)</p>
+                  <p className="text-gray-300 text-xs">
+                    &quot;Si no compro ahora, perdera la oportunidad.&quot; El FOMO te hace comprar en el peor momento
+                    posible: cuando el precio ya subio, todos estan eufricos y las ballenas estan vendiendo.
+                    <strong className="text-white"> Si sientes FOMO intenso, esa ES la senal de NO entrar.</strong>
+                  </p>
+                  <p className="text-primary text-xs mt-2">
+                    Antidoto: siempre habra otra oportunidad. El mercado genera oportunidades todos los dias.
+                  </p>
+                </div>
+
+                <div className="border border-gem-red/30 bg-gem-red/5 p-5">
+                  <p className="text-gem-red font-bold text-base mb-2">FUD</p>
+                  <p className="text-gray-400 text-xs mb-2">Fear, Uncertainty, Doubt (Miedo, Incertidumbre, Duda)</p>
+                  <p className="text-gray-300 text-xs">
+                    &quot;Esto va a caer, vendo todo antes de perder mas.&quot; El FUD te hace vender en el peor momento:
+                    justo antes de que el precio se recupere. Las ballenas generan FUD intencionalmente para
+                    comprar tus tokens mas baratos.
+                  </p>
+                  <p className="text-primary text-xs mt-2">
+                    Antidoto: si tu tesis de inversion original sigue intacta, mantener. Si se invalido, vender sin emociones.
+                  </p>
+                </div>
+
+                <div className="border border-gem-yellow/30 bg-gem-yellow/5 p-5">
+                  <p className="text-gem-yellow font-bold text-base mb-2">Bag Holding</p>
+                  <p className="text-gray-400 text-xs mb-2">Aguantar un token en perdidas por esperanza</p>
+                  <p className="text-gray-300 text-xs">
+                    &quot;Ya bajara de perder, no vendo.&quot; Te niegas a aceptar la perdida y sigues aguantando
+                    un token que cayo un 80%, esperando que vuelva a tu precio de compra.
+                    En memecoins, un token que cae un 80% rara vez se recupera. Es mejor aceptar la perdida
+                    y mover el capital a una mejor oportunidad.
+                  </p>
+                  <p className="text-primary text-xs mt-2">
+                    Antidoto: define tu stop-loss ANTES de comprar y respetalo siempre.
+                  </p>
+                </div>
+
+                <div className="border border-gem-yellow/30 bg-gem-yellow/5 p-5">
+                  <p className="text-gem-yellow font-bold text-base mb-2">Revenge Trading</p>
+                  <p className="text-gray-400 text-xs mb-2">Intentar recuperar perdidas con trades impulsivos</p>
+                  <p className="text-gray-300 text-xs">
+                    &quot;Perdi $200, voy a meter $400 en este otro token para recuperar rapido.&quot;
+                    El revenge trading es la espiral descendente mas comun en memecoins.
+                    Cada trade impulsivo pierde mas, lo que genera mas frustracin y mas trades impulsivos.
+                  </p>
+                  <p className="text-primary text-xs mt-2">
+                    Antidoto: tras una perdida significativa, NO operes durante 24 horas. Las decisiones emocionales son las mas costosas.
+                  </p>
+                </div>
+              </div>
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">La regla del plan</h3>
+                <p className="mb-4">
+                  Antes de comprar <strong className="text-primary">cualquier</strong> memecoin, define por escrito estos 4 elementos.
+                  Si no puedes completar los 4, <strong className="text-gem-red">no entres al trade</strong>:
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="border border-primary/30 p-3 text-center">
+                    <p className="text-primary font-bold text-sm">ENTRY</p>
+                    <p className="text-gray-500 text-xs mt-1">Precio exacto o condicion para comprar. &quot;Compro si baja a $X.&quot;</p>
+                  </div>
+                  <div className="border border-primary/30 p-3 text-center">
+                    <p className="text-primary font-bold text-sm">TARGET</p>
+                    <p className="text-gray-500 text-xs mt-1">Donde tomas ganancias. Al menos 2 niveles de salida parcial.</p>
+                  </div>
+                  <div className="border border-gem-red/30 p-3 text-center">
+                    <p className="text-gem-red font-bold text-sm">STOP-LOSS</p>
+                    <p className="text-gray-500 text-xs mt-1">Precio maximo de perdida. Si llega aqui, vendes sin dudar.</p>
+                  </div>
+                  <div className="border border-gem-yellow/30 p-3 text-center">
+                    <p className="text-gem-yellow font-bold text-sm">SIZE</p>
+                    <p className="text-gray-500 text-xs mt-1">Cuanto dinero. Nunca mas del 1-5% de tu capital por trade.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">Journaling: tu herramienta secreta</h3>
+                <p>
+                  Los traders profesionales llevan un <strong className="text-primary">diario de trading</strong>.
+                  Por cada operacion, registra:
+                </p>
+                <ul className="list-disc list-inside space-y-2 ml-2 mt-3 text-gray-400">
+                  <li><strong className="text-white">Fecha y token:</strong> Que compraste y cuando.</li>
+                  <li><strong className="text-white">Razon de entrada:</strong> Por que compraste. Debe ser una razon analitica, no &quot;porque todos lo compraban&quot;.</li>
+                  <li><strong className="text-white">Emocion al entrar:</strong> Estabas tranquilo y confiado? O ansioso y con FOMO? Esto es clave.</li>
+                  <li><strong className="text-white">Plan (entry/target/stop/size):</strong> Lo que definiste antes de entrar.</li>
+                  <li><strong className="text-white">Resultado:</strong> Ganancia o perdida. Seguiste el plan?</li>
+                  <li><strong className="text-white">Leccion aprendida:</strong> Que harias diferente la proxima vez.</li>
+                </ul>
+                <p className="mt-3 text-gray-500">
+                  Despues de 20-30 trades registrados, empezaras a ver patrones en tu comportamiento.
+                  Esos patrones son la clave para mejorar como trader.
+                </p>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        {/* ========== SECCION 13: METRICAS CLAVE ========== */}
+        <section id="metricas-clave" className="scroll-mt-28">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-16">
+            <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
+              Metricas clave que debes conocer
+            </h2>
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <h3 className="text-white font-semibold text-base mb-3">Entiende los numeros antes de invertir</h3>
+                <p>
+                  Los memecoins se mueven por narrativa y emocion, pero las <strong className="text-primary">metricas
+                  cuantitativas</strong> te permiten separar los que tienen potencial de los que son puro ruido.
+                  Cada metrica te dice algo diferente sobre la salud y el potencial de un token.
+                </p>
+              </div>
+
+              {/* Market Cap */}
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-primary font-mono text-lg">$</span>
+                  <h3 className="text-white font-semibold text-base">Market Cap (Capitalizacion de mercado)</h3>
+                </div>
+                <p className="mb-3">
+                  <strong className="text-primary">Formula:</strong> Precio actual x Tokens en circulacion.
+                </p>
+                <div className="border border-dark-600 bg-dark-700/50 p-3 text-xs font-mono text-gray-400">
+                  <p>Ejemplo: Token XYZ tiene precio = $0.001 y supply = 1 billn de tokens</p>
+                  <p>Market Cap = $0.001 x 1,000,000,000 = <span className="text-primary">$1,000,000 ($1M)</span></p>
+                  <p className="mt-2">Si compras $1,000 de este token, necesitas que el Market Cap suba de $1M a $10M para hacer <span className="text-primary">10x</span>.</p>
+                  <p>Es posible? Un token de $1M puede llegar a $10M. Pero un token de $100M llegar a $1B es mucho mas dificil.</p>
+                </div>
+                <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-center">
+                  <div className="border border-dark-600 p-2">
+                    <p className="text-primary font-bold">&lt;$100K</p>
+                    <p className="text-gray-500">Micro cap. Altisimo riesgo, alto potencial.</p>
+                  </div>
+                  <div className="border border-dark-600 p-2">
+                    <p className="text-primary font-bold">$100K-$1M</p>
+                    <p className="text-gray-500">Small cap. Donde estan las &quot;gems&quot;.</p>
+                  </div>
+                  <div className="border border-dark-600 p-2">
+                    <p className="text-gem-yellow font-bold">$1M-$50M</p>
+                    <p className="text-gray-500">Mid cap. Mas seguro, menor multiplicador.</p>
+                  </div>
+                  <div className="border border-dark-600 p-2">
+                    <p className="text-white font-bold">&gt;$50M</p>
+                    <p className="text-gray-500">Large cap meme. DOGE, PEPE, SHIB.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Volumen 24h */}
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-primary font-mono text-lg">$</span>
+                  <h3 className="text-white font-semibold text-base">Volumen 24h</h3>
+                </div>
+                <p>
+                  El total de dinero que se ha movido (compras + ventas) en las ultimas 24 horas.
+                  Te indica <strong className="text-primary">cuanto interes real hay</strong> en el token.
+                </p>
+                <div className="border border-dark-600 bg-dark-700/50 p-3 text-xs font-mono text-gray-400 mt-3">
+                  <p>Regla rapida: <span className="text-primary">Volumen 24h / Market Cap = ratio de actividad</span></p>
+                  <p className="mt-1">Si ratio &gt; 0.5 (50%): Token muy activo, mucho trading.</p>
+                  <p>Si ratio 0.1-0.5 (10-50%): Actividad normal.</p>
+                  <p>Si ratio &lt; 0.1 (10%): <span className="text-gem-red">Token &quot;muerto&quot;. Poca actividad, dificil vender.</span></p>
+                </div>
+                <p className="mt-3 text-gray-500 text-xs">
+                  Atencion: un volumen artificialmente alto puede indicar wash trading (compras y ventas entre las mismas wallets para simular actividad).
+                </p>
+              </div>
+
+              {/* Holders */}
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-primary font-mono text-lg">$</span>
+                  <h3 className="text-white font-semibold text-base">Holders (numero de wallets)</h3>
+                </div>
+                <p>
+                  El numero de wallets unicas que poseen el token. Mas holders generalmente
+                  significa una <strong className="text-primary">distribucion mas saludable</strong> y menor riesgo de manipulacion.
+                </p>
+                <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-center">
+                  <div className="border border-gem-red/30 p-2">
+                    <p className="text-gem-red font-bold">&lt;100</p>
+                    <p className="text-gray-500">Extremadamente arriesgado. Probablemente una trampa.</p>
+                  </div>
+                  <div className="border border-gem-yellow/30 p-2">
+                    <p className="text-gem-yellow font-bold">100-500</p>
+                    <p className="text-gray-500">Muy temprano. Alto riesgo pero tambien alto potencial.</p>
+                  </div>
+                  <div className="border border-primary/30 p-2">
+                    <p className="text-primary font-bold">500-5,000</p>
+                    <p className="text-gray-500">Comunidad establecida. Token con traccion.</p>
+                  </div>
+                  <div className="border border-primary/30 p-2">
+                    <p className="text-primary font-bold">&gt;5,000</p>
+                    <p className="text-gray-500">Gran comunidad. Mas resistente a rug pulls.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Liquidez */}
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-primary font-mono text-lg">$</span>
+                  <h3 className="text-white font-semibold text-base">Liquidez (Liquidity Pool)</h3>
+                </div>
+                <p>
+                  La cantidad de dinero depositada en el pool de trading del DEX.
+                  <strong className="text-primary"> Determina cuanto puedes comprar o vender sin mover el precio</strong>.
+                </p>
+                <div className="border border-dark-600 bg-dark-700/50 p-3 text-xs font-mono text-gray-400 mt-3">
+                  <p>Ejemplo: Pool con $10K de liquidez</p>
+                  <p>- Compras $100 -&gt; precio se mueve ~1% (aceptable)</p>
+                  <p>- Compras $1,000 -&gt; precio se mueve ~10% (caro)</p>
+                  <p>- Compras $5,000 -&gt; precio se mueve ~50% (<span className="text-gem-red">inviable</span>)</p>
+                  <p className="mt-2 text-gem-yellow">Regla: nunca compres mas del 2% de la liquidez total del pool.</p>
+                </div>
+              </div>
+
+              {/* Top Holders % */}
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-gem-red font-mono text-lg">!</span>
+                  <h3 className="text-white font-semibold text-base">Top Holders % (concentracion)</h3>
+                </div>
+                <p>
+                  El porcentaje del supply total que poseen las wallets mas grandes.
+                  <strong className="text-gem-red"> Si una sola wallet tiene mas del 30% del supply, puede destruir el precio
+                  vendiendo</strong>. Cuanto mas distribuido este el supply, mas seguro.
+                </p>
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                  <div className="border border-primary/30 p-3 text-center">
+                    <p className="text-primary font-bold">Top 10 &lt; 30%</p>
+                    <p className="text-gray-500 mt-1">Buena distribucion. Las 10 wallets mas grandes tienen menos del 30%. Saludable.</p>
+                  </div>
+                  <div className="border border-gem-yellow/30 p-3 text-center">
+                    <p className="text-gem-yellow font-bold">Top 10 = 30-50%</p>
+                    <p className="text-gray-500 mt-1">Concentrado. Riesgo moderado de manipulacion. Precaucion.</p>
+                  </div>
+                  <div className="border border-gem-red/30 p-3 text-center">
+                    <p className="text-gem-red font-bold">Top 10 &gt; 50%</p>
+                    <p className="text-gray-500 mt-1">Muy concentrado. Alto riesgo de rug pull o dump masivo.</p>
+                  </div>
+                </div>
+                <p className="mt-3 text-gray-500 text-xs">
+                  Herramientas: Usa BubbleMaps para visualizar la distribucion y detectar wallets conectadas
+                  (cluster analysis). A veces una &quot;ballena&quot; tiene su supply repartido en 20 wallets para parecer mas distribuido.
+                </p>
+              </div>
+
+              {/* Buyer/Seller Ratio */}
+              <div className="border border-dark-600 bg-dark-800/50 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-primary font-mono text-lg">$</span>
+                  <h3 className="text-white font-semibold text-base">Buyer/Seller Ratio (ratio compradores/vendedores)</h3>
+                </div>
+                <p>
+                  El numero de transacciones de compra dividido entre el de venta en un periodo dado (normalmente 24h).
+                </p>
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-center">
+                  <div className="border border-primary/30 p-3">
+                    <p className="text-primary font-bold text-lg">&gt;1.0</p>
+                    <p className="text-gray-400">Mas compradores que vendedores. Presion alcista. Demanda creciente.</p>
+                  </div>
+                  <div className="border border-dark-600 p-3">
+                    <p className="text-white font-bold text-lg">=1.0</p>
+                    <p className="text-gray-400">Equilibrio. Ni alcista ni bajista. Consolidacion.</p>
+                  </div>
+                  <div className="border border-gem-red/30 p-3">
+                    <p className="text-gem-red font-bold text-lg">&lt;1.0</p>
+                    <p className="text-gray-400">Mas vendedores que compradores. Presion bajista. Cuidado.</p>
+                  </div>
+                </div>
+                <p className="mt-3 text-gray-500 text-xs">
+                  Atencion: mira tambien el VOLUMEN de compra vs venta, no solo el numero de transacciones.
+                  100 compras pequenas vs 1 venta enorme = bajista a pesar de que el ratio diga lo contrario.
+                </p>
               </div>
 
             </div>
