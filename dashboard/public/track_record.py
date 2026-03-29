@@ -9,7 +9,7 @@ Secciones:
   1. KPI cards: total predicciones, aciertos, hit rate, avg return
   2. Tabla mensual de rendimiento
   3. Top 10 gems detectados
-  4. Grafico de hit rate a lo largo del tiempo
+  4. Gráfico de hit rate a lo largo del tiempo
   5. Resumen simplificado de la matriz de confusion
 
 Fuente de datos: JOIN entre tablas scores (predicciones historicas)
@@ -39,7 +39,7 @@ def get_storage():
 @st.cache_data(ttl=600)
 def load_track_record_data() -> pd.DataFrame:
     """
-    Carga datos para el track record: scores historicos cruzados con labels reales.
+    Carga datos para el track record: scores históricos cruzados con labels reales.
 
     Hace JOIN entre scores (predicciones) y labels (resultados reales)
     para poder comparar lo que el modelo predijo vs lo que realmente paso.
@@ -143,7 +143,7 @@ def render():
             st.subheader("Predicciones pendientes de verificacion")
             st.caption(
                 f"{len(df_pending)} tokens estan siendo monitoreados. "
-                "Los resultados se verificaran automaticamente."
+                "Los resultados se verificaran automáticamente."
             )
             _render_pending_predictions(df_pending)
         return
@@ -198,7 +198,7 @@ def render():
     # Disclaimer
     st.warning(
         ":warning: **Rendimiento pasado no garantiza resultados futuros.** "
-        "Estos datos muestran el track record historico del modelo, que puede variar "
+        "Estos datos muestran el track record histórico del modelo, que puede variar "
         "segun las condiciones del mercado. DYOR."
     )
 
@@ -227,7 +227,7 @@ def _render_kpis(df_all: pd.DataFrame, df_signaled: pd.DataFrame):
     col1.metric(
         "Total predicciones",
         f"{total_predictions:,}",
-        help="Numero total de tokens analizados por el modelo con resultado conocido.",
+        help="Número total de tokens analizados por el modelo con resultado conocido.",
     )
     col2.metric(
         "Aciertos",
@@ -240,7 +240,7 @@ def _render_kpis(df_all: pd.DataFrame, df_signaled: pd.DataFrame):
     col3.metric(
         "Hit rate",
         f"{hit_rate:.1f}%",
-        help="Porcentaje de aciertos sobre el total de senales emitidas.",
+        help="Porcentaje de aciertos sobre el total de señales emitidas.",
     )
     col4.metric(
         "Retorno prom. de aciertos",
@@ -408,7 +408,7 @@ def _render_top_gems(df: pd.DataFrame):
 
 
 def _render_hit_rate_over_time(df: pd.DataFrame):
-    """Grafico de linea: hit rate a lo largo del tiempo (por mes)."""
+    """Gráfico de línea: hit rate a lo largo del tiempo (por mes)."""
 
     st.subheader("Hit rate a lo largo del tiempo")
     st.caption(
@@ -485,7 +485,7 @@ def _render_simplified_confusion(df_all: pd.DataFrame, df_signaled: pd.DataFrame
 
     st.subheader("Resumen de precision")
     st.caption(
-        "Desglose sencillo de como se desempenan las senales del modelo."
+        "Desglose sencillo de como se desempenan las señales del modelo."
     )
 
     if df_signaled.empty:
@@ -518,7 +518,7 @@ def _render_simplified_confusion(df_all: pd.DataFrame, df_signaled: pd.DataFrame
         st.metric(
             "Precision",
             f"{precision:.1f}%",
-            help="De las senales que dio el modelo, que porcentaje fueron aciertos reales.",
+            help="De las señales que dio el modelo, que porcentaje fueron aciertos reales.",
         )
         st.caption(
             f"De **{total_signaled}** tokens marcados con senal, "
@@ -567,7 +567,7 @@ def _render_simplified_confusion(df_all: pd.DataFrame, df_signaled: pd.DataFrame
         showlegend=False,
         height=250,
         margin=dict(t=10, b=20, l=20, r=40),
-        xaxis_title="Numero de tokens",
+        xaxis_title="Número de tokens",
         yaxis_title="",
     )
 

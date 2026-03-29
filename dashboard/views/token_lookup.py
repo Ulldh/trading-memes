@@ -5,7 +5,7 @@ Permite:
 - Buscar un token por contract address y cadena
 - Ver datos almacenados (nombre, simbolo, dex, etc.)
 - Ver snapshot mas reciente (precio, volumen, liquidez)
-- Ver grafico OHLCV de precio historico
+- Ver grafico OHLCV de precio histórico
 - Ver features calculados
 - Obtener prediccion del modelo con explicacion
 - Añadir nuevos tokens desde el dashboard
@@ -266,7 +266,7 @@ def render():
     st.title("Buscar Token")
 
     st.info(
-        "**Que es esto?** Busca cualquier memecoin por su contract address para ver "
+        "**¿Qué es esto?** Busca cualquier memecoin por su contract address para ver "
         "todos los datos que tenemos, el grafico de precio, y la prediccion del modelo "
         "de Machine Learning sobre si podria ser un 'gem' o no.\n\n"
         "**Contract address** es el identificador unico de un token en la blockchain. "
@@ -295,7 +295,7 @@ def render():
             "Contract Address",
             value=default_address,
             placeholder="Ej: DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
-            help="La direccion del contrato del token. Puedes copiarla de DexScreener.",
+            help="La dirección del contrato del token. Puedes copiarla de DexScreener.",
             key="token_address_input",
         )
 
@@ -314,11 +314,11 @@ def render():
             "Cadena",
             chain_options,
             index=default_index,
-            help="Se detecta automaticamente por el formato de la direccion (0x = EVM, base58 = Solana).",
+            help="Se detecta automáticamente por el formato de la dirección (0x = EVM, base58 = Solana).",
             key="chain_select_input",
         )
     if detected:
-        st.caption(f"Blockchain detectada automaticamente: **{detected.title()}**")
+        st.caption(f"Blockchain detectada automáticamente: **{detected.title()}**")
 
     buscar = st.button("Buscar", type="primary", use_container_width=True)
 
@@ -568,7 +568,7 @@ def render():
     # ------------------------------------------------------------------
     st.subheader("Ultimo Snapshot del Pool")
     st.caption(
-        "Datos del ultimo momento en que capturamos informacion de este token. "
+        "Datos del ultimo momento en que capturamos información de este token. "
         "Incluye precio, volumen de trading, liquidez y actividad de compradores/vendedores."
     )
 
@@ -634,7 +634,7 @@ def render():
         col_s7.metric(
             "Transacciones 24h",
             snap.get("tx_count_24h", "N/A"),
-            help="Numero total de transacciones (compras + ventas) en 24h.",
+            help="Número total de transacciones (compras + ventas) en 24h.",
         )
         col_s8.metric("Snapshot", str(snap.get("snapshot_time", "N/A"))[:19])
 
@@ -643,9 +643,9 @@ def render():
     # ------------------------------------------------------------------
     # 4. Grafico OHLCV
     # ------------------------------------------------------------------
-    st.subheader("Grafico de Precio")
+    st.subheader("Gráfico de Precio")
     st.caption(
-        "Grafico de velas (candlestick) del precio historico. "
+        "Gráfico de velas (candlestick) del precio histórico. "
         "Cada vela representa un dia: si cierra verde (arriba), el precio subio; "
         "si cierra roja (abajo), bajo. Las barras de abajo muestran el volumen."
     )
@@ -682,7 +682,7 @@ def render():
                 name="Precio",
             )])
             fig_price.update_layout(
-                title="Precio historico (velas diarias)",
+                title="Precio histórico (velas diarias)",
                 xaxis_title="Fecha",
                 yaxis_title="Precio (USD)",
                 xaxis_rangeslider_visible=False,
@@ -715,7 +715,7 @@ def render():
     # ------------------------------------------------------------------
     st.subheader("Features Calculados")
     st.caption(
-        "Estas son las caracteristicas numericas que el modelo usa para hacer "
+        "Estas son las características numericas que el modelo usa para hacer "
         "su prediccion. Cada feature captura un aspecto diferente del token "
         "(liquidez, actividad, precio, contrato, etc.)."
     )
@@ -760,7 +760,7 @@ def render():
     if not df_features.empty:
         st.subheader("Radar de Perfil del Token")
         st.caption(
-            "Grafico radar que muestra las dimensiones clave del token, "
+            "Gráfico radar que muestra las dimensiones clave del token, "
             "normalizadas de 0 a 1. Puedes comparar con otro token de la base "
             "de datos para ver diferencias de perfil."
         )
@@ -813,7 +813,7 @@ def render():
             compare_address = st.text_input(
                 "Comparar con otro token (contract address, opcional):",
                 key="radar_compare",
-                placeholder="Pega otra direccion para comparar",
+                placeholder="Pega otra dirección para comparar",
             )
 
             fig_radar = go.Figure()
@@ -893,7 +893,7 @@ def render():
     st.subheader("Prediccion del Modelo")
     st.caption(
         "El modelo de Machine Learning analiza los features del token y predice "
-        "si tiene caracteristicas similares a los 'gems' conocidos."
+        "si tiene características similares a los 'gems' conocidos."
     )
 
     model, model_name = load_model()
@@ -972,12 +972,12 @@ def render():
             col_p1.metric(
                 "Probabilidad de Gem",
                 f"{proba[1]:.0%}",
-                help="Que tan seguro esta el modelo de que es un gem (0-100%).",
+                help="¿Qué tan seguro esta el modelo de que es un gem (0-100%).",
             )
             col_p2.metric(
                 "Probabilidad de No-Gem",
                 f"{proba[0]:.0%}",
-                help="Que tan seguro esta el modelo de que NO es un gem.",
+                help="¿Qué tan seguro esta el modelo de que NO es un gem.",
             )
 
             # Barra visual

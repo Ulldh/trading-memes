@@ -142,7 +142,7 @@ export default function Hero() {
           transition={{ duration: 1, delay: 1.5 }}
           className="mt-6 text-[10px] sm:text-xs text-gray-500"
         >
-          Herramienta de analisis de datos. No es asesoramiento financiero.{" "}
+          Herramienta de análisis de datos. No es asesoramiento financiero.{" "}
           <a
             href="/disclaimer"
             className="text-gem-yellow/70 hover:text-gem-yellow underline underline-offset-2 transition-colors"

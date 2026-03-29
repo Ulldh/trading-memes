@@ -3,10 +3,10 @@ overview.py - Pagina de resumen general del dataset.
 
 Muestra estadisticas clave del proyecto:
 - Conteo de tokens, snapshots, OHLCV y labels
-- Distribucion de tokens por cadena (pie chart)
-- Distribucion de labels (pie chart)
+- Distribución de tokens por cadena (pie chart)
+- Distribución de labels (pie chart)
 - Tokens descubiertos por semana (bar chart)
-- Frescura de los datos (ultima actualizacion)
+- Frescura de los datos (ultima actualización)
 """
 import streamlit as st
 import pandas as pd
@@ -27,7 +27,7 @@ def render():
     st.title("Overview del Dataset")
 
     st.info(
-        "**Que es esto?** Esta pagina muestra un resumen de todos los datos que hemos "
+        "**¿Qué es esto?** Esta pagina muestra un resumen de todos los datos que hemos "
         "recopilado sobre memecoins. Piensa en ello como el \"inventario\" de nuestro "
         "proyecto: cuantos tokens tenemos, de que blockchains vienen, y como estan "
         "clasificados."
@@ -38,10 +38,10 @@ def render():
     # ------------------------------------------------------------------
     # 1. Metricas principales (KPIs)
     # ------------------------------------------------------------------
-    st.subheader("Metricas principales")
+    st.subheader("Métricas principales")
 
     st.caption(
-        "Cada numero representa cuantos registros tenemos en la base de datos. "
+        "Cada número representa cuantos registros tenemos en la base de datos. "
         "Mas datos = modelos mas confiables."
     )
 
@@ -56,7 +56,7 @@ def render():
     col1.metric(
         "Tokens",
         f"{stats.get('tokens', 0):,}",
-        help="Numero total de memecoins que estamos rastreando.",
+        help="Número total de memecoins que estamos rastreando.",
     )
     col2.metric(
         "Snapshots",
@@ -89,12 +89,12 @@ def render():
     col7.metric(
         "Features calculados",
         f"{stats.get('features', 0):,}",
-        help="Tokens para los que ya calculamos las 'features' (caracteristicas numericas que el modelo usa para predecir).",
+        help="Tokens para los que ya calculamos las 'features' (características numericas que el modelo usa para predecir).",
     )
     col8.metric(
         "Tablas en la DB",
         len(stats),
-        help="Numero de tablas en la base de datos SQLite.",
+        help="Número de tablas en la base de datos SQLite.",
     )
 
     st.divider()
@@ -102,7 +102,7 @@ def render():
     # ------------------------------------------------------------------
     # 2. Distribucion de tokens por cadena (pie chart)
     # ------------------------------------------------------------------
-    st.subheader("Distribucion de tokens por cadena")
+    st.subheader("Distribución de tokens por cadena")
 
     st.caption(
         "Cada memecoin vive en una blockchain (Solana, Ethereum o Base). "
@@ -139,7 +139,7 @@ def render():
 
     st.caption(
         "Cada token del 'seed dataset' (nuestros ejemplos conocidos) esta clasificado "
-        "segun su rendimiento historico:\n"
+        "segun su rendimiento histórico:\n"
         "- **Gem**: Alcanzo 10x o mas y se mantuvo (las joyas que buscamos).\n"
         "- **Moderate success**: Subio entre 3x-10x pero no tanto como un gem.\n"
         "- **Failure**: Perdio 90%+ de su valor (la mayoria de memecoins acaban asi)."

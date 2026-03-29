@@ -24,7 +24,7 @@ def render():
     st.title("Watchlist")
 
     st.info(
-        "**Que es esto?** Tu lista personal de tokens para monitorear. "
+        "**¿Qué es esto?** Tu lista personal de tokens para monitorear. "
         "Agrega tokens desde la pagina de Busqueda de Token para seguir "
         "su evolucion de precio, liquidez y actividad."
     )

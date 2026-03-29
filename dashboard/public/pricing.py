@@ -1,7 +1,7 @@
 """
-Landing page con pricing — propuesta de valor y planes de suscripcion.
+Landing page con pricing — propuesta de valor y planes de suscripción.
 
-Esta pagina es publica (no requiere autenticacion). Muestra la propuesta
+Esta pagina es publica (no requiere autenticación). Muestra la propuesta
 de valor del producto, como funciona, los planes de precios y un FAQ.
 """
 
@@ -9,7 +9,7 @@ import streamlit as st
 
 
 def render():
-    """Landing page con pricing — propuesta de valor y planes de suscripcion."""
+    """Landing page con pricing — propuesta de valor y planes de suscripción."""
 
     # -------------------------------------------------------------------------
     # 1. Hero section
@@ -41,7 +41,7 @@ def render():
     with col2:
         st.metric(label="Blockchains", value="4", help="Solana, Ethereum, Base, Tron")
     with col3:
-        st.metric(label="Senales diarias", value="07:30 UTC")
+        st.metric(label="Señales diarias", value="07:30 UTC")
     with col4:
         st.metric(label="Modelo", value="Semanal", help="Reentrenamiento automatico semanal")
 
@@ -50,7 +50,7 @@ def render():
     # -------------------------------------------------------------------------
     # 3. Como funciona (3 columnas)
     # -------------------------------------------------------------------------
-    st.markdown("### Como funciona")
+    st.markdown("### ¿Cómo funciona")
     st.write("")
 
     hw1, hw2, hw3 = st.columns(3)
@@ -65,16 +65,16 @@ def render():
     with hw2:
         st.markdown(
             """
-            #### Analisis ML
+            #### Análisis ML
             Nuestro modelo de Machine Learning analiza
-            **94 caracteristicas** por token para predecir su potencial.
+            **94 características** por token para predecir su potencial.
             """
         )
     with hw3:
         st.markdown(
             """
-            #### Senales a tu Telegram
-            Recibes las mejores senales directamente
+            #### Señales a tu Telegram
+            Recibes las mejores señales directamente
             en **Telegram**, filtradas y ordenadas por probabilidad.
             """
         )
@@ -95,7 +95,7 @@ def render():
         st.markdown(
             """
 - Resumen del mercado
-- 3 senales diarias
+- 3 señales diarias
 - Watchlist basica (3 tokens)
 - ~~Busqueda de tokens~~
 - ~~Alertas Telegram~~
@@ -113,12 +113,12 @@ def render():
             st.markdown(
                 """
 - Todo lo de Free
-- **Todas** las senales diarias
+- **Todas** las señales diarias
 - Busqueda ilimitada de tokens
 - Alertas Telegram personalizadas
 - Track Record completo
 - Watchlist de 10 tokens
-- Analisis SHAP por token
+- Análisis SHAP por token
                 """
             )
             st.markdown("**$29 / mes**")
@@ -149,7 +149,7 @@ def render():
     st.markdown("### Preguntas frecuentes")
     st.write("")
 
-    with st.expander("Que es un gem?"):
+    with st.expander("¿Qué es un gem?"):
         st.write(
             "Un **gem** es un memecoin que consigue un retorno de al menos "
             "**10x** desde su precio de deteccion. Nuestro modelo esta "
@@ -157,32 +157,32 @@ def render():
             "tokens de los miles que van a cero."
         )
 
-    with st.expander("Como funciona el modelo?"):
+    with st.expander("¿Cómo funciona el modelo?"):
         st.write(
             "Usamos **Random Forest** y **XGBoost** entrenados con datos "
-            "historicos de miles de memecoins. Analizamos 94 caracteristicas: "
+            "históricos de miles de memecoins. Analizamos 94 características: "
             "liquidez, concentracion de holders, volumen, momentum, "
             "contexto de mercado y mas. El modelo se reentrena semanalmente "
             "para adaptarse a las condiciones del mercado."
         )
 
-    with st.expander("Con que frecuencia se actualizan las senales?"):
+    with st.expander("¿Con qué frecuencia se actualizan las señales?"):
         st.write(
             "La recoleccion de datos se ejecuta **diariamente a las 06:00 UTC**. "
-            "Las senales se generan y envian a Telegram a las **07:30 UTC**. "
+            "Las señales se generan y envian a Telegram a las **07:30 UTC**. "
             "Ademas, el modelo se reentrena **cada lunes** para incorporar "
             "los datos mas recientes."
         )
 
-    with st.expander("Puedo cancelar en cualquier momento?"):
+    with st.expander("¿Puedo cancelar en cualquier momento?"):
         st.write(
-            "Si. Puedes cancelar tu suscripcion en cualquier momento desde "
+            "Si. Puedes cancelar tu suscripción en cualquier momento desde "
             "tu panel de usuario. No hay contratos ni permanencia minima. "
             "Al cancelar, mantendras el acceso hasta el final del periodo "
-            "de facturacion vigente."
+            "de facturación vigente."
         )
 
-    with st.expander("Que blockchains soportan?"):
+    with st.expander("¿Qué blockchains soportan?"):
         st.write(
             "Actualmente soportamos **Solana**, **Ethereum** y **Base**. "
             "Tron esta en fase de integracion. Planeamos anadir mas "

@@ -8,11 +8,11 @@ Secciones:
   1. Formulario para anadir posiciones (expandable)
   2. KPIs resumen: total invertido, valor actual, P&L, posiciones activas
   3. Tabla de posiciones con precio actual y P&L
-  4. Grafico de valor del portfolio
-  5. Metricas de rendimiento (mejor/peor trade, win rate)
+  4. Gráfico de valor del portfolio
+  5. Métricas de rendimiento (mejor/peor trade, win rate)
 
 Datos:
-  - Posiciones almacenadas en st.session_state (por sesion)
+  - Posiciones almacenadas en st.session_state (por sesión)
   - Precios actuales obtenidos de OHLCV/pool_snapshots en Supabase
   - Futuro: tabla user_portfolio en Supabase
 """
@@ -236,7 +236,7 @@ def _render_add_position_form():
             token_address = st.text_input(
                 "Direccion del token",
                 placeholder="Ej: 0x1234... o So1111...",
-                help="La direccion del contrato del token en la blockchain.",
+                help="La dirección del contrato del token en la blockchain.",
             )
             chain = st.selectbox(
                 "Blockchain",
@@ -268,7 +268,7 @@ def _render_add_position_form():
         if st.button(":heavy_plus_sign: Anadir posicion", type="primary", use_container_width=True):
             # Validaciones
             if not token_address.strip():
-                st.error("Introduce la direccion del token.")
+                st.error("Introduce la dirección del token.")
                 return
             if buy_price <= 0:
                 st.error("El precio de compra debe ser mayor a 0.")
@@ -382,7 +382,7 @@ def _render_kpis(positions: list[dict]):
     col4.metric(
         "Posiciones activas",
         active_count,
-        help="Numero de posiciones abiertas en tu portfolio.",
+        help="Número de posiciones abiertas en tu portfolio.",
     )
 
 
@@ -465,7 +465,7 @@ def _render_positions_table(positions: list[dict]):
 
 
 def _render_portfolio_chart(positions: list[dict]):
-    """Grafico del valor del portfolio (barras por posicion)."""
+    """Gráfico del valor del portfolio (barras por posicion)."""
 
     st.subheader("Valor por posicion")
 
@@ -523,7 +523,7 @@ def _render_portfolio_chart(positions: list[dict]):
 
 
 def _render_performance_metrics(positions: list[dict]):
-    """Metricas de rendimiento del portfolio."""
+    """Métricas de rendimiento del portfolio."""
 
     st.subheader("Rendimiento")
 
@@ -534,7 +534,7 @@ def _render_performance_metrics(positions: list[dict]):
     priced = [p for p in positions if p["price_available"]]
 
     if not priced:
-        st.info("Sin datos de precio disponibles para calcular metricas.")
+        st.info("Sin datos de precio disponibles para calcular métricas.")
         return
 
     pnl_values = [p["pnl_pct"] for p in priced]
@@ -600,7 +600,7 @@ def _render_disclaimer():
         ":warning: **Esto NO es consejo financiero.**\n\n"
         "Los datos de precio se obtienen de nuestra base de datos y pueden "
         "no reflejar el precio exacto de mercado en tiempo real. "
-        "Las posiciones se guardan solo durante tu sesion actual. "
+        "Las posiciones se guardan solo durante tu sesión actual. "
         "Haz tu propia investigacion (DYOR) y nunca inviertas mas de lo "
         "que puedas permitirte perder."
     )

@@ -39,7 +39,7 @@ def render():
     # -------------------------------------------------------------------------
     # Paso 2: Como funciona (3 columnas)
     # -------------------------------------------------------------------------
-    st.markdown("### Como funciona")
+    st.markdown("### ¿Cómo funciona")
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown("**1. Recopilamos**")
@@ -49,12 +49,12 @@ def render():
     with col2:
         st.markdown("**2. Analizamos**")
         st.caption(
-            "94 caracteristicas por token: liquidez, holders, volumen, momentum..."
+            "94 características por token: liquidez, holders, volumen, momentum..."
         )
     with col3:
         st.markdown("**3. Alertamos**")
         st.caption(
-            "Recibes las mejores senales en el dashboard y por Telegram."
+            "Recibes las mejores señales en el dashboard y por Telegram."
         )
 
     st.write("")
@@ -65,7 +65,7 @@ def render():
     st.markdown("### Primeros pasos")
     st.markdown(
         """
-1. **Senales** — Revisa las senales del dia en la pestana "Senales"
+1. **Señales** — Revisa las señales del dia en la pestana "Señales"
 2. **Watchlist** — Anade tokens que te interesen para seguirlos
 3. **Alertas** — Configura alertas Telegram para no perderte nada
 4. **Track Record** — Revisa nuestro historial de aciertos

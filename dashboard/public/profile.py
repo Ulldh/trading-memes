@@ -1,8 +1,8 @@
 """
-profile.py — Perfil de usuario: gestionar cuenta y suscripcion.
+profile.py — Perfil de usuario: gestiónar cuenta y suscripción.
 
-Muestra informacion de la cuenta, permite editar el display name,
-ver el estado de suscripcion, la conexion con Telegram, y eliminar
+Muestra información de la cuenta, permite editar el display name,
+ver el estado de suscripción, la conexion con Telegram, y eliminar
 la cuenta (zona de peligro).
 """
 
@@ -72,7 +72,7 @@ def _update_display_name(user_id: str, new_name: str) -> bool:
 def _delete_user_account(user_id: str) -> bool:
     """Elimina la cuenta del usuario.
 
-    Borra el perfil de la tabla profiles. La eliminacion de auth.users
+    Borra el perfil de la tabla profiles. La eliminación de auth.users
     debe hacerse via Supabase Admin o un edge function con service_role.
     Retorna True si la operacion fue exitosa.
     """
@@ -116,7 +116,7 @@ _PLAN_LABELS = {
 # ============================================================
 
 def render():
-    """Perfil de usuario — gestionar cuenta y suscripcion."""
+    """Perfil de usuario — gestiónar cuenta y suscripción."""
     st.header(":material/person: Mi Perfil")
 
     # Obtener datos del usuario de session_state
@@ -126,7 +126,7 @@ def render():
     role = st.session_state.get("role", "free")
 
     if not user_id:
-        st.warning("No se encontro informacion de la sesion. Inicia sesion de nuevo.")
+        st.warning("No se encontro información de la sesión. Inicia sesión de nuevo.")
         st.stop()
 
     # Cargar perfil actualizado desde la base de datos
@@ -211,7 +211,7 @@ def render():
     if plan == "free":
         st.info(
             "Estas en el plan gratuito. Suscribete a **Pro** para desbloquear "
-            "todas las senales, busqueda de tokens, alertas Telegram y mas."
+            "todas las señales, busqueda de tokens, alertas Telegram y mas."
         )
         if _stripe_ok and _create_checkout is not None:
             try:
@@ -244,14 +244,14 @@ def render():
                 portal_url = ""
             if portal_url:
                 st.link_button(
-                    "Gestionar suscripcion (Stripe)",
+                    "Gestiónar suscripción (Stripe)",
                     portal_url,
                 )
             else:
                 st.caption("No se pudo generar el enlace al portal de Stripe.")
         else:
             st.caption(
-                "Gestion de suscripcion no disponible. "
+                "Gestión de suscripción no disponible. "
                 "Contacta info@memedetector.es."
             )
 
@@ -274,7 +274,7 @@ def render():
     else:
         st.warning(
             "Telegram no conectado. Conecta tu cuenta de Telegram para "
-            "recibir senales y alertas directamente en tu movil."
+            "recibir señales y alertas directamente en tu movil."
         )
         st.page_link(
             "dashboard/public/alerts_config.py",
@@ -291,8 +291,8 @@ def render():
         st.markdown(
             "**Eliminar cuenta**: esta accion es irreversible. Se eliminaran "
             "todos tus datos, incluyendo watchlists, preferencias de alertas "
-            "y perfil. Tu suscripcion activa (si la hay) no se cancelara "
-            "automaticamente en Stripe — contacta a info@memedetector.es "
+            "y perfil. Tu suscripción activa (si la hay) no se cancelara "
+            "automáticamente en Stripe — contacta a info@memedetector.es "
             "si necesitas un reembolso."
         )
 

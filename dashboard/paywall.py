@@ -93,7 +93,7 @@ def show_upgrade_prompt(feature_name: str = "esta función"):
 
 
 def limit_signals(df, plan: str = "free"):
-    """Limita el numero de señales visibles segun plan."""
+    """Limita el número de señales visibles segun plan."""
     from src.billing.subscription import get_plan_limits
     limits = get_plan_limits(plan)
     max_visible = limits.get("max_signals_visible", 3)

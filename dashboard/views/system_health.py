@@ -3,9 +3,9 @@ system_health.py - Pagina de estado del sistema y monitoreo.
 
 Muestra:
 - Estado de health checks (APIs, DB, disco, recopilacion, API usage)
-- Graficos de uso de APIs (consumo mensual, trending diario)
+- Gráficos de uso de APIs (consumo mensual, trending diario)
 - Timestamps de ultima ejecucion (collect, backup, health check)
-- Estadisticas de espacio en disco
+- Estadísticas de espacio en disco
 - Estado de servicios launchd
 """
 import streamlit as st
@@ -47,7 +47,7 @@ def render():
     st.title("🏥 System Health - Estado del Sistema")
 
     st.info(
-        "**Que es esto?** Esta pagina muestra el estado de salud del sistema "
+        "**¿Qué es esto?** Esta pagina muestra el estado de salud del sistema "
         "de Trading Memes. Aqui puedes ver si todo esta funcionando correctamente, "
         "monitorear el uso de APIs, verificar cuando fue la ultima recopilacion, "
         "y revisar el espacio disponible en disco.\n\n"
@@ -208,7 +208,7 @@ def render_api_usage():
     st.divider()
 
     # Grafico de barras: llamadas por API
-    st.markdown("### Distribucion de llamadas por API")
+    st.markdown("### Distribución de llamadas por API")
     fig_bar = px.bar(
         summary,
         x="api_name",
@@ -254,7 +254,7 @@ def render_services_logs():
     st.subheader("⚙️ Servicios y Logs")
     st.caption(
         "Estado de los servicios automatizados (launchd) y acceso rapido a los logs. "
-        "Los servicios deben estar activos para que la recopilacion y backups funcionen."
+        "Los servicios deben estar activos para que la recopilacion y backups funciónen."
     )
 
     # Estado de servicios launchd (solo macOS)
@@ -299,7 +299,7 @@ def render_services_logs():
     selected_log = st.selectbox(
         "Selecciona un log para ver",
         options=list(log_files.keys()),
-        help="Muestra las ultimas 50 lineas del log seleccionado."
+        help="Muestra las ultimas 50 líneas del log seleccionado."
     )
 
     log_path = log_files[selected_log]
@@ -318,7 +318,7 @@ def render_services_logs():
 
 
 def render_disk_space():
-    """Renderiza informacion de espacio en disco."""
+    """Renderiza información de espacio en disco."""
     st.subheader("💾 Espacio en Disco")
     st.caption(
         "Monitoreo del espacio disponible y uso del proyecto. "
@@ -402,7 +402,7 @@ def render_disk_space():
             df_sizes,
             names="Directorio",
             values="Tamano (MB)",
-            title="Distribucion de espacio por directorio",
+            title="Distribución de espacio por directorio",
         )
         fig_pie.update_layout(height=400)
         st.plotly_chart(fig_pie, use_container_width=True)

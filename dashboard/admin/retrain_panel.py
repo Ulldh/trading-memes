@@ -2,9 +2,9 @@
 retrain_panel.py - Panel de control de retrain para modelos ML.
 
 Muestra:
-- Informacion del modelo actual (version, metricas, fecha)
+- Informacion del modelo actual (version, métricas, fecha)
 - Historial de versiones con comparativa
-- Estadisticas de datos de entrenamiento
+- Estadísticas de datos de entrenamiento
 - Acciones de retrain (comandos manuales)
 - Reporte de seleccion de features
 
@@ -88,7 +88,7 @@ def _load_training_stats() -> dict:
     """
     Carga estadisticas de entrenamiento desde Supabase.
 
-    Consulta conteos de tokens, labels, features y distribucion de clases.
+    Consulta conteos de tokens, labels, features y distribución de clases.
     """
     stats = {
         "total_tokens": 0,
@@ -133,7 +133,7 @@ def _load_training_stats() -> dict:
 
 @st.cache_data(ttl=300)
 def _load_feature_columns() -> dict | None:
-    """Carga feature_columns.json con informacion de seleccion de features."""
+    """Carga feature_columns.json con información de seleccion de features."""
     try:
         from config import MODELS_DIR
         path = MODELS_DIR / "feature_columns.json"
@@ -154,8 +154,8 @@ def render():
     st.header("Control de Retrain")
 
     st.info(
-        "**Que es esto?** Este panel permite monitorear las versiones del modelo, "
-        "comparar metricas entre versiones, ver estadisticas de los datos de "
+        "**¿Qué es esto?** Este panel permite monitorear las versiones del modelo, "
+        "comparar métricas entre versiones, ver estadisticas de los datos de "
         "entrenamiento y ejecutar retrains manuales via GitHub Actions."
     )
 
@@ -251,7 +251,7 @@ def render():
     st.subheader("Datos de entrenamiento")
 
     st.caption(
-        "Estadisticas actuales de los datos disponibles en Supabase. "
+        "Estadísticas actuales de los datos disponibles en Supabase. "
         "Estos datos se usan para entrenar nuevas versiones del modelo."
     )
 
@@ -339,7 +339,7 @@ def render():
     st.caption(
         "Flags: `--skip-labels` (usa labels existentes), "
         "`--skip-features` (usa features existentes), "
-        "`--version vN` (especificar numero de version)."
+        "`--version vN` (especificar número de version)."
     )
 
     st.markdown("---")
@@ -413,10 +413,10 @@ def render():
 
 def _render_model_card(meta: dict, is_current: bool = False):
     """
-    Renderiza una tarjeta con informacion de un modelo.
+    Renderiza una tarjeta con información de un modelo.
 
-    Muestra version, fecha, metricas principales de RF y XGB,
-    y numero de features.
+    Muestra version, fecha, métricas principales de RF y XGB,
+    y número de features.
     """
     version = meta.get("version", "?")
     trained_at = meta.get("trained_at", "N/A")
@@ -449,7 +449,7 @@ def _render_model_card(meta: dict, is_current: bool = False):
     col3.metric("Features", num_features)
 
     # Metricas de modelos
-    st.markdown("**Metricas de validacion:**")
+    st.markdown("**Métricas de validación:**")
     col_rf, col_xgb = st.columns(2)
 
     with col_rf:
@@ -486,7 +486,7 @@ def _render_version_comparison_chart(all_versions: list[dict]):
     """
     Renderiza un grafico de barras comparando F1 scores entre versiones.
 
-    Muestra RF y XGB F1 de validacion para las ultimas 10 versiones.
+    Muestra RF y XGB F1 de validación para las ultimas 10 versiones.
     """
     # Tomar solo las ultimas 10 versiones (las mas recientes)
     recent = all_versions[:10]
@@ -528,7 +528,7 @@ def _render_version_comparison_chart(all_versions: list[dict]):
     fig.update_layout(
         title="Comparacion de F1 Score por version",
         xaxis_title="Version",
-        yaxis_title="F1 Score (validacion)",
+        yaxis_title="F1 Score (validación)",
         barmode="group",
         height=400,
         yaxis=dict(range=[0, 1]),

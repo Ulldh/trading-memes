@@ -1,9 +1,9 @@
 """
-eda.py - Pagina de Analisis Exploratorio de Datos (EDA).
+eda.py - Pagina de Análisis Exploratorio de Datos (EDA).
 
 Permite explorar visualmente los features calculados:
 - Scatter plot de 2 features cualesquiera (coloreado por label)
-- Histogramas de distribucion por label
+- Histogramas de distribución por label
 - Mapa de correlaciones (heatmap)
 - Box plots comparativos por categoria de label
 """
@@ -106,7 +106,7 @@ FEATURE_DESCRIPTIONS = {
     "liquidity_growth_24h": "Cuanto crecio (%) la liquidez en las primeras 24 horas",
     "liquidity_growth_7d": "Cuanto crecio (%) la liquidez en 7 dias",
     "liq_to_mcap_ratio": "Liquidez / Market Cap. Ratio alto = pool saludable",
-    "volume_to_liq_ratio_24h": "Volumen 24h / Liquidez. Que tan activamente se tradea",
+    "volume_to_liq_ratio_24h": "Volumen 24h / Liquidez. ¿Qué tan activamente se tradea",
     "return_24h": "Retorno del precio en 24 horas (1.0 = +100%)",
     "return_48h": "Retorno del precio en 48 horas",
     "return_7d": "Retorno del precio en 7 dias",
@@ -133,12 +133,12 @@ FEATURE_DESCRIPTIONS = {
 
 
 def render():
-    """Renderiza la pagina de Analisis Exploratorio."""
-    st.title("Analisis Exploratorio (EDA)")
+    """Renderiza la pagina de Análisis Exploratorio."""
+    st.title("Análisis Exploratorio (EDA)")
 
     st.info(
-        "**Que es EDA?** El Analisis Exploratorio de Datos es como \"mirar los datos "
-        "antes de modelar\". Aqui puedes comparar visualmente las caracteristicas "
+        "**¿Qué es EDA?** El Análisis Exploratorio de Datos es como \"mirar los datos "
+        "antes de modelar\". Aqui puedes comparar visualmente las características "
         "(features) de los tokens que fueron gems vs los que fracasaron, buscando "
         "patrones que distingan a unos de otros."
     )
@@ -189,7 +189,7 @@ def render():
     st.subheader("Scatter Plot: comparar dos features")
 
     st.caption(
-        "Selecciona dos caracteristicas y mira como se distribuyen los tokens. "
+        "Selecciona dos características y mira como se distribuyen los tokens. "
         "Cada punto es un token, coloreado segun su clasificacion. "
         "Si los colores se agrupan en zonas distintas, significa que esa "
         "combinacion de features ayuda a distinguir gems de failures."
@@ -232,7 +232,7 @@ def render():
     desc_x = FEATURE_DESCRIPTIONS.get(feature_x, "")
     desc_y = FEATURE_DESCRIPTIONS.get(feature_y, "")
     if desc_x or desc_y:
-        with st.expander("Que significan estos features?"):
+        with st.expander("¿Qué significan estos features?"):
             if desc_x:
                 st.markdown(f"- **{feature_x}**: {desc_x}")
             if desc_y:
@@ -243,7 +243,7 @@ def render():
     # ------------------------------------------------------------------
     # 2. Histograma: distribucion de un feature por label
     # ------------------------------------------------------------------
-    st.subheader("Histograma: distribucion por clasificacion")
+    st.subheader("Histograma: distribución por clasificacion")
 
     st.caption(
         "Muestra como se distribuye un feature para cada tipo de token. "
@@ -260,7 +260,7 @@ def render():
         x=feature_hist,
         color="label_multi",
         color_discrete_map=LABEL_COLORS,
-        title=f"Distribucion de {feature_hist}",
+        title=f"Distribución de {feature_hist}",
         barmode="overlay",
         opacity=0.7,
         nbins=30,
@@ -282,7 +282,7 @@ def render():
     st.caption(
         "Muestra que tan relacionados estan los features entre si. "
         "Valores cercanos a **+1** (rojo) = se mueven juntos. "
-        "Valores cercanos a **-1** (azul) = se mueven en direccion opuesta. "
+        "Valores cercanos a **-1** (azul) = se mueven en dirección opuesta. "
         "Valores cercanos a **0** (blanco) = no hay relacion. "
         "Features muy correlacionados son redundantes (dan la misma info)."
     )
@@ -313,7 +313,7 @@ def render():
 
     st.caption(
         "Un box plot muestra el rango de valores de un feature para cada grupo. "
-        "La caja contiene el 50% central de los datos, la linea del medio es la "
+        "La caja contiene el 50% central de los datos, la línea del medio es la "
         "mediana (valor tipico), y los puntos fuera son valores atipicos (outliers)."
     )
 
@@ -327,7 +327,7 @@ def render():
         y=feature_box,
         color="label_multi",
         color_discrete_map=LABEL_COLORS,
-        title=f"Distribucion de {feature_box} por clasificacion",
+        title=f"Distribución de {feature_box} por clasificacion",
         points="outliers",
     )
     fig_box.update_layout(

@@ -1,7 +1,7 @@
 """
-alerts_config.py — Configuracion de alertas Telegram personales.
+alerts_config.py — Configuración de alertas Telegram personales.
 
-Permite a suscriptores Pro configurar que tipo de senales recibir
+Permite a suscriptores Pro configurar que tipo de señales recibir
 en su Telegram: score minimo, cadenas, nivel de senal, y alertas
 de sistema (health monitor, drift). Incluye vista previa del mensaje
 y envio de prueba.
@@ -177,7 +177,7 @@ def _build_test_message() -> str:
         "✅ *Conexion exitosa*\n"
         "━━━━━━━━━━━━━━━━━━\n"
         "Tu Telegram esta conectado con Gem Detector.\n"
-        "Recibiras alertas segun tu configuracion.\n"
+        "Recibiras alertas segun tu configuración.\n"
         f"\n_Test enviado: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}_"
     )
 
@@ -206,7 +206,7 @@ def _init_preferences():
 # ============================================================
 
 def render():
-    """Configuracion de Alertas Telegram — personaliza tus notificaciones."""
+    """Configuración de Alertas Telegram — personaliza tus notificaciones."""
 
     # --- Gate de acceso Pro ---
     try:
@@ -218,7 +218,7 @@ def render():
         pass  # Sin paywall en desarrollo
 
     st.header("🔔 Alertas Telegram")
-    st.caption("Configura que senales quieres recibir en tu Telegram personal.")
+    st.caption("Configura que señales quieres recibir en tu Telegram personal.")
 
     # Inicializar preferencias
     _init_preferences()
@@ -251,7 +251,7 @@ def render():
         st.warning("Telegram no conectado. Sigue estos pasos para conectar:")
 
         st.markdown("""
-        **Como conectar tu Telegram:**
+        **Cómo conectar tu Telegram:**
 
         1. Abre Telegram y busca **@Ull_trading_bot**
         2. Envia el comando `/start`
@@ -265,7 +265,7 @@ def render():
             new_chat_id = st.text_input(
                 "Tu Chat ID de Telegram",
                 placeholder="Ej: 1558705287",
-                help="Numero que te da el bot al enviar /start.",
+                help="Número que te da el bot al enviar /start.",
                 label_visibility="collapsed",
             )
         with col_btn:
@@ -273,11 +273,11 @@ def render():
 
         if conectar_clicked:
             if not new_chat_id or not new_chat_id.strip().lstrip("-").isdigit():
-                st.error("Introduce un Chat ID valido (solo numeros).")
+                st.error("Introduce un Chat ID valido (solo números).")
             else:
                 user_id = st.session_state.get("user_id")
                 if not user_id:
-                    st.error("No se encontro tu sesion. Inicia sesion de nuevo.")
+                    st.error("No se encontro tu sesión. Inicia sesión de nuevo.")
                 else:
                     # Verificar enviando un mensaje de prueba
                     result = _send_telegram_message(
@@ -313,9 +313,9 @@ def render():
     with st.form("alert_preferences_form"):
         # --- Senales diarias ---
         senales_diarias = st.toggle(
-            "Senales diarias",
+            "Señales diarias",
             value=st.session_state["alert_senales_diarias"],
-            help="Recibe las senales del modelo ML cada dia (tokens con potencial de ser gems).",
+            help="Recibe las señales del modelo ML cada dia (tokens con potencial de ser gems).",
         )
 
         # --- Score minimo ---
@@ -337,7 +337,7 @@ def render():
             "Cadenas",
             options=CHAINS_DISPONIBLES,
             default=st.session_state["alert_chains"],
-            help="Filtra senales por blockchain. Selecciona las cadenas que te interesan.",
+            help="Filtra señales por blockchain. Selecciona las cadenas que te interesan.",
         )
 
         # --- Nivel minimo ---
@@ -349,9 +349,9 @@ def render():
             ),
             horizontal=True,
             help=(
-                "STRONG only: solo senales de alta confianza. "
-                "MEDIUM+: incluye senales moderadas. "
-                "ALL: todas las senales (mas ruido)."
+                "STRONG only: solo señales de alta confianza. "
+                "MEDIUM+: incluye señales moderadas. "
+                "ALL: todas las señales (mas ruido)."
             ),
         )
 
@@ -371,7 +371,7 @@ def render():
             value=st.session_state["alert_drift_alerts"],
             help=(
                 "Recibe notificacion cuando se detecta drift en el modelo "
-                "(cambios en la distribucion de datos que pueden degradar las predicciones)."
+                "(cambios en la distribución de datos que pueden degradar las predicciones)."
             ),
         )
 
@@ -408,7 +408,7 @@ def render():
     st.subheader("Vista previa")
 
     st.caption(
-        "Asi lucira una alerta tipica con tu configuracion actual."
+        "Asi lucira una alerta tipica con tu configuración actual."
     )
 
     # Construir preview con las preferencias actuales
@@ -450,8 +450,8 @@ def render():
     st.subheader("Historial de alertas")
 
     st.caption(
-        "Ultimas 10 alertas enviadas a tu Telegram. "
-        "Este historial se poblara automaticamente cuando el sistema "
+        "Últimas 10 alertas enviadas a tu Telegram. "
+        "Este historial se poblara automáticamente cuando el sistema "
         "de alertas este activo."
     )
 
@@ -465,7 +465,7 @@ def _show_alert_history_placeholder():
     Muestra placeholder del historial de alertas.
 
     Cuando se implemente la tabla alert_log en Supabase,
-    esta funcion se reemplazara por una consulta real.
+    esta función se reemplazara por una consulta real.
     """
     # Intentar cargar historial real de Supabase (futuro)
     try:

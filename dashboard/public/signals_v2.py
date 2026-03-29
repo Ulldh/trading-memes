@@ -1,5 +1,5 @@
 """
-signals_v2.py - Senales del dia (version comercial).
+signals_v2.py - Señales del dia (version comercial).
 
 Pagina principal del producto: muestra los tokens que el modelo ML
 ha detectado con mayor probabilidad de ser "gems" (10x+).
@@ -8,10 +8,10 @@ Orientada a suscriptores — lenguaje accesible, sin jerga tecnica,
 visualizaciones limpias y un disclaimer claro.
 
 Secciones:
-  1. KPI cards: total senales, STRONG, mejor score, chains activas
+  1. KPI cards: total señales, STRONG, mejor score, chains activas
   2. Tabla principal: tokens del dia ordenados por score
-  3. Distribucion de senales (donut chart)
-  4. Distribucion por chain (bar chart horizontal)
+  3. Distribución de señales (donut chart)
+  4. Distribución por chain (bar chart horizontal)
   5. Disclaimer legal
 """
 
@@ -42,10 +42,10 @@ def get_storage():
 @st.cache_data(ttl=300)
 def load_todays_signals() -> pd.DataFrame:
     """
-    Carga las senales del dia desde Supabase (tabla scores + tokens).
+    Carga las señales del dia desde Supabase (tabla scores + tokens).
 
     Hace JOIN con tokens para obtener name, symbol, chain y pool_address.
-    Si no hay senales de hoy, devuelve TODAS las senales mas recientes
+    Si no hay señales de hoy, devuelve TODAS las señales mas recientes
     (para entornos donde el scorer no se ejecuta diariamente).
 
     Returns:
@@ -91,9 +91,9 @@ def _chain_badge(chain: str) -> str:
 # ============================================================
 
 def render():
-    """Senales del dia — pagina principal del producto."""
+    """Señales del dia — pagina principal del producto."""
 
-    st.header(":fire: Senales del Dia")
+    st.header(":fire: Señales del Dia")
     st.caption(
         "Tokens con mayor probabilidad de ser gems, detectados por nuestro modelo ML. "
         "Actualizado diariamente a las 07:00 UTC."
@@ -104,9 +104,9 @@ def render():
     # --- Estado vacio: mensaje amigable ---
     if df.empty:
         st.info(
-            ":hourglass_flowing_sand: **No hay senales disponibles en este momento.**\n\n"
+            ":hourglass_flowing_sand: **No hay señales disponibles en este momento.**\n\n"
             "El modelo se ejecuta diariamente a las 07:00 UTC. "
-            "Las senales aparecen aqui automaticamente tras cada analisis."
+            "Las señales aparecen aqui automáticamente tras cada análisis."
         )
         return
 
@@ -158,12 +158,12 @@ def _render_kpis(df: pd.DataFrame):
     col1, col2, col3, col4 = st.columns(4)
 
     col1.metric(
-        "Total senales",
+        "Total señales",
         total,
-        help="Numero total de tokens analizados con senal activa.",
+        help="Número total de tokens analizados con senal activa.",
     )
     col2.metric(
-        "Senales STRONG",
+        "Señales STRONG",
         strong_count,
         help=f"Tokens con probabilidad >= {SIGNAL_THRESHOLDS['STRONG']:.0%}. Alta confianza.",
     )
@@ -175,12 +175,12 @@ def _render_kpis(df: pd.DataFrame):
     col4.metric(
         "Chains activas",
         chains_activas,
-        help="Numero de blockchains con senales (Solana, Ethereum, Base).",
+        help="Número de blockchains con señales (Solana, Ethereum, Base).",
     )
 
 
 def _render_signals_table(df: pd.DataFrame):
-    """Tabla principal de senales del dia, ordenada por score descendente."""
+    """Tabla principal de señales del dia, ordenada por score descendente."""
 
     st.subheader("Candidatos detectados")
 
@@ -214,7 +214,7 @@ def _render_signals_table(df: pd.DataFrame):
         df_filtered = df_filtered[df_filtered["chain"] == selected_chain]
 
     if df_filtered.empty:
-        st.info("No hay senales con los filtros seleccionados.")
+        st.info("No hay señales con los filtros seleccionados.")
         return
 
     # Ordenar por probabilidad descendente
@@ -276,7 +276,7 @@ def _render_signals_table(df: pd.DataFrame):
         ),
         "DexScreener": st.column_config.LinkColumn(
             "DexScreener",
-            help="Ver en DexScreener para mas informacion del token.",
+            help="Ver en DexScreener para mas información del token.",
             display_text="Ver",
             width="small",
         ),
@@ -290,16 +290,16 @@ def _render_signals_table(df: pd.DataFrame):
         height=min(len(df_display) * 38 + 40, 600),
     )
 
-    st.caption(f"Mostrando {len(df_display)} de {len(df)} senales.")
+    st.caption(f"Mostrando {len(df_display)} de {len(df)} señales.")
 
 
 def _render_signal_distribution(df: pd.DataFrame):
-    """Donut chart con distribucion de senales (STRONG/MEDIUM/WEAK)."""
+    """Donut chart con distribución de señales (STRONG/MEDIUM/WEAK)."""
 
-    st.subheader("Distribucion de senales")
+    st.subheader("Distribución de señales")
 
     if "signal" not in df.columns:
-        st.info("Sin datos de senales.")
+        st.info("Sin datos de señales.")
         return
 
     # Contar por tipo de senal
@@ -337,9 +337,9 @@ def _render_signal_distribution(df: pd.DataFrame):
 
 
 def _render_chain_distribution(df: pd.DataFrame):
-    """Bar chart horizontal con distribucion por blockchain."""
+    """Bar chart horizontal con distribución por blockchain."""
 
-    st.subheader("Senales por blockchain")
+    st.subheader("Señales por blockchain")
 
     if "chain" not in df.columns:
         st.info("Sin datos de cadena.")
@@ -369,7 +369,7 @@ def _render_chain_distribution(df: pd.DataFrame):
         showlegend=False,
         margin=dict(t=20, b=20, l=20, r=20),
         height=350,
-        xaxis_title="Numero de senales",
+        xaxis_title="Número de señales",
         yaxis_title="",
     )
 
@@ -382,6 +382,6 @@ def _render_disclaimer():
     st.warning(
         ":warning: **Esto NO es consejo financiero.**\n\n"
         "Los memecoins son extremadamente volatiles y la gran mayoria pierde todo su valor. "
-        "Las senales de este modelo son herramientas de analisis, no recomendaciones de inversion. "
+        "Las señales de este modelo son herramientas de análisis, no recomendaciones de inversion. "
         "Haz tu propia investigacion (DYOR) y nunca inviertas mas de lo que puedas permitirte perder."
     )

@@ -4,10 +4,10 @@ import Navbar from "@/components/Navbar";
 import Link from "next/link";
 
 const sections = [
-  { id: "que-somos", label: "Que somos" },
-  { id: "que-no-somos", label: "Que NO somos" },
+  { id: "que-somos", label: "Qué somos" },
+  { id: "que-no-somos", label: "Qué NO somos" },
   { id: "marco-regulatorio", label: "Regulatorio" },
-  { id: "senales", label: "Senales" },
+  { id: "señales", label: "Señales" },
   { id: "riesgos", label: "Riesgos" },
   { id: "responsabilidad", label: "Tu responsabilidad" },
   { id: "contacto", label: "Contacto" },
@@ -49,10 +49,10 @@ export default function DisclaimerPage() {
         {/* Page title */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-10 pb-6">
           <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
-            <span className="text-primary">&gt;</span> Que somos y que NO somos
+            <span className="text-primary">&gt;</span> Qué somos y qué NO somos
           </h1>
           <p className="text-sm text-gray-500 mt-2 font-mono">
-            Disclaimer &middot; Exencion de responsabilidad &middot; Marco regulatorio
+            Disclaimer &middot; Exención de responsabilidad &middot; Marco regulatorio
           </p>
         </div>
 
@@ -60,7 +60,7 @@ export default function DisclaimerPage() {
         <section id="que-somos" className="scroll-mt-28">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-16">
             <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
-              1. Que es Meme Detector
+              1. Qué es Meme Detector
             </h2>
             <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
               <div className="border border-primary/30 bg-primary/5 p-6">
@@ -68,32 +68,32 @@ export default function DisclaimerPage() {
                   <li className="flex items-start gap-3">
                     <span className="text-primary font-bold mt-0.5">$</span>
                     <span>
-                      Somos una <strong className="text-white">herramienta de software de analisis automatizado de datos</strong>.
-                      Nuestro producto es tecnologia, no asesoramiento financiero.
+                      Somos una <strong className="text-white">herramienta de software de análisis automatizado de datos</strong>.
+                      Nuestro producto es tecnología, no asesoramiento financiero.
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-primary font-bold mt-0.5">$</span>
                     <span>
-                      Utilizamos <strong className="text-white">Machine Learning</strong> para analizar caracteristicas publicas
+                      Utilizamos <strong className="text-white">Machine Learning</strong> para analizar características públicas
                       de tokens en blockchains como Solana, Ethereum y Base. Los modelos identifican patrones
-                      estadisticos en datos historicos.
+                      estadísticos en datos históricos.
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-primary font-bold mt-0.5">$</span>
                     <span>
-                      Proporcionamos <strong className="text-white">informacion estadistica y analisis de datos</strong>,
-                      NO recomendaciones de inversion. La interpretacion y las decisiones corresponden
+                      Proporcionamos <strong className="text-white">información estadística y análisis de datos</strong>,
+                      NO recomendaciones de inversión. La interpretación y las decisiones corresponden
                       exclusivamente al usuario.
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-primary font-bold mt-0.5">$</span>
                     <span>
-                      Somos una <strong className="text-white">empresa tecnologica espanola</strong>:{" "}
+                      Somos una <strong className="text-white">empresa tecnológica española</strong>:{" "}
                       <strong className="text-white">ULL MIDDLE MOORE S.L.</strong>, NIF B76672864,
-                      con domicilio en Carretera General La Perdoma 35, La Orotava, Santa Cruz de Tenerife, Espana.
+                      con domicilio en Carretera General La Perdoma 35, La Orotava, Santa Cruz de Tenerife, España.
                     </span>
                   </li>
                 </ul>
@@ -106,7 +106,7 @@ export default function DisclaimerPage() {
         <section id="que-no-somos" className="scroll-mt-28">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-16">
             <h2 className="text-xl md:text-2xl font-bold text-gem-red mb-8 border-b border-gem-red/40 pb-3 uppercase tracking-wider">
-              2. Que NO somos
+              2. Qué NO somos
             </h2>
             <div className="border-2 border-gem-red/50 bg-gem-red/5 p-6 md:p-8">
               <p className="text-gem-yellow font-semibold text-sm mb-6 uppercase tracking-wider">
@@ -123,15 +123,15 @@ export default function DisclaimerPage() {
                 <li className="flex items-start gap-3">
                   <span className="text-gem-red font-bold text-base shrink-0">X</span>
                   <span>
-                    <strong className="text-white">NO estamos registrados ni autorizados por la CNMV, SEC, FCA ni ningun regulador financiero.</strong>{" "}
+                    <strong className="text-white">NO estamos registrados ni autorizados por la CNMV, SEC, FCA ni ningún regulador financiero.</strong>{" "}
                     No somos una Empresa de Servicios de Inversion (ESI).
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-gem-red font-bold text-base shrink-0">X</span>
                   <span>
-                    <strong className="text-white">NO proporcionamos recomendaciones de compra, venta o mantenimiento de ningun activo.</strong>{" "}
-                    Las puntuaciones son indicadores estadisticos, no instrucciones operativas.
+                    <strong className="text-white">NO proporcionamos recomendaciones de compra, venta o mantenimiento de ningún activo.</strong>{" "}
+                    Las puntuaciones son indicadores estadísticos, no instrucciones operativas.
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
@@ -144,21 +144,21 @@ export default function DisclaimerPage() {
                 <li className="flex items-start gap-3">
                   <span className="text-gem-red font-bold text-base shrink-0">X</span>
                   <span>
-                    <strong className="text-white">NO gestionamos carteras ni fondos de inversion.</strong>{" "}
+                    <strong className="text-white">NO gestionamos carteras ni fondos de inversión.</strong>{" "}
                     No tenemos acceso a tus fondos ni a tus wallets.
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-gem-red font-bold text-base shrink-0">X</span>
                   <span>
-                    <strong className="text-white">NO garantizamos rentabilidad ni resultados de ningun tipo.</strong>{" "}
+                    <strong className="text-white">NO garantizamos rentabilidad ni resultados de ningún tipo.</strong>{" "}
                     Los rendimientos pasados no garantizan resultados futuros.
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-gem-red font-bold text-base shrink-0">X</span>
                   <span>
-                    <strong className="text-white">NO somos responsables de las decisiones de inversion de nuestros usuarios.</strong>{" "}
+                    <strong className="text-white">NO somos responsables de las decisiones de inversión de nuestros usuarios.</strong>{" "}
                     Cada usuario asume la total responsabilidad de sus operaciones.
                   </span>
                 </li>
@@ -182,11 +182,11 @@ export default function DisclaimerPage() {
                   MiFID II — Directiva 2014/65/UE
                 </h3>
                 <p>
-                  Nuestro servicio <strong className="text-gem-yellow">NO constituye &quot;asesoramiento en materia de inversion&quot;</strong>{" "}
-                  segun el articulo 4(1)(4) de la Directiva 2014/65/UE, ya que no proporcionamos recomendaciones
+                  Nuestro servicio <strong className="text-gem-yellow">NO constituye &quot;asesoramiento en materia de inversión&quot;</strong>{" "}
+                  según el artículo 4(1)(4) de la Directiva 2014/65/UE, ya que no proporcionamos recomendaciones
                   personalizadas basadas en las circunstancias individuales del cliente. Meme Detector es una
-                  herramienta de analisis automatizado que genera indicadores estadisticos genericos, sin
-                  considerar la situacion financiera, objetivos de inversion ni perfil de riesgo de ningun
+                  herramienta de análisis automatizado que genera indicadores estadísticos genéricos, sin
+                  considerar la situación financiera, objetivos de inversión ni perfil de riesgo de ningún
                   usuario concreto.
                 </p>
               </div>
@@ -198,11 +198,11 @@ export default function DisclaimerPage() {
                   MiCA — Reglamento UE 2023/1114
                 </h3>
                 <p>
-                  Los criptoactivos tipo memecoins <strong className="text-gem-yellow">NO estan clasificados como tokens referenciados
-                  a activos (ART) ni tokens de dinero electronico (EMT)</strong> bajo el Reglamento de Mercados de
-                  Criptoactivos. Son criptoactivos que quedan fuera del ambito regulatorio especifico de MiCA.
-                  Meme Detector no emite, ofrece al publico ni solicita la admision a negociacion de ningun
-                  criptoactivo. Somos exclusivamente un proveedor de herramientas de analisis de datos.
+                  Los criptoactivos tipo memecoins <strong className="text-gem-yellow">NO están clasificados como tokens referenciados
+                  a activos (ART) ni tokens de dinero electrónico (EMT)</strong> bajo el Reglamento de Mercados de
+                  Criptoactivos. Son criptoactivos que quedan fuera del ámbito regulatorio específico de MiCA.
+                  Meme Detector no emite, ofrece al público ni solicita la admisión a negociación de ningún
+                  criptoactivo. Somos exclusivamente un proveedor de herramientas de análisis de datos.
                 </p>
               </div>
 
@@ -210,14 +210,14 @@ export default function DisclaimerPage() {
               <div className="border border-dark-600 p-6">
                 <h3 className="text-white font-semibold text-base mb-3 flex items-center gap-2">
                   <span className="text-primary font-mono text-xs">03</span>
-                  CNMV — Comision Nacional del Mercado de Valores
+                  CNMV — Comisión Nacional del Mercado de Valores
                 </h3>
                 <p>
-                  <strong className="text-gem-yellow">No estamos registrados como empresa de servicios de inversion (ESI)</strong> en la CNMV.
-                  No necesitamos estarlo porque NO proporcionamos asesoramiento financiero, gestion de carteras,
-                  ni intermediacion en la compraventa de valores o criptoactivos. Nuestro servicio es analisis
-                  de datos automatizado: un software que procesa informacion publica de blockchains y genera
-                  metricas estadisticas.
+                  <strong className="text-gem-yellow">No estamos registrados como empresa de servicios de inversión (ESI)</strong> en la CNMV.
+                  No necesitamos estarlo porque NO proporcionamos asesoramiento financiero, gestión de carteras,
+                  ni intermediación en la compraventa de valores o criptoactivos. Nuestro servicio es análisis
+                  de datos automatizado: un software que procesa información pública de blockchains y genera
+                  métricas estadísticas.
                 </p>
               </div>
 
@@ -225,13 +225,13 @@ export default function DisclaimerPage() {
               <div className="border border-dark-600 p-6">
                 <h3 className="text-white font-semibold text-base mb-3 flex items-center gap-2">
                   <span className="text-primary font-mono text-xs">04</span>
-                  Ley 10/2010 — Prevencion de blanqueo de capitales
+                  Ley 10/2010 — Prevención de blanqueo de capitales
                 </h3>
                 <p>
                   <strong className="text-gem-yellow">No intermediamos con fondos de clientes.</strong>{" "}
                   No custodiamos, transferimos ni gestionamos criptoactivos o dinero fiat de nuestros usuarios.
-                  Los pagos de suscripcion se procesan exclusivamente mediante <strong className="text-white">Stripe</strong>{" "}
-                  (certificado PCI DSS Level 1), un procesador de pagos regulado. En ningun momento tenemos
+                  Los pagos de suscripción se procesan exclusivamente mediante <strong className="text-white">Stripe</strong>{" "}
+                  (certificado PCI DSS Level 1), un procesador de pagos regulado. En ningún momento tenemos
                   acceso a los datos de pago completos del usuario.
                 </p>
               </div>
@@ -244,7 +244,7 @@ export default function DisclaimerPage() {
         <section id="senales" className="scroll-mt-28">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-16">
             <h2 className="text-xl md:text-2xl font-bold text-gem-yellow mb-8 border-b border-gem-yellow/40 pb-3 uppercase tracking-wider">
-              4. Naturaleza de las &quot;senales&quot;
+              4. Naturaleza de las &quot;señales&quot;
             </h2>
             <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
               <div className="border border-gem-yellow/30 bg-gem-yellow/5 p-6 md:p-8">
@@ -252,26 +252,26 @@ export default function DisclaimerPage() {
                   <li className="flex items-start gap-3">
                     <span className="text-gem-yellow font-bold shrink-0">!</span>
                     <span>
-                      Las &quot;senales&quot; que genera Meme Detector son el resultado de un{" "}
+                      Las &quot;señales&quot; que genera Meme Detector son el resultado de un{" "}
                       <strong className="text-white">algoritmo de Machine Learning</strong> (Random Forest + XGBoost).
-                      Son calculos matematicos, no opiniones ni recomendaciones.
+                      Son cálculos matemáticos, no opiniones ni recomendaciones.
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-gem-yellow font-bold shrink-0">!</span>
                     <span>
-                      Son <strong className="text-white">indicadores estadisticos basados en datos publicos</strong> de
-                      blockchain (precios, volumenes, liquidez, holders, etc.),{" "}
-                      <strong className="text-gem-red">NO recomendaciones de inversion</strong>.
+                      Son <strong className="text-white">indicadores estadísticos basados en datos públicos</strong> de
+                      blockchain (precios, volúmenes, liquidez, holders, etc.),{" "}
+                      <strong className="text-gem-red">NO recomendaciones de inversión</strong>.
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-gem-yellow font-bold shrink-0">!</span>
                     <span>
                       Un &quot;score alto&quot; significa que el algoritmo ha detectado{" "}
-                      <strong className="text-white">patrones similares a tokens que historicamente tuvieron revalorizacion</strong>.{" "}
+                      <strong className="text-white">patrones similares a tokens que históricamente tuvieron revalorización</strong>.{" "}
                       <strong className="text-gem-red">NO significa que el token vaya a subir.</strong>{" "}
-                      Correlacion no implica causalidad.
+                      Correlación no implica causalidad.
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
@@ -279,15 +279,15 @@ export default function DisclaimerPage() {
                     <span>
                       El modelo tiene una tasa de acierto del{" "}
                       <strong className="text-white">~67% (F1-score)</strong>. Esto implica que aproximadamente{" "}
-                      <strong className="text-gem-red">~33% de las senales NO se materializan</strong>.
-                      Ningun modelo de Machine Learning es perfecto.
+                      <strong className="text-gem-red">~33% de las señales NO se materializan</strong>.
+                      Ningún modelo de Machine Learning es perfecto.
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-gem-yellow font-bold shrink-0">!</span>
                     <span>
                       <strong className="text-gem-red">Rendimientos pasados NO garantizan resultados futuros.</strong>{" "}
-                      El mercado de memecoins es altamente impredecible y los patrones historicos pueden
+                      El mercado de memecoins es altamente impredecible y los patrones históricos pueden
                       dejar de funcionar en cualquier momento.
                     </span>
                   </li>
@@ -311,43 +311,43 @@ export default function DisclaimerPage() {
                 <li className="flex items-start gap-3">
                   <span className="text-gem-red font-bold shrink-0">&gt;</span>
                   <span>
-                    Los memecoins son activos <strong className="text-white">altamente especulativos y volatiles</strong>.
+                    Los memecoins son activos <strong className="text-white">altamente especulativos y volátiles</strong>.
                     Pueden perder el 90-100% de su valor en minutos.
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-gem-red font-bold shrink-0">&gt;</span>
                   <span>
-                    <strong className="text-white">Puedes perder el 100% de tu inversion.</strong>{" "}
-                    Este escenario no es improbable, es estadisticamente frecuente en memecoins.
+                    <strong className="text-white">Puedes perder el 100% de tu inversión.</strong>{" "}
+                    Este escenario no es improbable, es estadísticamente frecuente en memecoins.
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-gem-red font-bold shrink-0">&gt;</span>
                   <span>
-                    Los memecoins <strong className="text-white">no tienen valor intrinseco ni respaldo de activos</strong>.
-                    Su precio depende exclusivamente de la especulacion y el sentimiento del mercado.
+                    Los memecoins <strong className="text-white">no tienen valor intrínseco ni respaldo de activos</strong>.
+                    Su precio depende exclusivamente de la especulación y el sentimiento del mercado.
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-gem-red font-bold shrink-0">&gt;</span>
                   <span>
-                    Son susceptibles a <strong className="text-white">manipulacion de mercado</strong>: pump &amp; dump,
-                    rug pulls, wash trading, insider trading y otras practicas fraudulentas.
+                    Son susceptibles a <strong className="text-white">manipulación de mercado</strong>: pump &amp; dump,
+                    rug pulls, wash trading, insider trading y otras prácticas fraudulentas.
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-gem-red font-bold shrink-0">&gt;</span>
                   <span>
-                    La <strong className="text-white">liquidez puede desaparecer en segundos</strong>.
-                    Es posible que no puedas vender tu posicion cuando lo desees.
+                    La <strong className="text-white">liquidez puede desaparecer en segúndos</strong>.
+                    Es posible que no puedas vender tu posición cuando lo desees.
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-gem-red font-bold shrink-0">&gt;</span>
                   <span>
-                    <strong className="text-white">No estan protegidos por ningun fondo de garantia</strong> de
-                    depositos ni de inversiones. Si pierdes tu dinero, nadie te lo devolvera.
+                    <strong className="text-white">No están protegidos por ningún fondo de garantía</strong> de
+                    depósitos ni de inversiones. Si pierdes tu dinero, nadie te lo devolverá.
                   </span>
                 </li>
               </ul>
@@ -367,23 +367,23 @@ export default function DisclaimerPage() {
                   <li className="flex items-start gap-3">
                     <span className="text-primary font-bold shrink-0">&gt;</span>
                     <span>
-                      El usuario es el <strong className="text-white">unico responsable de sus decisiones de inversion</strong>.
-                      Meme Detector no tiene ningun control ni influencia sobre las operaciones que realices.
+                      El usuario es el <strong className="text-white">único responsable de sus decisiones de inversión</strong>.
+                      Meme Detector no tiene ningún control ni influencia sobre las operaciones que realices.
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-primary font-bold shrink-0">&gt;</span>
                     <span>
-                      Debes realizar tu propia investigacion (<strong className="text-white">DYOR — Do Your Own Research</strong>)
-                      antes de cualquier operacion. Las senales de Meme Detector son un punto de partida
-                      para tu analisis, no una conclusion.
+                      Debes realizar tu propia investigación (<strong className="text-white">DYOR — Do Your Own Research</strong>)
+                      antes de cualquier operación. Las señales de Meme Detector son un punto de partida
+                      para tu análisis, no una conclusión.
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-primary font-bold shrink-0">&gt;</span>
                     <span>
                       <strong className="text-gem-red">No inviertas dinero que no puedas permitirte perder.</strong>{" "}
-                      Los memecoins deben representar solo una fraccion marginal de tu patrimonio,
+                      Los memecoins deben representar solo una fracción marginal de tu patrimonio,
                       y solo si comprendes y aceptas los riesgos.
                     </span>
                   </li>
@@ -392,14 +392,14 @@ export default function DisclaimerPage() {
                     <span>
                       <strong className="text-white">Consulta con un asesor financiero registrado</strong> si
                       necesitas asesoramiento personalizado. Los profesionales registrados en la CNMV
-                      estan cualificados para evaluar tu situacion individual.
+                      están cualificados para evaluar tu situación individual.
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-primary font-bold shrink-0">&gt;</span>
                     <span>
-                      Al usar Meme Detector, <strong className="text-white">aceptas estos terminos y la exencion de
-                      responsabilidad</strong> en su totalidad. Si no estas de acuerdo, no utilices el servicio.
+                      Al usar Meme Detector, <strong className="text-white">aceptas estos términos y la exención de
+                      responsabilidad</strong> en su totalidad. Si no estás de acuerdo, no utilices el servicio.
                     </span>
                   </li>
                 </ul>
@@ -460,7 +460,7 @@ export default function DisclaimerPage() {
         <div className="border-t border-dark-600 bg-dark-800/50">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 text-center">
             <p className="text-xs text-gray-500">
-              Ultima actualizacion: marzo 2026 &middot; ULL MIDDLE MOORE S.L. &middot; NIF B76672864
+              Última actualización: marzo 2026 &middot; ULL MIDDLE MOORE S.L. &middot; NIF B76672864
             </p>
             <div className="mt-3 flex items-center justify-center gap-4 text-xs">
               <Link href="/legal" className="text-gray-400 hover:text-primary transition-colors">

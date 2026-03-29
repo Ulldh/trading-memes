@@ -2,8 +2,8 @@
 academy.py — Academia Pro: conocimiento avanzado de crypto y memecoins.
 
 Solo accesible para usuarios Pro/Admin. Contenido educativo avanzado
-organizado en tabs: blockchains, narrativas, analisis de tokens,
-gestion de riesgo y herramientas del trader.
+organizado en tabs: blockchains, narrativas, análisis de tokens,
+gestión de riesgo y herramientas del trader.
 
 Todo el contenido esta en espanol y orientado a traders de memecoins
 que ya tienen los conceptos basicos.
@@ -27,7 +27,7 @@ def render():
     st.header(":material/school: Academia Pro")
     st.caption(
         "Contenido avanzado para traders de memecoins. "
-        "Aprende a analizar tokens, gestionar riesgo y usar herramientas profesionales."
+        "Aprende a analizar tokens, gestiónar riesgo y usar herramientas profesionales."
     )
 
     # --- Disclaimer ---
@@ -41,8 +41,8 @@ def render():
     tab_chains, tab_narrativas, tab_analisis, tab_riesgo, tab_herramientas = st.tabs([
         "Blockchains",
         "Narrativas",
-        "Analisis de Tokens",
-        "Gestion de Riesgo",
+        "Análisis de Tokens",
+        "Gestión de Riesgo",
         "Herramientas",
     ])
 
@@ -52,7 +52,7 @@ def render():
     with tab_chains:
         st.subheader("Blockchains y ecosistemas")
         st.info(
-            "**Por que importa esto?** Cada blockchain tiene sus propias reglas, "
+            "**¿Por qué importa esto?** Cada blockchain tiene sus propias reglas, "
             "costes y ecosistema. Entender donde operas es el primer paso para "
             "tomar mejores decisiones."
         )
@@ -62,7 +62,7 @@ def render():
             st.markdown("""
 **Solana** es una blockchain de capa 1 (L1) disenada para ser rapida y barata.
 
-**Caracteristicas clave:**
+**Características clave:**
 - **Velocidad:** ~400ms por bloque, transacciones casi instantaneas
 - **Coste:** Gas fees de ~$0.001 por transaccion (casi gratis)
 - **Ecosistema DeFi:** Jupiter (DEX agregador), Raydium (AMM), Marinade (staking liquido)
@@ -80,7 +80,7 @@ def render():
             st.markdown("""
 **Ethereum** es la primera blockchain con smart contracts. La mayor parte de DeFi se construyo aqui.
 
-**Caracteristicas clave:**
+**Características clave:**
 - **Smart contracts:** Programas autonomos que ejecutan logica sin intermediarios
 - **ERC-20:** Estandar para crear tokens (la mayoria de altcoins y memecoins de Ethereum siguen este estandar)
 - **Gas fees:** Históricamente altas ($5-$50+ por transaccion), lo que frena el trading de memecoins pequenos
@@ -98,7 +98,7 @@ def render():
             st.markdown("""
 **Base** es una Layer 2 (L2) construida sobre Ethereum por Coinbase.
 
-**Caracteristicas clave:**
+**Características clave:**
 - **L2 (Layer 2):** Usa la seguridad de Ethereum pero procesa transacciones mas rapido y barato
 - **Bajo coste:** Gas fees de centimos, no dolares
 - **Respaldo de Coinbase:** Credibilidad institucional, base de usuarios grande
@@ -151,19 +151,19 @@ def render():
     with tab_narrativas:
         st.subheader("Narrativas de mercado")
         st.info(
-            "**Que es una narrativa?** Una tendencia o tema que mueve capital en crypto. "
-            "Los tokens que se alinean con la narrativa dominante tienden a subir mas rapido."
+            "**¿Qué es una narrativa?** Una tendencia o tema que mueve capital en crypto. "
+            "Los tokens que se alínean con la narrativa dominante tienden a subir mas rapido."
         )
 
         # --- Concepto de narrativa ---
-        with st.expander("Como funcionan las narrativas", expanded=True):
+        with st.expander("¿Cómo funcionan las narrativas", expanded=True):
             st.markdown("""
 En crypto, el dinero sigue **historias**. Cuando suficientes personas creen en una narrativa,
 compran tokens relacionados, lo que sube el precio, lo que atrae mas personas. Es un ciclo
 que se retroalimenta... hasta que se rompe.
 
 **Ejemplo real:** En 2023, la narrativa de "AI tokens" hizo que cualquier token con "AI" en el
-nombre subiera 5-50x, independientemente de si tenia tecnologia real de IA o no.
+nombre subiera 5-50x, independientemente de si tenia tecnología real de IA o no.
 
 **La leccion:** No importa si la narrativa es "correcta" — importa si suficiente gente la cree
 durante suficiente tiempo para que puedas entrar y salir con beneficios.
@@ -189,9 +189,9 @@ recurrentes.
             """)
 
         # --- Detectar narrativas ---
-        with st.expander("Como detectar narrativas emergentes"):
+        with st.expander("¿Cómo detectar narrativas emergentes"):
             st.markdown("""
-**Senales tempranas de una narrativa:**
+**Señales tempranas de una narrativa:**
 
 1. **Crypto Twitter (X):** Los KOLs (Key Opinion Leaders) empiezan a hablar de un tema nuevo.
    Si ves 3-5 cuentas influyentes hablando de lo mismo en 24h, presta atencion.
@@ -205,7 +205,7 @@ recurrentes.
 4. **Nuevos protocolos:** Si aparece una nueva plataforma que facilita crear tokens de un tipo
    (como Pump.fun para memecoins en Solana), espera una explosion de oferta.
 
-**Regla practica:** Si crees que has "descubierto" una narrativa viendo un tweet viral,
+**Regla práctica:** Si crees que has "descubierto" una narrativa viendo un tweet viral,
 probablemente ya vas tarde. Las mejores oportunidades estan ANTES del hype masivo.
             """)
 
@@ -244,7 +244,7 @@ Toda narrativa sigue un patron predecible:
     # TAB 3: ANALISIS DE TOKENS
     # ==================================================================
     with tab_analisis:
-        st.subheader("Analisis de tokens")
+        st.subheader("Análisis de tokens")
         st.info(
             "**Antes de comprar cualquier token**, dedica 5-10 minutos a analizarlo. "
             "Estos son los aspectos que miran los traders profesionales."
@@ -260,10 +260,10 @@ Toda narrativa sigue un patron predecible:
 - **Circulating Supply:** Cuantos estan en circulacion ahora
 - Si hay gran diferencia, significa que saldran muchos tokens nuevos (dilucion = presion de venta)
 
-**Distribucion:**
+**Distribución:**
 - Como se repartieron los tokens al lanzamiento?
 - Si el equipo tiene >20% del supply, pueden vender y hundir el precio
-- Busca distribucion amplia entre muchos holders
+- Busca distribución amplia entre muchos holders
 
 **Vesting (bloqueo temporal):**
 - Los tokens del equipo e inversores suelen tener un periodo de bloqueo
@@ -282,7 +282,7 @@ Toda narrativa sigue un patron predecible:
 Todo lo que pasa en blockchain es publico. Los profesionales analizan estos datos:
 
 **Actividad de wallets:**
-- Numero de holders unicos y tendencia (creciendo o decreciendo?)
+- Número de holders unicos y tendencia (creciendo o decreciendo?)
 - Transacciones diarias (actividad real o bots?)
 - Nuevos vs antiguos holders (los nuevos estan comprando o los antiguos vendiendo?)
 
@@ -303,7 +303,7 @@ Todo lo que pasa en blockchain es publico. Los profesionales analizan estos dato
 **Smart money** = wallets que consistentemente generan beneficios. Si descubres una,
 puedes monitorear que compra.
 
-**Como encontrar smart money:**
+**Cómo encontrar smart money:**
 1. En DexScreener, mira los "Top Traders" de un token que hizo 10x+
 2. Identifica wallets que compraron temprano y vendieron en maximo
 3. Sigue esas wallets para ver que compran despues
@@ -314,7 +314,7 @@ puedes monitorear que compra.
 - **DEXScreener Top Traders:** Gratis, muestra las wallets mas rentables por token
 
 **Advertencia:** No copies ciegamente. Las smart money wallets tambien pierden.
-Usa esta informacion como UNA senal mas, no como la unica.
+Usa esta información como UNA senal mas, no como la unica.
             """)
 
         # --- Social signals ---
@@ -344,9 +344,9 @@ Un aumento subito de social signals ANTES de un pump de precio es una senal alci
     # TAB 4: GESTION DE RIESGO AVANZADA
     # ==================================================================
     with tab_riesgo:
-        st.subheader("Gestion de riesgo avanzada")
+        st.subheader("Gestión de riesgo avanzada")
         st.info(
-            "**La gestion de riesgo es lo que separa a los traders que sobreviven "
+            "**La gestión de riesgo es lo que separa a los traders que sobreviven "
             "de los que pierden todo.** No es la parte mas emocionante, pero es la mas importante."
         )
 
@@ -366,10 +366,10 @@ basandose en tu probabilidad de ganar y el ratio de pago.
 - Si crees que tiene un 5% de probabilidad de hacer 50x:
   - Kelly = (0.05 x 50 - 0.95) / 50 = 0.031 = **3.1% del portfolio**
 
-**En la practica:** La mayoria de traders profesionales de memecoins usan "fraccional Kelly"
+**En la práctica:** La mayoria de traders profesionales de memecoins usan "fraccional Kelly"
 (la mitad o un cuarto del Kelly calculado) para ser mas conservadores.
 
-**Regla practica:** Si no sabes calcular, usa el 1-2% por token. Con 50-100 EUR por posicion
+**Regla práctica:** Si no sabes calcular, usa el 1-2% por token. Con 50-100 EUR por posicion
 en un portfolio de 5000 EUR.
             """)
 
@@ -381,7 +381,7 @@ disparados por wicks (mechas) temporales y venderte a un precio terrible.
 
 **Stop-loss mental vs On-chain:**
 
-| Tipo | Como funciona | Ventaja | Desventaja |
+| Tipo | ¿Cómo funciona | Ventaja | Desventaja |
 |------|--------------|---------|------------|
 | Mental | Decides un precio y vendes tu manualmente | No te sacan con wicks | Requiere disciplina |
 | On-chain (limit order) | Colocas una orden en el DEX | Automatico | Puede ejecutarse en mal momento |
@@ -476,43 +476,43 @@ se evaporan.
         )
 
         # --- DexScreener ---
-        with st.expander("DexScreener — Graficos y trending", expanded=True):
+        with st.expander("DexScreener — Gráficos y trending", expanded=True):
             st.markdown("""
 **URL:** [dexscreener.com](https://dexscreener.com)
 
-**Que es:** Agregador de datos de DEXs en multiples blockchains. Es la herramienta numero 1
+**Que es:** Agregador de datos de DEXs en multiples blockchains. Es la herramienta número 1
 para traders de memecoins.
 
-**Como usarlo:**
+**Cómo usarlo:**
 1. **Trending:** La pagina principal muestra tokens con mayor volumen/variacion
-2. **Buscar token:** Pega la direccion del contrato para ver precio, liquidez, holders
-3. **Graficos:** Velas japonesas con indicadores basicos (MA, volumen)
+2. **Buscar token:** Pega la dirección del contrato para ver precio, liquidez, holders
+3. **Gráficos:** Velas japonesas con indicadores basicos (MA, volumen)
 4. **Top Traders:** Ve las wallets mas rentables de cada token
 5. **Filtros:** Filtra por blockchain, edad del token, liquidez minima
 
-**Senales a buscar en DexScreener:**
+**Señales a buscar en DexScreener:**
 - Liquidez creciente (LP crece, no decrece)
 - Volumen alto relativo al market cap
-- Numero de compradores > vendedores
+- Número de compradores > vendedores
 - Token con mas de 24h de vida y aun creciendo
             """)
 
         # --- BubbleMaps ---
-        with st.expander("BubbleMaps — Distribucion de holders"):
+        with st.expander("BubbleMaps — Distribución de holders"):
             st.markdown("""
 **URL:** [bubblemaps.io](https://bubblemaps.io)
 
-**Que es:** Visualizacion de la distribucion de holders de un token. Muestra cada wallet
+**Que es:** Visualizacion de la distribución de holders de un token. Muestra cada wallet
 como una burbuja cuyo tamano es proporcional a la cantidad de tokens que tiene.
 
-**Como interpretarlo:**
-- **Muchas burbujas pequenas:** Bueno. Distribucion amplia, menos riesgo de dump masivo
+**Cómo interpretarlo:**
+- **Muchas burbujas pequenas:** Bueno. Distribución amplia, menos riesgo de dump masivo
 - **Una burbuja gigante:** Peligro. Una wallet tiene un porcentaje enorme del supply
 - **Burbujas conectadas:** Las wallets estan relacionadas (mismo dueno probable). Muy peligroso
 - **Cluster de burbujas medianas:** Puede indicar manipulacion coordinada
 
 **Regla rapida:** Si una wallet no-exchange tiene >10% del supply, precaucion.
-Si tiene >25%, alto riesgo. Si tiene >50%, practicamente garantizado rug pull.
+Si tiene >25%, alto riesgo. Si tiene >50%, prácticamente garantizado rug pull.
             """)
 
         # --- GeckoTerminal ---
@@ -527,8 +527,8 @@ Es la fuente principal de datos de Meme Detector.
 - **Pools:** Ve todos los pools de liquidez de un token y en que DEXs estan
 - **Liquidez total:** Suma de liquidez en todos los pools
 - **Volumen 24h:** Actividad de trading real
-- **Price chart:** Grafico de precio por pool especifico
-- **OHLCV:** Datos historicos de precio (Open, High, Low, Close, Volume)
+- **Price chart:** Gráfico de precio por pool especifico
+- **OHLCV:** Datos históricos de precio (Open, High, Low, Close, Volume)
 
 **Para que lo usa Meme Detector:**
 Nuestros modelos extraen datos de GeckoTerminal para calcular features como:
@@ -536,21 +536,21 @@ volatilidad, tendencias de volumen, crecimiento de liquidez, y patrones de preci
             """)
 
         # --- Meme Detector ---
-        with st.expander("Meme Detector — Como interpretar nuestras senales"):
+        with st.expander("Meme Detector — Como interpretar nuestras señales"):
             st.markdown("""
 **Meme Detector** analiza miles de memecoins diariamente con modelos de Machine Learning
 para identificar aquellos con mayor probabilidad de ser "gems" (10x+).
 
 **Score (0-100):**
-- **80-100:** Senal fuerte. El modelo ve multiples indicadores positivos alineados
+- **80-100:** Senal fuerte. El modelo ve multiples indicadores positivos alíneados
 - **60-79:** Senal moderada. Algunos indicadores positivos, pero no todos
-- **40-59:** Neutral. No hay evidencia clara en ninguna direccion
+- **40-59:** Neutral. No hay evidencia clara en ninguna dirección
 - **0-39:** Senal negativa. El modelo ve riesgo elevado
 
 **Signal (BUY / HOLD / SELL):**
 - Basada en el score + reglas adicionales de confirmacion
 - BUY no significa "compra ya" — significa que el modelo ve potencial
-- Siempre verifica con tu propio analisis antes de actuar
+- Siempre verifica con tu propio análisis antes de actuar
 
 **SHAP values (explicabilidad):**
 - Muestra QUE features contribuyeron mas a la senal
@@ -558,16 +558,16 @@ para identificar aquellos con mayor probabilidad de ser "gems" (10x+).
 - Si las features principales son solidas (liquidez, volumen, holders), la senal es mas confiable
 - Si dependen de features volatiles (precio a corto plazo), la senal es menos estable
 
-**Como usar Meme Detector en tu proceso:**
-1. Revisa las senales diarias como punto de partida
+**Cómo usar Meme Detector en tu proceso:**
+1. Revisa las señales diarias como punto de partida
 2. Filtra por score > 70 para ver solo las mejores oportunidades
 3. Para cada token interesante, revisa el SHAP para entender POR QUE tiene score alto
-4. Valida con DexScreener, BubbleMaps y tu propio analisis
+4. Valida con DexScreener, BubbleMaps y tu propio análisis
 5. Si todo cuadra, considera una posicion pequena (1-2% del portfolio)
 6. Pon tus reglas de take-profit (2x/5x/10x) ANTES de comprar
             """)
 
             st.success(
                 "**Recuerda:** Meme Detector es una herramienta de DETECCION, no de prediccion. "
-                "Te ayuda a encontrar tokens con buenas metricas, pero la decision final siempre es tuya."
+                "Te ayuda a encontrar tokens con buenas métricas, pero la decisión final siempre es tuya."
             )

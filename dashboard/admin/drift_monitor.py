@@ -5,10 +5,10 @@ Muestra:
 - Ultimo reporte de drift (score, estado, razones)
 - Desglose por tipo de drift (tiempo, volumen, features)
 - Tabla de detalle de feature drift
-- Historico de scores de drift (grafico de linea)
+- Historico de scores de drift (grafico de línea)
 - Tabla de reportes recientes (ultimos 20)
 
-Los reportes se generan automaticamente los lunes a las 08:00 UTC
+Los reportes se generan automáticamente los lunes a las 08:00 UTC
 via GitHub Actions (check-retrain.yml).
 """
 # Guard de acceso — solo admin
@@ -54,11 +54,11 @@ def render():
     st.header("Drift Monitor")
 
     st.info(
-        "**Que es esto?** El drift detection verifica si los datos actuales "
+        "**¿Qué es esto?** El drift detection verifica si los datos actuales "
         "han cambiado lo suficiente respecto a los datos de entrenamiento como "
         "para que el modelo pierda efectividad. Se revisan tres tipos de drift: "
         "tiempo (dias sin re-entrenar), volumen (tokens nuevos) y features "
-        "(cambio en distribucion de variables)."
+        "(cambio en distribución de variables)."
     )
 
     # Cargar reportes
@@ -204,9 +204,9 @@ def render():
             st.metric("Features con drift", "N/A")
 
         if feat_triggered:
-            st.error("DRIFT: Distribucion cambiada")
+            st.error("DRIFT: Distribución cambiada")
         else:
-            st.success("OK: Distribucion estable")
+            st.success("OK: Distribución estable")
 
     st.divider()
 
@@ -273,7 +273,7 @@ def render():
 
     st.caption(
         "Evolucion del score de drift en el tiempo. Score 0 = sin drift, "
-        "Score 1 = drift maximo. La linea roja punteada marca el umbral "
+        "Score 1 = drift maximo. La línea roja punteada marca el umbral "
         "donde se recomienda re-entrenar."
     )
 
@@ -319,7 +319,7 @@ def render():
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info(
-            "Se necesitan al menos 2 reportes para mostrar el historico. "
+            "Se necesitan al menos 2 reportes para mostrar el histórico. "
             "Actualmente hay solo 1 reporte."
         )
 

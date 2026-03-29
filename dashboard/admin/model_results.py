@@ -2,7 +2,7 @@
 model_results.py - Pagina de resultados de los modelos de Machine Learning.
 
 Muestra:
-- Tabla comparativa de metricas (RF vs XGBoost)
+- Tabla comparativa de métricas (RF vs XGBoost)
 - Matrices de confusion (heatmap)
 - Curvas ROC y Precision-Recall
 - Reporte de clasificacion completo
@@ -49,11 +49,11 @@ def render():
     st.title("Resultados del Modelo")
 
     st.info(
-        "**Que es esto?** Aqui evaluamos que tan bien predicen nuestros modelos de "
+        "**¿Qué es esto?** Aqui evaluamos que tan bien predicen nuestros modelos de "
         "Machine Learning. Entrenamos dos modelos diferentes (Random Forest y XGBoost) "
         "y los comparamos para ver cual detecta mejor las 'gems' (memecoins exitosos).\n\n"
         "**Importante**: Los resultados dependen de la cantidad de datos etiquetados. "
-        "Con mas tokens las metricas seran mas estables y representativas."
+        "Con mas tokens las métricas seran mas estables y representativas."
     )
 
     results = load_evaluation_results()
@@ -77,19 +77,19 @@ def render():
     # ------------------------------------------------------------------
     # 1. Tabla comparativa de metricas
     # ------------------------------------------------------------------
-    st.subheader("Comparacion de metricas")
+    st.subheader("Comparacion de métricas")
 
     st.caption(
-        "Cada metrica mide algo diferente sobre el rendimiento del modelo:"
+        "Cada métrica mide algo diferente sobre el rendimiento del modelo:"
     )
 
     # Explicar metricas
-    with st.expander("Que significa cada metrica? (click para expandir)"):
+    with st.expander("¿Qué significa cada métrica? (click para expandir)"):
         st.markdown("""
 - **Accuracy** (Exactitud): % de predicciones correctas en total. Puede ser enganosa si hay muchos mas gems que failures.
 - **Precision**: Cuando el modelo dice "esto es un gem", que % de las veces acierta. Alta precision = pocas falsas alarmas.
 - **Recall**: De todos los gems reales, que % detecta el modelo. Alto recall = no se le escapan muchos gems.
-- **F1-Score**: Combina Precision y Recall en un solo numero (media armonica). Ideal para datos desbalanceados.
+- **F1-Score**: Combina Precision y Recall en un solo número (media armonica). Ideal para datos desbalanceados.
 - **ROC-AUC**: Mide la capacidad general de distinguir gems de no-gems. 1.0 = perfecto, 0.5 = aleatorio.
 - **PR-AUC**: Similar a ROC-AUC pero mas fiable cuando hay pocas muestras de una clase.
         """)
@@ -136,7 +136,7 @@ def render():
     st.caption(
         "La matriz de confusion muestra cuantas predicciones fueron correctas "
         "y cuantas no. Filas = lo que realmente es, Columnas = lo que predijo "
-        "el modelo. Los numeros en la diagonal (esquina superior-izquierda e "
+        "el modelo. Los números en la diagonal (esquina superior-izquierda e "
         "inferior-derecha) son los aciertos."
     )
 
@@ -165,7 +165,7 @@ def render():
             )
             st.plotly_chart(fig_cm, use_container_width=True)
 
-    with st.expander("Como leer la matriz de confusion?"):
+    with st.expander("¿Cómo leer la matriz de confusion?"):
         st.markdown("""
 | | Predijo No-gem | Predijo Gem |
 |---|---|---|
@@ -187,8 +187,8 @@ def render():
 
     st.caption(
         "La curva ROC muestra la relacion entre aciertos (TPR) y falsas alarmas (FPR) "
-        "a diferentes umbrales de decision. Cuanto mas arriba y a la izquierda este "
-        "la curva, mejor es el modelo. La linea gris punteada es un modelo aleatorio."
+        "a diferentes umbrales de decisión. Cuanto mas arriba y a la izquierda este "
+        "la curva, mejor es el modelo. La línea gris punteada es un modelo aleatorio."
     )
 
     fig_roc = go.Figure()
@@ -332,7 +332,7 @@ def render():
             help="Diferencia entre el optimo y el default.",
         )
 
-        with st.expander("Que significa el threshold?"):
+        with st.expander("¿Qué significa el threshold?"):
             st.markdown("""
 - **Threshold alto** (ej: 0.7): El modelo es mas exigente. Menos falsas alarmas, pero puede perder gems reales.
 - **Threshold bajo** (ej: 0.3): El modelo es mas permisivo. Detecta mas gems, pero tambien mas falsas alarmas.
@@ -351,7 +351,7 @@ def render():
     st.caption(
         "Verifica si las probabilidades del modelo son confiables. "
         "Si el modelo dice 70% de probabilidad de ser gem, deberia acertar "
-        "en ~70% de los casos. La linea punteada es calibracion perfecta."
+        "en ~70% de los casos. La línea punteada es calibracion perfecta."
     )
 
     # Intentar cargar curva de calibracion desde archivo procesado

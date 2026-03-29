@@ -1,11 +1,11 @@
 """
-auth.py - Autenticacion y gestion de sesiones con Supabase Auth.
+auth.py - Autenticación y gestión de sesiones con Supabase Auth.
 
-Provee funciones para login, registro, verificacion de sesion,
+Provee funciones para login, registro, verificación de sesión,
 y control de acceso basado en roles (admin/pro/free).
 
 Usa SUPABASE_ANON_KEY (no service_role) porque Supabase Auth
-requiere la anon key para operaciones de autenticacion.
+requiere la anon key para operaciones de autenticación.
 
 NOTA: Los emails de confirmacion y reset se configuran en:
 Supabase Dashboard → Authentication → Email Templates
@@ -32,7 +32,7 @@ def get_supabase_client() -> Client:
 
 
 def init_session_state():
-    """Inicializa variables de sesion para auth.
+    """Inicializa variables de sesión para auth.
 
     Se llama al principio de cada request de Streamlit
     para asegurar que todas las keys existan en session_state.
@@ -77,9 +77,9 @@ def login(email: str, password: str) -> bool:
     except Exception as e:
         error_msg = str(e)
         if "Invalid login" in error_msg or "invalid" in error_msg.lower():
-            st.error("Email o contrasena incorrectos.")
+            st.error("Email o contraseña incorrectos.")
         else:
-            st.error(f"Error de autenticacion: {error_msg}")
+            st.error(f"Error de autenticación: {error_msg}")
         return False
 
 
@@ -88,7 +88,7 @@ def register(email: str, password: str) -> bool:
 
     Crea un nuevo usuario en auth.users. Supabase puede enviar
     un email de confirmacion dependiendo de la config del proyecto.
-    El perfil en 'profiles' se crea automaticamente via trigger SQL.
+    El perfil en 'profiles' se crea automáticamente via trigger SQL.
     """
     client = get_supabase_client()
     if not client:
@@ -101,21 +101,21 @@ def register(email: str, password: str) -> bool:
         if response.user:
             st.success(
                 "Cuenta creada. Revisa tu email para confirmar "
-                "y luego ya puedes iniciar sesion."
+                "y luego ya puedes iniciar sesión."
             )
             return True
         return False
     except Exception as e:
         error_msg = str(e)
         if "already registered" in error_msg.lower():
-            st.error("Este email ya esta registrado. Intenta iniciar sesion.")
+            st.error("Este email ya esta registrado. Intenta iniciar sesión.")
         else:
             st.error(f"Error en registro: {error_msg}")
         return False
 
 
 def logout():
-    """Cierra sesion limpiando todo el session_state de auth."""
+    """Cierra sesión limpiando todo el session_state de auth."""
     st.session_state.authenticated = False
     st.session_state.user = None
     st.session_state.role = "free"
@@ -184,7 +184,7 @@ def require_auth():
 def require_admin():
     """Verifica que el usuario sea admin. Muestra error si no.
 
-    Primero verifica autenticacion, luego verifica rol.
+    Primero verifica autenticación, luego verifica rol.
     """
     require_auth()
     if not is_admin():
@@ -195,18 +195,18 @@ def require_admin():
 def require_pro():
     """Verifica que el usuario sea pro o admin.
 
-    Muestra un mensaje con link de suscripcion si el usuario
+    Muestra un mensaje con link de suscripción si el usuario
     no tiene el plan adecuado.
     """
     require_auth()
     if not is_pro():
-        st.warning("Esta funcion requiere suscripcion Pro.")
+        st.warning("Esta función requiere suscripción Pro.")
         st.markdown("[Suscribirse →](#)")  # TODO: Link a Stripe
         st.stop()
 
 
 def reset_password(email: str) -> bool:
-    """Envia email de restablecimiento de contrasena via Supabase Auth.
+    """Envia email de restablecimiento de contraseña via Supabase Auth.
 
     Retorna True si el email se envio correctamente (o si Supabase
     no reporta error, por seguridad no revela si el email existe).
@@ -225,31 +225,31 @@ def reset_password(email: str) -> bool:
 def render_login_page():
     """Renderiza la pagina de login/registro con tabs.
 
-    Incluye validacion de campos, confirmacion de contrasena
-    en registro, longitud minima de contrasena (6 chars),
-    recuperacion de contrasena y aviso de terminos de servicio.
+    Incluye validación de campos, confirmacion de contraseña
+    en registro, longitud minima de contraseña (6 chars),
+    recuperacion de contraseña y aviso de terminos de servicio.
     """
     st.title("🔒 Trading Memes")
     st.markdown("Detector de Gems en Memecoins con Machine Learning")
 
-    tab_login, tab_register = st.tabs(["Iniciar Sesion", "Crear Cuenta"])
+    tab_login, tab_register = st.tabs(["Iniciar Sesión", "Crear Cuenta"])
 
     with tab_login:
         # --- Formulario de login ---
         email = st.text_input("Email", key="login_email")
-        password = st.text_input("Contrasena", type="password", key="login_password")
+        password = st.text_input("Contraseña", type="password", key="login_password")
         if st.button("Acceder", type="primary", key="btn_login"):
             if email and password:
                 if login(email, password):
                     st.rerun()
             else:
-                st.warning("Introduce email y contrasena.")
+                st.warning("Introduce email y contraseña.")
 
         # --- Recuperar contrasena ---
         st.markdown("---")
-        with st.expander("¿Olvidaste tu contrasena?"):
+        with st.expander("¿Olvidaste tu contraseña?"):
             reset_email = st.text_input(
-                "Introduce tu email para restablecer la contrasena",
+                "Introduce tu email para restablecer la contraseña",
                 key="reset_email",
             )
             if st.button("Enviar enlace de recuperacion", key="btn_reset"):
@@ -257,7 +257,7 @@ def render_login_page():
                     if reset_password(reset_email):
                         st.success(
                             "Te hemos enviado un email para restablecer "
-                            "tu contrasena. Revisa tu bandeja de entrada."
+                            "tu contraseña. Revisa tu bandeja de entrada."
                         )
                 else:
                     st.warning("Introduce tu email.")
@@ -265,24 +265,24 @@ def render_login_page():
     with tab_register:
         reg_email = st.text_input("Email", key="reg_email")
         reg_pass = st.text_input(
-            "Contrasena", type="password", key="reg_password",
-            help="Minimo 8 caracteres, al menos una mayuscula y un numero",
+            "Contraseña", type="password", key="reg_password",
+            help="Minimo 8 caracteres, al menos una mayúscula y un número",
         )
-        st.caption("Minimo 8 caracteres, al menos una mayuscula y un numero")
+        st.caption("Minimo 8 caracteres, al menos una mayúscula y un número")
         reg_pass2 = st.text_input(
-            "Confirmar contrasena", type="password", key="reg_password2"
+            "Confirmar contraseña", type="password", key="reg_password2"
         )
         if st.button("Crear cuenta", type="primary", key="btn_register"):
             if not reg_email or not reg_pass:
                 st.warning("Completa todos los campos.")
             elif reg_pass != reg_pass2:
-                st.error("Las contrasenas no coinciden.")
+                st.error("Las contraseñas no coinciden.")
             elif len(reg_pass) < 8:
-                st.error("La contrasena debe tener al menos 8 caracteres.")
+                st.error("La contraseña debe tener al menos 8 caracteres.")
             elif not any(c.isupper() for c in reg_pass):
-                st.error("La contrasena debe contener al menos una mayuscula.")
+                st.error("La contraseña debe contener al menos una mayúscula.")
             elif not any(c.isdigit() for c in reg_pass):
-                st.error("La contrasena debe contener al menos un numero.")
+                st.error("La contraseña debe contener al menos un número.")
             else:
                 register(reg_email, reg_pass)
 
@@ -294,7 +294,7 @@ def render_sidebar_user_info():
     """Muestra info del usuario en el sidebar + boton logout.
 
     Incluye email, badge del plan (Admin/Pro/Free),
-    y boton para cerrar sesion.
+    y boton para cerrar sesión.
     """
     if is_authenticated():
         user = st.session_state.get("user", {})
@@ -310,6 +310,6 @@ def render_sidebar_user_info():
         st.sidebar.markdown(f"**{user.get('email', '')}**")
         st.sidebar.markdown(f"Plan: {badge}")
 
-        if st.sidebar.button("🔓 Cerrar sesion"):
+        if st.sidebar.button("🔓 Cerrar sesión"):
             logout()
             st.rerun()

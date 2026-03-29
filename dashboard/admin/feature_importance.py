@@ -64,7 +64,7 @@ def load_feature_values():
 
 # Interpretaciones en lenguaje llano
 FEATURE_INTERPRETATIONS = {
-    "makers_24h": "Numero de market makers (proveedores de liquidez) activos en 24h. "
+    "makers_24h": "Número de market makers (proveedores de liquidez) activos en 24h. "
                   "Mas makers = mas gente poniendo dinero para que se pueda tradear el token. "
                   "Es la senal mas fuerte de que un token tiene traccion real.",
     "buyers_24h": "Compradores unicos en las primeras 24 horas. "
@@ -127,10 +127,10 @@ def render():
     st.title("Importancia de Features (SHAP)")
 
     st.info(
-        "**Que es SHAP?** SHAP (SHapley Additive exPlanations) es una tecnica que "
+        "**¿Qué es SHAP?** SHAP (SHapley Additive exPlanations) es una tecnica que "
         "explica *por que* el modelo hace cada prediccion. Para cada token, SHAP "
         "calcula cuanto contribuye cada feature (caracteristica) a la prediccion "
-        "final. Es como preguntar al modelo: \"Que fue lo que te convencio de que "
+        "final. Es como preguntar al modelo: \"¿Qué fue lo que te convencio de que "
         "este token es un gem?\"\n\n"
         "- **SHAP positivo** (rojo) = este feature empuja la prediccion hacia \"gem\".\n"
         "- **SHAP negativo** (azul) = este feature empuja la prediccion hacia \"no-gem\".\n"
@@ -201,7 +201,7 @@ def render():
     df_features = load_feature_values()
 
     n_summary = st.slider(
-        "Numero de features a mostrar", min_value=5,
+        "Número de features a mostrar", min_value=5,
         max_value=min(25, len(feature_names)),
         value=min(12, len(feature_names)), key="summary_n",
     )
@@ -268,8 +268,8 @@ def render():
     else:
         # Fallback: box plot
         st.caption(
-            "Distribucion de valores SHAP para cada feature. Valores a la derecha "
-            "de la linea central (0) indican que el feature empuja hacia 'gem'."
+            "Distribución de valores SHAP para cada feature. Valores a la derecha "
+            "de la línea central (0) indican que el feature empuja hacia 'gem'."
         )
         shap_melted = df_shap[top_summary_features].melt(
             var_name="Feature", value_name="SHAP Value"
@@ -277,7 +277,7 @@ def render():
         fig_box = px.box(
             shap_melted,
             x="SHAP Value", y="Feature", orientation="h",
-            title="Distribucion de SHAP Values por feature",
+            title="Distribución de SHAP Values por feature",
             color_discrete_sequence=["#3498db"],
         )
         fig_box.update_layout(height=max(400, n_summary * 30))
@@ -324,7 +324,7 @@ def render():
     else:
         fig_hist = px.histogram(
             df_shap, x=selected_feature, nbins=30,
-            title=f"Distribucion de SHAP para {selected_feature}",
+            title=f"Distribución de SHAP para {selected_feature}",
             color_discrete_sequence=["#3498db"],
         )
         fig_hist.add_vline(x=0, line_dash="dash", line_color="gray", opacity=0.5)
@@ -340,7 +340,7 @@ def render():
     # ------------------------------------------------------------------
     # 4. Interpretacion de los top features
     # ------------------------------------------------------------------
-    st.subheader("Que nos dicen los top features?")
+    st.subheader("¿Qué nos dicen los top features?")
 
     st.caption(
         "Resumen en lenguaje llano de que significa cada feature importante "
@@ -374,7 +374,7 @@ def render():
         st.success(
             f"**Hallazgo principal**: Las features mas influyentes son: "
             f"**{', '.join(top_3_names)}**. "
-            "Estas caracteristicas tienen el mayor impacto en la prediccion del modelo. "
+            "Estas características tienen el mayor impacto en la prediccion del modelo. "
             "A medida que se reentrenan los modelos con mas datos, "
             "esta clasificacion puede cambiar."
         )

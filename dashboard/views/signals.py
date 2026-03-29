@@ -1,9 +1,9 @@
 """
-signals.py - Pagina de senales y backtesting.
+signals.py - Pagina de señales y backtesting.
 
 Muestra:
-  Tab 1: Senales actuales - tokens con probabilidad alta de ser gem.
-  Tab 2: Historico - senales pasadas y su resultado real.
+  Tab 1: Señales actuales - tokens con probabilidad alta de ser gem.
+  Tab 2: Historico - señales pasadas y su resultado real.
   Tab 3: Backtesting - simulacion de rendimiento del modelo.
 """
 
@@ -37,7 +37,7 @@ def get_storage():
 
 
 def load_latest_signals() -> pd.DataFrame:
-    """Carga el CSV de senales mas reciente de signals/."""
+    """Carga el CSV de señales mas reciente de signals/."""
     if not SIGNALS_DIR.exists():
         return pd.DataFrame()
 
@@ -52,7 +52,7 @@ def load_latest_signals() -> pd.DataFrame:
 
 
 def load_all_signals() -> pd.DataFrame:
-    """Carga todos los CSVs de senales historicas."""
+    """Carga todos los CSVs de señales historicas."""
     if not SIGNALS_DIR.exists():
         return pd.DataFrame()
 
@@ -78,13 +78,13 @@ def load_all_signals() -> pd.DataFrame:
 
 
 def render():
-    """Renderiza la pagina de Senales."""
-    st.title("Senales de Gem")
+    """Renderiza la pagina de Señales."""
+    st.title("Señales de Gem")
 
     st.info(
-        "**Que es esto?** Esta pagina muestra los tokens que nuestro modelo de "
+        "**¿Qué es esto?** Esta pagina muestra los tokens que nuestro modelo de "
         "Machine Learning considera con mayor probabilidad de ser 'gems' (10x+). "
-        "Las senales se generan automaticamente cada dia despues de la recopilacion.\n\n"
+        "Las señales se generan automáticamente cada dia despues de la recopilacion.\n\n"
         "**Niveles de senal:**\n"
         f"- **STRONG** (>{SIGNAL_THRESHOLDS['STRONG']:.0%}): Alta confianza. El modelo esta muy seguro.\n"
         f"- **MEDIUM** (>{SIGNAL_THRESHOLDS['MEDIUM']:.0%}): Confianza moderada. Vale la pena investigar.\n"
@@ -95,8 +95,8 @@ def render():
 
     # Tabs
     tab1, tab2, tab3 = st.tabs([
-        "Senales Actuales",
-        "Historico de Senales",
+        "Señales Actuales",
+        "Historico de Señales",
         "Backtesting",
     ])
 
@@ -120,15 +120,15 @@ def render():
 
 
 def render_current_signals():
-    """Muestra las senales mas recientes."""
-    st.subheader("Senales del Ultimo Analisis")
+    """Muestra las señales mas recientes."""
+    st.subheader("Señales del Ultimo Análisis")
 
     df = load_latest_signals()
 
     if df.empty:
         st.warning(
-            "No hay senales generadas todavia. Las senales se crean "
-            "automaticamente con el script diario, o puedes generarlas "
+            "No hay señales generadas todavia. Las señales se crean "
+            "automáticamente con el script diario, o puedes generarlas "
             "manualmente ejecutando:\n\n"
             "```bash\nbash scripts/daily_signals.sh\n```"
         )
@@ -176,12 +176,12 @@ def render_current_signals():
         df_filtered = df_filtered[df_filtered["probability"] >= min_prob]
 
     if df_filtered.empty:
-        st.info("No hay senales con los filtros seleccionados.")
+        st.info("No hay señales con los filtros seleccionados.")
         return
 
     # Metricas resumen
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Senales", len(df_filtered))
+    col1.metric("Total Señales", len(df_filtered))
     if "signal" in df_filtered.columns:
         col2.metric("STRONG", (df_filtered["signal"] == "STRONG").sum())
         col3.metric("MEDIUM", (df_filtered["signal"] == "MEDIUM").sum())
@@ -231,14 +231,14 @@ def render_current_signals():
 
     # Grafico de distribucion de probabilidades
     if "probability" in df.columns:
-        st.subheader("Distribucion de Probabilidades")
+        st.subheader("Distribución de Probabilidades")
         st.caption(
             "Histograma de las probabilidades asignadas por el modelo. "
             "Tokens a la derecha (>0.65) son los candidatos mas fuertes."
         )
         fig = px.histogram(
             df, x="probability", nbins=20,
-            title="Distribucion de probabilidades de gem",
+            title="Distribución de probabilidades de gem",
             labels={"probability": "Probabilidad de Gem", "count": "Cantidad de tokens"},
             color_discrete_sequence=["#3498db"],
         )
@@ -260,17 +260,17 @@ def render_current_signals():
 
 
 def render_signal_history():
-    """Muestra el historico de senales pasadas."""
-    st.subheader("Historico de Senales")
+    """Muestra el histórico de señales pasadas."""
+    st.subheader("Historico de Señales")
     st.caption(
-        "Todas las senales generadas en dias anteriores. "
-        "Puedes comparar cuantas senales se generaron cada dia."
+        "Todas las señales generadas en dias anteriores. "
+        "Puedes comparar cuantas señales se generaron cada dia."
     )
 
     df = load_all_signals()
 
     if df.empty:
-        st.info("No hay historico de senales. Se acumulara con el tiempo.")
+        st.info("No hay histórico de señales. Se acumulara con el tiempo.")
         return
 
     # Filtros para historico
@@ -321,7 +321,7 @@ def render_signal_history():
 
         fig = px.bar(
             summary, x="signal_date", y="count", color="signal",
-            title="Senales por dia y nivel",
+            title="Señales por dia y nivel",
             labels={"signal_date": "Fecha", "count": "Cantidad", "signal": "Nivel"},
             color_discrete_map=SIGNAL_COLORS,
             barmode="stack",
@@ -339,10 +339,10 @@ def render_backtesting():
     st.subheader("Backtesting")
     st.caption(
         "El backtesting simula que hubiera pasado si hubieras seguido "
-        "las senales del modelo en el pasado. Usa tokens con resultado "
+        "las señales del modelo en el pasado. Usa tokens con resultado "
         "conocido (gems y failures) para medir la precision real.\n\n"
-        "**Como leer los resultados:**\n"
-        "- **Precision**: De las senales que dio, cuantas eran gems reales.\n"
+        "**¿Cómo leer los resultados:**\n"
+        "- **Precision**: De las señales que dio, cuantas eran gems reales.\n"
         "- **Recall**: De los gems que existian, cuantos detecto.\n"
         "- **F1**: Balance entre precision y recall (mas alto = mejor)."
     )
@@ -383,7 +383,7 @@ def render_backtesting():
                 col1.metric(
                     "Precision",
                     f"{results.get('precision', 0):.1%}",
-                    help="De las senales, cuantas eran gems reales.",
+                    help="De las señales, cuantas eran gems reales.",
                 )
                 col2.metric(
                     "Recall",

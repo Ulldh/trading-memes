@@ -4,7 +4,7 @@ app.py - Dashboard principal del Memecoin Gem Detector.
 Ejecutar con: streamlit run dashboard/app.py
 
 Navegacion basada en roles:
-- Publico (todos los usuarios autenticados): Overview, Senales, Buscar Token, Watchlist
+- Publico (todos los usuarios autenticados): Overview, Señales, Buscar Token, Watchlist
 - Admin (solo operador): Modelos, Features, Exploracion, Sistema
 """
 import os
@@ -35,7 +35,7 @@ except ImportError:
 # =============================================================================
 
 def _legacy_check_password():
-    """Gate legacy con contrasena simple (variable de entorno DASHBOARD_PASSWORD).
+    """Gate legacy con contraseña simple (variable de entorno DASHBOARD_PASSWORD).
 
     Se usa SOLO si el modulo dashboard.auth no esta disponible.
     """
@@ -58,9 +58,9 @@ def _legacy_check_password():
     )
 
     st.title(":material/lock: Trading Memes Dashboard")
-    st.markdown("Introduce la contrasena para acceder.")
+    st.markdown("Introduce la contraseña para acceder.")
 
-    password = st.text_input("Contrasena", type="password", key="password_input")
+    password = st.text_input("Contraseña", type="password", key="password_input")
 
     if st.button("Acceder", type="primary"):
         dashboard_password = os.getenv("DASHBOARD_PASSWORD", "")
@@ -71,7 +71,7 @@ def _legacy_check_password():
             st.session_state.authenticated = True
             st.rerun()
         else:
-            st.error("Contrasena incorrecta.")
+            st.error("Contraseña incorrecta.")
 
     return False
 
@@ -114,7 +114,7 @@ if _AUTH_AVAILABLE:
 else:
     # Fallback legacy: boton de cerrar sesion simple
     with st.sidebar:
-        if st.button(":material/lock_open: Cerrar sesion"):
+        if st.button(":material/lock_open: Cerrar sesión"):
             st.session_state.authenticated = False
             st.rerun()
 
@@ -177,9 +177,9 @@ public_pages = [
 ]
 # Usar signals_v2 si disponible, sino fallback a signals original
 if render_signals_v2:
-    public_pages.append(st.Page(render_signals_v2, title="Senales", icon=":material/trending_up:", url_path="signals"))
+    public_pages.append(st.Page(render_signals_v2, title="Señales", icon=":material/trending_up:", url_path="signals"))
 else:
-    public_pages.append(st.Page(render_signals, title="Senales", icon=":material/trending_up:", url_path="signals"))
+    public_pages.append(st.Page(render_signals, title="Señales", icon=":material/trending_up:", url_path="signals"))
 public_pages.extend([
     st.Page(render_token_lookup, title="Buscar Token", icon=":material/search:", url_path="token-lookup"),
     st.Page(render_watchlist, title="Watchlist", icon=":material/bookmark:", url_path="watchlist"),
