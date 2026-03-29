@@ -184,13 +184,22 @@ def require_auth():
 
 
 def require_admin():
-    """Verifica que el usuario sea admin. Muestra error si no.
+    """Verifica que el usuario sea admin. Redirige a overview si no.
 
     Primero verifica autenticación, luego verifica rol.
+    Si el usuario no es admin, muestra las páginas públicas disponibles.
     """
     require_auth()
     if not is_admin():
-        st.warning(t("access.admin_required", "Esta sección es solo para administradores. Usa el menú lateral para navegar."))
+        st.info(t("access.admin_required", "Bienvenido. Usa el menú lateral para navegar por las secciones disponibles."))
+        st.markdown("### Páginas disponibles")
+        st.markdown("""
+        - 📊 **Resumen** — Estadísticas del mercado
+        - 📈 **Señales** — Tokens con mayor potencial
+        - 🔍 **Buscar Token** — Analizar cualquier token
+        - ⭐ **Watchlist** — Tus tokens favoritos
+        - 🎓 **Academia** — Aprende sobre memecoins
+        """)
         st.stop()
 
 

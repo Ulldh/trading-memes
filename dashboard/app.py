@@ -228,7 +228,7 @@ if admin_pages:
 if info_pages:
     nav_config["Informacion"] = info_pages
 
-pg = st.navigation(nav_config)
+pg = st.navigation(nav_config, position="sidebar")
 
 
 # =============================================================================
