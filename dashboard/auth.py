@@ -190,7 +190,7 @@ def require_admin():
     """
     require_auth()
     if not is_admin():
-        st.error(t("access.admin_required", "Acceso restringido. Se requiere rol de administrador."))
+        st.warning(t("access.admin_required", "Esta sección es solo para administradores. Usa el menú lateral para navegar."))
         st.stop()
 
 
