@@ -2,9 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -12,9 +11,10 @@ import {
   ReferenceLine,
   Area,
   ComposedChart,
+  Line,
 } from "recharts";
 
-// ─── Tipos ──────────────────────────────────────────────────────────────
+// --- Tipos ---
 
 type Periodo = "1m" | "3m" | "6m";
 type Estrategia = "strong" | "strong_medium" | "todas";
@@ -35,9 +35,9 @@ interface SimResult {
   worstTrade: { name: string; pct: number };
 }
 
-// ─── Datos simulados ────────────────────────────────────────────────────
+// --- Datos simulados ---
 // TODO: Reemplazar con datos reales de backtesting desde Supabase
-// TODO: Conectar a la tabla de signals históricas para cálculos reales
+// TODO: Conectar a la tabla de signals historicas para calculos reales
 
 const STRATEGY_PARAMS: Record<
   Estrategia,
@@ -45,25 +45,25 @@ const STRATEGY_PARAMS: Record<
 > = {
   strong: {
     winRate: 0.72,
-    avgWin: 3.2,   // +320%
-    avgLoss: -0.32, // -32%
+    avgWin: 3.2,
+    avgLoss: -0.32,
     tradesPerMonth: 4,
   },
   strong_medium: {
     winRate: 0.67,
-    avgWin: 2.4,   // +240%
-    avgLoss: -0.35, // -35%
+    avgWin: 2.4,
+    avgLoss: -0.35,
     tradesPerMonth: 8,
   },
   todas: {
     winRate: 0.58,
-    avgWin: 1.8,   // +180%
-    avgLoss: -0.42, // -42%
+    avgWin: 1.8,
+    avgLoss: -0.42,
     tradesPerMonth: 14,
   },
 };
 
-// TODO: Nombres simulados — reemplazar con tokens reales del historial
+// TODO: Nombres simulados - reemplazar con tokens reales del historial
 const TOKEN_NAMES = [
   "PEPE2", "WOJAK", "DOGE3", "BONK2", "WIF2", "POPCAT", "MEW2", "MYRO2",
   "SAMO2", "BOME2", "SLERF2", "JUP3", "RENDER2", "FLOKI2", "SHIB3",
@@ -71,7 +71,7 @@ const TOKEN_NAMES = [
   "RUG1", "RUG2", "RUG3", "SCAM1", "DUMP1", "FADE1", "NGMI1", "REKT1",
 ];
 
-// Seeded pseudo-random para resultados deterministas por configuración
+// Seeded pseudo-random para resultados deterministas por configuracion
 function seededRandom(seed: number): () => number {
   let s = seed;
   return () => {
@@ -83,14 +83,15 @@ function seededRandom(seed: number): () => number {
 function simulate(
   investment: number,
   periodo: Periodo,
-  estrategia: Estrategia
+  estrategia: Estrategia,
+  startLabel: string
 ): SimResult {
   const params = STRATEGY_PARAMS[estrategia];
   const months = periodo === "1m" ? 1 : periodo === "3m" ? 3 : 6;
   const totalTrades = Math.round(params.tradesPerMonth * months);
   const daysTotal = months * 30;
 
-  // Seed basado en configuración para resultados estables
+  // Seed basado en configuracion para resultados estables
   const seed =
     Math.round(investment) * 17 +
     months * 31 +
@@ -102,7 +103,7 @@ function simulate(
   for (let i = 0; i < totalTrades; i++) {
     const day = Math.round((i / totalTrades) * daysTotal) + 1;
     const isWin = rand() < params.winRate;
-    const variance = 0.5 + rand(); // 0.5x to 1.5x del promedio
+    const variance = 0.5 + rand();
     const pct = isWin
       ? params.avgWin * variance
       : params.avgLoss * (0.6 + rand() * 0.8);
@@ -110,10 +111,10 @@ function simulate(
     trades.push({ day, pct, name: TOKEN_NAMES[nameIdx] });
   }
 
-  // Calcular portfolio (asignación igual por trade, tamaño de posición = 10% del portfolio)
+  // Calcular portfolio (asignacion igual por trade, tamano de posicion = 10% del portfolio)
   let portfolio = investment;
   const data: TradeResult[] = [
-    { day: 0, portfolio: investment, label: "Inicio" },
+    { day: 0, portfolio: investment, label: startLabel },
   ];
 
   let wins = 0;
@@ -121,9 +122,9 @@ function simulate(
   let worstTrade = { name: "", pct: Infinity };
 
   for (const trade of trades) {
-    const positionSize = portfolio * 0.1; // 10% por trade
+    const positionSize = portfolio * 0.1;
     const pnl = positionSize * trade.pct;
-    portfolio = Math.max(portfolio + pnl, 0); // No puede ir negativo
+    portfolio = Math.max(portfolio + pnl, 0);
 
     if (trade.pct > 0) wins++;
     if (trade.pct > bestTrade.pct) bestTrade = { name: trade.name, pct: trade.pct };
@@ -153,48 +154,51 @@ function simulate(
   };
 }
 
-// ─── Custom Tooltip ─────────────────────────────────────────────────────
+// --- Custom Tooltip ---
 
 function CustomTooltip({
   active,
   payload,
+  tooltipDay,
 }: {
   active?: boolean;
   payload?: Array<{ payload: TradeResult }>;
+  tooltipDay: string;
 }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
     <div className="bg-dark-800 border border-dark-600 p-3 font-mono text-xs">
-      <p className="text-gray-400">Día {d.day}</p>
+      <p className="text-gray-400">{tooltipDay} {d.day}</p>
       <p className="text-primary font-bold">${d.portfolio.toLocaleString("es-ES")}</p>
       <p className="text-gray-500">{d.label}</p>
     </div>
   );
 }
 
-// ─── Componente principal ───────────────────────────────────────────────
+// --- Componente principal ---
 
 export default function Backtesting() {
+  const t = useTranslations("backtesting");
   const [investment, setInvestment] = useState(1000);
   const [periodo, setPeriodo] = useState<Periodo>("3m");
   const [estrategia, setEstrategia] = useState<Estrategia>("strong_medium");
 
   const result = useMemo(
-    () => simulate(investment, periodo, estrategia),
-    [investment, periodo, estrategia]
+    () => simulate(investment, periodo, estrategia, t("start_label")),
+    [investment, periodo, estrategia, t]
   );
 
   const periodoOptions: { value: Periodo; label: string }[] = [
-    { value: "1m", label: "1 mes" },
-    { value: "3m", label: "3 meses" },
-    { value: "6m", label: "6 meses" },
+    { value: "1m", label: t("period_options.1m") },
+    { value: "3m", label: t("period_options.3m") },
+    { value: "6m", label: t("period_options.6m") },
   ];
 
   const estrategiaOptions: { value: Estrategia; label: string }[] = [
-    { value: "strong", label: "Solo STRONG" },
-    { value: "strong_medium", label: "STRONG + MEDIUM" },
-    { value: "todas", label: "Todas" },
+    { value: "strong", label: t("strategy_options.strong") },
+    { value: "strong_medium", label: t("strategy_options.strong_medium") },
+    { value: "todas", label: t("strategy_options.all") },
   ];
 
   return (
@@ -209,13 +213,13 @@ export default function Backtesting() {
           className="text-center mb-12"
         >
           <h2 className="text-3xl md:text-5xl font-bold text-white font-mono inline-flex items-center justify-center gap-3 flex-wrap">
-            Simulaci&oacute;n Estimada
+            {t("section_title")}
             <span className="text-xs font-bold tracking-widest uppercase bg-gem-yellow/20 text-gem-yellow border border-gem-yellow/40 px-2 py-1 rounded">
-              SIMULACI&Oacute;N
+              {t("simulation_badge")}
             </span>
           </h2>
           <p className="text-primary/80 text-sm mt-4 font-mono font-semibold">
-            Basado en las m&eacute;tricas del modelo (F1 Score: 0.67), no en datos hist&oacute;ricos reales.
+            {t("section_subtitle")}
           </p>
         </motion.div>
 
@@ -228,10 +232,10 @@ export default function Backtesting() {
           className="border border-dark-600 bg-dark-800 p-6 mb-6"
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Inversión */}
+            {/* Inversion */}
             <div>
               <label className="block text-xs text-gray-500 font-mono uppercase tracking-widest mb-2">
-                Inversi&oacute;n inicial
+                {t("investment_label")}
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary font-mono">
@@ -253,10 +257,10 @@ export default function Backtesting() {
               </div>
             </div>
 
-            {/* Período */}
+            {/* Periodo */}
             <div>
               <label className="block text-xs text-gray-500 font-mono uppercase tracking-widest mb-2">
-                Per&iacute;odo
+                {t("period_label")}
               </label>
               <div className="flex gap-2">
                 {periodoOptions.map((opt) => (
@@ -278,7 +282,7 @@ export default function Backtesting() {
             {/* Estrategia */}
             <div>
               <label className="block text-xs text-gray-500 font-mono uppercase tracking-widest mb-2">
-                Estrategia
+                {t("strategy_label")}
               </label>
               <div className="flex flex-col gap-2">
                 {estrategiaOptions.map((opt) => (
@@ -310,20 +314,20 @@ export default function Backtesting() {
           {/* Results header bar */}
           <div className="border-b border-primary/30 pb-3 mb-6">
             <span className="text-primary font-mono text-xs tracking-widest uppercase">
-              Resultado simulado
+              {t("result_header")}
             </span>
           </div>
 
           {/* Key metrics */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-8">
             <div>
-              <p className="text-xs text-gray-600 font-mono uppercase">Inversi&oacute;n</p>
+              <p className="text-xs text-gray-600 font-mono uppercase">{t("investment_metric")}</p>
               <p className="text-lg text-gray-300 font-mono font-bold">
                 ${investment.toLocaleString("es-ES")}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-600 font-mono uppercase">Valor final</p>
+              <p className="text-xs text-gray-600 font-mono uppercase">{t("final_value_metric")}</p>
               <p
                 className={`text-lg font-mono font-bold ${
                   result.returnPct >= 0 ? "text-primary glow-green" : "text-gem-red glow-red"
@@ -337,27 +341,27 @@ export default function Backtesting() {
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-600 font-mono uppercase">Win rate</p>
+              <p className="text-xs text-gray-600 font-mono uppercase">{t("win_rate_metric")}</p>
               <p className="text-lg text-gray-300 font-mono font-bold">
                 {result.winRate}%
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-600 font-mono uppercase">Mejor trade</p>
+              <p className="text-xs text-gray-600 font-mono uppercase">{t("best_trade_metric")}</p>
               <p className="text-sm text-primary font-mono">
                 +{result.bestTrade.pct}%{" "}
                 <span className="text-gray-600">({result.bestTrade.name})</span>
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-600 font-mono uppercase">Peor trade</p>
+              <p className="text-xs text-gray-600 font-mono uppercase">{t("worst_trade_metric")}</p>
               <p className="text-sm text-gem-red font-mono">
                 {result.worstTrade.pct}%{" "}
                 <span className="text-gray-600">({result.worstTrade.name})</span>
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-600 font-mono uppercase">Trades totales</p>
+              <p className="text-xs text-gray-600 font-mono uppercase">{t("total_trades_metric")}</p>
               <p className="text-lg text-gray-300 font-mono font-bold">
                 {result.totalTrades}
               </p>
@@ -367,7 +371,7 @@ export default function Backtesting() {
           {/* Nota de transparencia sobre el chart */}
           <div className="border border-dark-600 bg-dark-900/50 p-3 mb-4">
             <p className="text-[11px] text-gray-500 font-mono leading-relaxed">
-              Esta simulaci&oacute;n usa un modelo matem&aacute;tico basado en la tasa de acierto del 67% y retornos promedio observados en validaci&oacute;n. No representa rendimiento real pasado.
+              {t("transparency_note")}
             </p>
           </div>
 
@@ -390,7 +394,7 @@ export default function Backtesting() {
                   axisLine={{ stroke: "#222" }}
                   tickLine={false}
                   label={{
-                    value: "Día",
+                    value: t("chart_x_label"),
                     position: "insideBottomRight",
                     offset: -5,
                     fontSize: 10,
@@ -405,13 +409,13 @@ export default function Backtesting() {
                   tickFormatter={(v: number) => `$${v.toLocaleString("es-ES")}`}
                   width={80}
                 />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomTooltip tooltipDay={t("tooltip_day")} />} />
                 <ReferenceLine
                   y={investment}
                   stroke="#555"
                   strokeDasharray="4 4"
                   label={{
-                    value: "Inversión",
+                    value: t("chart_ref_label"),
                     position: "insideTopLeft",
                     fontSize: 10,
                     fill: "#555",
@@ -444,10 +448,8 @@ export default function Backtesting() {
           {/* Disclaimer */}
           <div className="border border-gem-yellow/20 bg-gem-yellow/5 p-4">
             <p className="text-xs text-gem-yellow/80 font-mono leading-relaxed">
-              <span className="text-gem-yellow font-bold">&#9888; AVISO:</span>{" "}
-              Simulaci&oacute;n estimada basada en m&eacute;tricas del modelo v12. Track record
-              verificable con datos reales disponible pr&oacute;ximamente (estamos acumulando
-              datos desde marzo 2026). Rendimiento pasado no garantiza resultados futuros.
+              <span className="text-gem-yellow font-bold">&#9888; </span>
+              {t("disclaimer")}
             </p>
           </div>
         </motion.div>

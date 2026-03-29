@@ -16,6 +16,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import streamlit as st
 
+from dashboard.i18n import render_language_selector
+
 # --- Intentar cargar el modulo de autenticacion Supabase ---
 # Si auth.py aun no existe (se crea en paralelo), usamos el gate legacy con contrasena
 try:
@@ -117,6 +119,9 @@ else:
         if st.button(":material/lock_open: Cerrar sesión"):
             st.session_state.authenticated = False
             st.rerun()
+
+# --- Selector de idioma ---
+render_language_selector()
 
 
 # =============================================================================

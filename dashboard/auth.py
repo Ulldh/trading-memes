@@ -15,6 +15,8 @@ import os
 import streamlit as st
 from supabase import create_client, Client
 
+from dashboard.i18n import t
+
 
 def get_supabase_client() -> Client:
     """Crea cliente Supabase con ANON key (para auth).
@@ -77,9 +79,9 @@ def login(email: str, password: str) -> bool:
     except Exception as e:
         error_msg = str(e)
         if "Invalid login" in error_msg or "invalid" in error_msg.lower():
-            st.error("Email o contraseña incorrectos.")
+            st.error(t("auth.error_invalid_credentials", "Email o contraseña incorrectos."))
         else:
-            st.error(f"Error de autenticación: {error_msg}")
+            st.error(f"{t('auth.error_auth', 'Error de autenticación')}: {error_msg}")
         return False
 
 
@@ -99,18 +101,18 @@ def register(email: str, password: str) -> bool:
             "password": password
         })
         if response.user:
-            st.success(
-                "Cuenta creada. Revisa tu email para confirmar "
-                "y luego ya puedes iniciar sesión."
-            )
+            st.success(t("auth.register_success",
+                         "Cuenta creada. Revisa tu email para confirmar "
+                         "y luego ya puedes iniciar sesión."))
             return True
         return False
     except Exception as e:
         error_msg = str(e)
         if "already registered" in error_msg.lower():
-            st.error("Este email ya esta registrado. Intenta iniciar sesión.")
+            st.error(t("auth.error_already_registered",
+                        "Este email ya esta registrado. Intenta iniciar sesión."))
         else:
-            st.error(f"Error en registro: {error_msg}")
+            st.error(f"{t('auth.error_register', 'Error en registro')}: {error_msg}")
         return False
 
 
@@ -188,7 +190,7 @@ def require_admin():
     """
     require_auth()
     if not is_admin():
-        st.error("Acceso restringido. Se requiere rol de administrador.")
+        st.error(t("access.admin_required", "Acceso restringido. Se requiere rol de administrador."))
         st.stop()
 
 
@@ -200,8 +202,8 @@ def require_pro():
     """
     require_auth()
     if not is_pro():
-        st.warning("Esta función requiere suscripción Pro.")
-        st.markdown("[Suscribirse →](#)")  # TODO: Link a Stripe
+        st.warning(t("paywall.requires_pro_generic", "Esta función requiere suscripción Pro."))
+        st.markdown(f"[{t('paywall.subscribe_link', 'Suscribirse →')}](#)")  # TODO: Link a Stripe
         st.stop()
 
 
@@ -218,7 +220,7 @@ def reset_password(email: str) -> bool:
         client.auth.reset_password_email(email)
         return True
     except Exception as e:
-        st.error(f"Error al enviar email de recuperacion: {e}")
+        st.error(f"{t('auth.error_reset', 'Error al enviar email de recuperacion')}: {e}")
         return False
 
 
@@ -229,65 +231,77 @@ def render_login_page():
     en registro, longitud minima de contraseña (6 chars),
     recuperacion de contraseña y aviso de terminos de servicio.
     """
-    st.title("🔒 Trading Memes")
-    st.markdown("Detector de Gems en Memecoins con Machine Learning")
+    st.title(t("auth.login_title", "🔒 Trading Memes"))
+    st.markdown(t("auth.login_subtitle", "Detector de Gems en Memecoins con Machine Learning"))
 
-    tab_login, tab_register = st.tabs(["Iniciar Sesión", "Crear Cuenta"])
+    tab_login, tab_register = st.tabs([
+        t("auth.tab_login", "Iniciar Sesión"),
+        t("auth.tab_register", "Crear Cuenta"),
+    ])
 
     with tab_login:
         # --- Formulario de login ---
-        email = st.text_input("Email", key="login_email")
-        password = st.text_input("Contraseña", type="password", key="login_password")
-        if st.button("Acceder", type="primary", key="btn_login"):
+        email = st.text_input(t("auth.email", "Email"), key="login_email")
+        password = st.text_input(
+            t("auth.password", "Contraseña"), type="password", key="login_password"
+        )
+        if st.button(t("auth.login_btn", "Acceder"), type="primary", key="btn_login"):
             if email and password:
                 if login(email, password):
                     st.rerun()
             else:
-                st.warning("Introduce email y contraseña.")
+                st.warning(t("auth.error_empty_fields", "Introduce email y contraseña."))
 
         # --- Recuperar contrasena ---
         st.markdown("---")
-        with st.expander("¿Olvidaste tu contraseña?"):
+        with st.expander(t("auth.forgot_password", "¿Olvidaste tu contraseña?")):
             reset_email = st.text_input(
-                "Introduce tu email para restablecer la contraseña",
+                t("auth.reset_email_label",
+                  "Introduce tu email para restablecer la contraseña"),
                 key="reset_email",
             )
-            if st.button("Enviar enlace de recuperacion", key="btn_reset"):
+            if st.button(t("auth.reset_btn", "Enviar enlace de recuperacion"), key="btn_reset"):
                 if reset_email:
                     if reset_password(reset_email):
-                        st.success(
-                            "Te hemos enviado un email para restablecer "
-                            "tu contraseña. Revisa tu bandeja de entrada."
-                        )
+                        st.success(t("auth.reset_success",
+                                     "Te hemos enviado un email para restablecer "
+                                     "tu contraseña. Revisa tu bandeja de entrada."))
                 else:
-                    st.warning("Introduce tu email.")
+                    st.warning(t("auth.error_empty_email", "Introduce tu email."))
 
     with tab_register:
-        reg_email = st.text_input("Email", key="reg_email")
+        reg_email = st.text_input(t("auth.email", "Email"), key="reg_email")
         reg_pass = st.text_input(
-            "Contraseña", type="password", key="reg_password",
-            help="Minimo 8 caracteres, al menos una mayúscula y un número",
+            t("auth.password", "Contraseña"), type="password", key="reg_password",
+            help=t("auth.password_hint",
+                   "Minimo 8 caracteres, al menos una mayúscula y un número"),
         )
-        st.caption("Minimo 8 caracteres, al menos una mayúscula y un número")
+        st.caption(t("auth.password_hint",
+                      "Minimo 8 caracteres, al menos una mayúscula y un número"))
         reg_pass2 = st.text_input(
-            "Confirmar contraseña", type="password", key="reg_password2"
+            t("auth.confirm_password", "Confirmar contraseña"),
+            type="password", key="reg_password2",
         )
-        if st.button("Crear cuenta", type="primary", key="btn_register"):
+        if st.button(t("auth.register_btn", "Crear cuenta"), type="primary", key="btn_register"):
             if not reg_email or not reg_pass:
-                st.warning("Completa todos los campos.")
+                st.warning(t("auth.error_fill_all", "Completa todos los campos."))
             elif reg_pass != reg_pass2:
-                st.error("Las contraseñas no coinciden.")
+                st.error(t("auth.error_password_mismatch", "Las contraseñas no coinciden."))
             elif len(reg_pass) < 8:
-                st.error("La contraseña debe tener al menos 8 caracteres.")
+                st.error(t("auth.error_password_length",
+                           "La contraseña debe tener al menos 8 caracteres."))
             elif not any(c.isupper() for c in reg_pass):
-                st.error("La contraseña debe contener al menos una mayúscula.")
+                st.error(t("auth.error_password_uppercase",
+                           "La contraseña debe contener al menos una mayúscula."))
             elif not any(c.isdigit() for c in reg_pass):
-                st.error("La contraseña debe contener al menos un número.")
+                st.error(t("auth.error_password_digit",
+                           "La contraseña debe contener al menos un número."))
             else:
                 register(reg_email, reg_pass)
 
         # Aviso de terminos de servicio
-        st.caption("Al crear tu cuenta aceptas los [Terminos de Servicio](legal).")
+        st.caption(t("auth.tos_notice",
+                      "Al crear tu cuenta aceptas los Terminos de Servicio."))
 
 
 def render_sidebar_user_info():
@@ -301,15 +315,15 @@ def render_sidebar_user_info():
         role = st.session_state.get("role", "free")
 
         role_badges = {
-            "admin": "🔴 Admin",
-            "pro": "🟢 Pro",
-            "free": "⚪ Free",
+            "admin": f"🔴 {t('roles.admin', 'Admin')}",
+            "pro": f"🟢 {t('roles.pro', 'Pro')}",
+            "free": f"⚪ {t('roles.free', 'Free')}",
         }
-        badge = role_badges.get(role, "⚪ Free")
+        badge = role_badges.get(role, f"⚪ {t('roles.free', 'Free')}")
 
         st.sidebar.markdown(f"**{user.get('email', '')}**")
-        st.sidebar.markdown(f"Plan: {badge}")
+        st.sidebar.markdown(f"{t('roles.plan_label', 'Plan')}: {badge}")
 
-        if st.sidebar.button("🔓 Cerrar sesión"):
+        if st.sidebar.button(f"🔓 {t('app.logout', 'Cerrar sesión')}"):
             logout()
             st.rerun()

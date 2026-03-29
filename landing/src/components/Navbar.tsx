@@ -1,20 +1,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
-
-const navLinks = [
-  { label: "La Máquina", href: "/#pipeline" },
-  { label: "Números", href: "/#stats" },
-  { label: "Backtesting", href: "/#backtesting" },
-  { label: "Planes", href: "/#pricing" },
-  { label: "FAQ", href: "/#faq" },
-  { label: "Academia", href: "/academia" },
-  { label: "Disclaimer", href: "/disclaimer" },
-];
+import { useTranslations } from "next-intl";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 export default function Navbar() {
+  const t = useTranslations("nav");
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const navLinks = [
+    { label: t("pipeline"), href: "/#pipeline" },
+    { label: t("stats"), href: "/#stats" },
+    { label: t("backtesting"), href: "/#backtesting" },
+    { label: t("pricing"), href: "/#pricing" },
+    { label: t("faq"), href: "/#faq" },
+    { label: t("academy"), href: "/academia" },
+    { label: t("disclaimer"), href: "/disclaimer" },
+  ];
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -35,7 +38,7 @@ export default function Navbar() {
           {/* Logo */}
           <a href="#" className="flex items-center gap-2 shrink-0">
             <span className="text-primary text-lg font-bold tracking-tight">
-              💎 MEME DETECTOR
+              {"\u{1F48E}"} {t("brand")}
             </span>
           </a>
 
@@ -52,15 +55,16 @@ export default function Navbar() {
             ))}
           </div>
 
-          {/* Desktop CTA buttons */}
+          {/* Desktop CTA buttons + Language Switcher */}
           <div className="hidden md:flex items-center gap-3">
+            <LanguageSwitcher />
             <a
               href="https://app.memedetector.es"
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-gray-400 hover:text-white transition-colors uppercase tracking-wider"
             >
-              Iniciar sesión
+              {t("login")}
             </a>
             <a
               href="https://app.memedetector.es"
@@ -68,7 +72,7 @@ export default function Navbar() {
               rel="noopener noreferrer"
               className="border border-primary text-primary px-4 py-1.5 text-xs font-semibold uppercase tracking-wider hover:bg-primary hover:text-dark-900 transition-all duration-300"
             >
-              Crear cuenta
+              {t("signup")}
             </a>
           </div>
 
@@ -100,23 +104,28 @@ export default function Navbar() {
                 {link.label}
               </a>
             ))}
-            <div className="pt-3 border-t border-dark-700 flex gap-3">
-              <a
-                href="https://app.memedetector.es"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-gray-400 hover:text-white"
-              >
-                Iniciar sesión
-              </a>
-              <a
-                href="https://app.memedetector.es"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="border border-primary text-primary px-4 py-1 text-sm"
-              >
-                Crear cuenta
-              </a>
+            <div className="pt-3 border-t border-dark-700 space-y-3">
+              <div className="flex items-center gap-2">
+                <LanguageSwitcher />
+              </div>
+              <div className="flex gap-3">
+                <a
+                  href="https://app.memedetector.es"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-gray-400 hover:text-white"
+                >
+                  {t("login")}
+                </a>
+                <a
+                  href="https://app.memedetector.es"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="border border-primary text-primary px-4 py-1 text-sm"
+                >
+                  {t("signup")}
+                </a>
+              </div>
             </div>
           </div>
         )}

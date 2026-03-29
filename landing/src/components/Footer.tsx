@@ -2,8 +2,11 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 export default function Footer() {
+  const t = useTranslations("footer");
+
   return (
     <footer className="bg-dark-900 pt-12 pb-8 px-6">
       <div className="max-w-4xl mx-auto">
@@ -19,10 +22,7 @@ export default function Footer() {
           className="border border-gem-yellow/30 bg-gem-yellow/5 p-6 mb-10"
         >
           <p className="text-xs md:text-sm text-gem-yellow leading-relaxed">
-            <span className="font-bold">DISCLAIMER:</span> Meme Detector es una
-            herramienta de análisis automatizado. No constituye asesoramiento
-            financiero. Los memecoins son activos altamente especulativos y
-            puedes perder la totalidad de tu inversión. DYOR.
+            <span className="font-bold">DISCLAIMER:</span> {t("disclaimer")}
           </p>
         </motion.div>
 
@@ -39,7 +39,7 @@ export default function Footer() {
         >
           {/* Left: brand + copyright */}
           <div className="flex items-center gap-2">
-            <span className="text-gray-400 font-semibold">Meme Detector</span>
+            <span className="text-gray-400 font-semibold">{t("brand")}</span>
             <span>&copy; {new Date().getFullYear()}</span>
           </div>
 
@@ -49,21 +49,21 @@ export default function Footer() {
               href="/disclaimer"
               className="hover:text-gem-yellow transition-colors duration-200 text-gem-yellow/70 font-semibold"
             >
-              Disclaimer
+              {t("link_disclaimer")}
             </Link>
             <span className="text-dark-600">|</span>
             <Link
               href="/legal"
               className="hover:text-primary transition-colors duration-200"
             >
-              Legal
+              {t("link_legal")}
             </Link>
             <span className="text-dark-600">|</span>
             <Link
               href="/legal#privacidad"
               className="hover:text-primary transition-colors duration-200"
             >
-              Privacidad
+              {t("link_privacy")}
             </Link>
           </div>
 
@@ -82,7 +82,7 @@ export default function Footer() {
               rel="noopener noreferrer"
               className="hover:text-primary transition-colors duration-200"
             >
-              Telegram: @Ull_trading_bot
+              {t("telegram_label")}
             </a>
           </div>
         </motion.div>

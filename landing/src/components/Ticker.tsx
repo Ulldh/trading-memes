@@ -1,6 +1,8 @@
 "use client";
 
-// TODO: Reemplazar datos hardcoded con señales reales de Supabase
+import { useTranslations } from "next-intl";
+
+// TODO: Reemplazar datos hardcoded con senales reales de Supabase
 const signals = [
   { symbol: "PEPE", change: "+340%", positive: true },
   { symbol: "WIF", change: "+120%", positive: true },
@@ -28,7 +30,7 @@ function SignalItem({
   return (
     <span className="inline-flex items-center mx-6 whitespace-nowrap">
       <span className={positive ? "text-primary" : "text-gem-red"}>
-        {positive ? "▲" : "▼"}
+        {positive ? "\u25B2" : "\u25BC"}
       </span>
       <span className="text-gray-400 mx-1.5 font-semibold">{symbol}</span>
       <span
@@ -41,13 +43,15 @@ function SignalItem({
 }
 
 export default function Ticker() {
+  const t = useTranslations("ticker");
+
   return (
     <div className="relative w-full bg-dark-800 border-b border-dark-600 overflow-hidden">
       {/* DEMO indicator */}
       <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center bg-dark-800 pl-3 pr-4 border-r border-dark-600">
         <span className="inline-block w-2 h-2 bg-gem-yellow rounded-full mr-2" />
         <span className="text-[10px] text-gem-yellow font-bold tracking-widest uppercase">
-          DEMO
+          {t("demo_label")}
         </span>
       </div>
 

@@ -1,37 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-
-const steps = [
-  {
-    title: "DATOS",
-    icon: "{ }",
-    stats: ["5,329 tokens", "3 blockchains", "11 APIs activas"],
-    detail:
-      "Recopilamos datos de Solana, Ethereum y Base cada día desde 11 fuentes distintas.",
-  },
-  {
-    title: "FEATURES",
-    icon: "f(x)",
-    stats: ["94 características", "Holders, liquidez", "Volumen, momentum"],
-    detail:
-      "Cada token se describe con 94 variables numéricas: concentración de holders, profundidad de LP, volumen, volatilidad y más.",
-  },
-  {
-    title: "MODELO",
-    icon: "ML",
-    stats: ["RF + XGB + LGB", "Ensemble ML", "F1 Score: 0.67"],
-    detail:
-      "Tres algoritmos votan en conjunto. Solo las señales con consenso pasan el filtro.",
-  },
-  {
-    title: "SEÑAL",
-    icon: ">>",
-    stats: ["STRONG / MEDIUM", "Cada día 07:30", "Telegram + Web"],
-    detail:
-      "Recibes la señal clasificada por confianza directamente en tu Telegram.",
-  },
-];
+import { useTranslations } from "next-intl";
 
 const containerVariants = {
   hidden: {},
@@ -50,6 +20,19 @@ const cardVariants = {
 };
 
 export default function Pipeline() {
+  const t = useTranslations("pipeline");
+
+  // Iconos de cada paso (no se traducen)
+  const stepIcons = ["{ }", "f(x)", "ML", ">>"];
+
+  // Construir los pasos desde las traducciones
+  const steps = Array.from({ length: 4 }, (_, i) => ({
+    title: t(`steps.${i}.title`),
+    icon: stepIcons[i],
+    stats: t.raw(`steps.${i}.stats`) as string[],
+    detail: t(`steps.${i}.detail`),
+  }));
+
   return (
     <section id="pipeline" className="relative py-24 px-4 bg-dark-900">
       {/* Section title */}
@@ -61,11 +44,11 @@ export default function Pipeline() {
         className="text-center mb-16"
       >
         <h2 className="text-3xl md:text-5xl font-bold text-primary glow-green font-mono">
-          La Máquina
+          {t("section_title")}
           <span className="inline-block w-[2px] h-[1em] bg-primary ml-2 animate-pulse align-middle" />
         </h2>
         <p className="text-dark-600 text-sm mt-4 font-mono tracking-wide uppercase">
-          De datos crudos a señales accionables
+          {t("section_subtitle")}
         </p>
       </motion.div>
 
@@ -78,7 +61,7 @@ export default function Pipeline() {
         className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-0 items-stretch"
       >
         {steps.map((step, i) => (
-          <div key={step.title} className="flex items-stretch">
+          <div key={i} className="flex items-stretch">
             {/* Card */}
             <motion.div variants={cardVariants} className="flex-1 flex flex-col">
               <div className="border border-dark-600 bg-dark-800 p-6 flex flex-col h-full hover:border-primary/50 transition-colors duration-300">
@@ -94,9 +77,9 @@ export default function Pipeline() {
 
                 {/* Stats list */}
                 <ul className="space-y-2 mb-4 flex-1">
-                  {step.stats.map((stat) => (
+                  {step.stats.map((stat, si) => (
                     <li
-                      key={stat}
+                      key={si}
                       className="text-sm font-mono text-gray-400 flex items-start gap-2"
                     >
                       <span className="text-primary mt-0.5 text-xs">{">"}</span>

@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 
 export default function Hero() {
+  const t = useTranslations("hero");
   const [tokenCount, setTokenCount] = useState(5000);
 
   useEffect(() => {
@@ -55,10 +57,10 @@ export default function Hero() {
           transition={{ duration: 0.7, delay: 0.2 }}
           className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight mb-6"
         >
-          Detecta{" "}
-          <span className="text-primary glow-green">gems</span>
+          {t("title_line1")}{" "}
+          <span className="text-primary glow-green">{t("title_highlight")}</span>
           <br />
-          antes que nadie
+          {t("title_line2")}
         </motion.h1>
 
         {/* Subtitle */}
@@ -68,11 +70,11 @@ export default function Hero() {
           transition={{ duration: 0.7, delay: 0.4 }}
           className="text-lg md:text-xl text-gray-400 mb-10 max-w-2xl mx-auto"
         >
-          Machine Learning analiza{" "}
+          {t("subtitle_prefix")}{" "}
           <span className="text-primary font-semibold">
             {tokenCount.toLocaleString("es-ES")}+
           </span>{" "}
-          memecoins diariamente en Solana, Ethereum y Base
+          {t("subtitle_suffix")}
         </motion.p>
 
         {/* Three stats */}
@@ -84,15 +86,15 @@ export default function Hero() {
         >
           <div className="border border-dark-600 px-5 py-3">
             <span className="text-primary font-bold text-lg">94</span>
-            <span className="text-gray-500 ml-2">features</span>
+            <span className="text-gray-500 ml-2">{t("stat_features")}</span>
           </div>
           <div className="border border-dark-600 px-5 py-3">
             <span className="text-primary font-bold text-lg">3</span>
-            <span className="text-gray-500 ml-2">blockchains</span>
+            <span className="text-gray-500 ml-2">{t("stat_blockchains")}</span>
           </div>
           <div className="border border-dark-600 px-5 py-3">
             <span className="text-primary font-bold text-lg">07:30</span>
-            <span className="text-gray-500 ml-2">UTC señales diarias</span>
+            <span className="text-gray-500 ml-2">{t("stat_signals")}</span>
           </div>
         </motion.div>
 
@@ -109,7 +111,7 @@ export default function Hero() {
               rel="noopener noreferrer"
               className="inline-block border-2 border-primary text-primary px-8 py-4 text-sm font-semibold tracking-wider uppercase hover:bg-primary hover:text-dark-900 transition-all duration-300"
             >
-              Crear cuenta gratis →
+              {t("cta_signup")}
             </a>
             <a
               href="https://app.memedetector.es"
@@ -117,7 +119,7 @@ export default function Hero() {
               rel="noopener noreferrer"
               className="inline-block border-2 border-dark-600 text-gray-400 px-8 py-4 text-sm font-semibold tracking-wider uppercase hover:border-gray-400 hover:text-white transition-all duration-300"
             >
-              Iniciar sesión
+              {t("cta_login")}
             </a>
           </div>
         </motion.div>
@@ -129,10 +131,10 @@ export default function Hero() {
           transition={{ duration: 1, delay: 1.2 }}
           className="mt-16 text-xs text-dark-600 font-mono"
         >
-          <span className="text-gem-green">STATUS:</span> ONLINE &middot;{" "}
-          <span className="text-gem-green">MODELO:</span> v12 &middot;{" "}
-          <span className="text-gem-green">F1:</span> 0.726 &middot;{" "}
-          <span className="text-gem-green">PRECISION:</span> 72.6%
+          <span className="text-gem-green">{t("status_label")}</span> {t("status_value")} &middot;{" "}
+          <span className="text-gem-green">{t("model_label")}</span> {t("model_value")} &middot;{" "}
+          <span className="text-gem-green">{t("f1_label")}</span> {t("f1_value")} &middot;{" "}
+          <span className="text-gem-green">{t("precision_label")}</span> {t("precision_value")}
         </motion.div>
 
         {/* Disclaimer banner */}
@@ -142,12 +144,12 @@ export default function Hero() {
           transition={{ duration: 1, delay: 1.5 }}
           className="mt-6 text-[10px] sm:text-xs text-gray-500"
         >
-          Herramienta de análisis de datos. No es asesoramiento financiero.{" "}
+          {t("disclaimer_text")}{" "}
           <a
             href="/disclaimer"
             className="text-gem-yellow/70 hover:text-gem-yellow underline underline-offset-2 transition-colors"
           >
-            Ver disclaimer completo
+            {t("disclaimer_link")}
           </a>
           .
         </motion.div>

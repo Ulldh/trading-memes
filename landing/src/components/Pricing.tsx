@@ -1,58 +1,29 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 
-const plans = [
-  {
-    name: "FREE",
-    price: "$0",
-    period: "/mes",
-    highlighted: false,
-    features: [
-      { text: "3 señales/día", included: true },
-      { text: "Watchlist (3)", included: true },
-      { text: "Token search", included: false },
-      { text: "Telegram alerts", included: false },
-      { text: "Backtesting", included: false },
-    ],
-    cta: "Crear cuenta",
-    href: "https://app.memedetector.es",
-  },
-  {
-    name: "PRO",
-    badge: "★",
-    price: "$29",
-    period: "/mes",
-    highlighted: true,
-    features: [
-      { text: "Todas las señales", included: true },
-      { text: "Token search", included: true },
-      { text: "Telegram alerts", included: true },
-      { text: "Watchlist (10)", included: true },
-      { text: "SHAP analysis", included: true },
-      { text: "Track record", included: true },
-    ],
-    cta: "Empezar →",
-    href: "https://buy.stripe.com/bJe8wPgnT7Ai6RT4xCaZi00",
-  },
-  {
-    name: "ENTERPRISE",
-    price: "$99",
-    period: "/mes",
-    highlighted: false,
-    features: [
-      { text: "Todo de Pro", included: true },
-      { text: "API access", included: true },
-      { text: "Watchlist ∞", included: true },
-      { text: "Soporte prioritario", included: true },
-      { text: "Datos export", included: true },
-    ],
-    cta: "Empezar →",
-    href: "https://buy.stripe.com/8x2fZh4Fbg6Oekld48aZi01",
-  },
+// URLs de pago (no se traducen)
+const planHrefs = [
+  "https://app.memedetector.es",
+  "https://buy.stripe.com/bJe8wPgnT7Ai6RT4xCaZi00",
+  "https://buy.stripe.com/8x2fZh4Fbg6Oekld48aZi01",
 ];
 
 export default function Pricing() {
+  const t = useTranslations("pricing");
+
+  const plans = Array.from({ length: 3 }, (_, i) => ({
+    name: t(`plans.${i}.name`),
+    price: t(`plans.${i}.price`),
+    period: t(`plans.${i}.period`),
+    highlighted: i === 1,
+    badge: i === 1 ? "\u2605" : undefined,
+    features: t.raw(`plans.${i}.features`) as Array<{ text: string; included: boolean }>,
+    cta: t(`plans.${i}.cta`),
+    href: planHrefs[i],
+  }));
+
   return (
     <section id="pricing" className="py-24 px-6 bg-dark-900">
       <div className="max-w-6xl mx-auto">
@@ -65,10 +36,10 @@ export default function Pricing() {
           className="text-center mb-16"
         >
           <p className="text-xs text-dark-600 tracking-widest uppercase mb-4">
-            <span className="text-primary">$</span> cat /plans
+            <span className="text-primary">$</span> {t("terminal_prompt").replace("$ ", "")}
           </p>
           <h2 className="text-3xl md:text-4xl font-bold">
-            Acceso
+            {t("section_title")}
           </h2>
         </motion.div>
 
@@ -76,7 +47,7 @@ export default function Pricing() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
           {plans.map((plan, index) => (
             <motion.div
-              key={plan.name}
+              key={index}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -119,12 +90,12 @@ export default function Pricing() {
 
               {/* Features */}
               <ul className="space-y-3 mb-10 flex-1">
-                {plan.features.map((feature) => (
-                  <li key={feature.text} className="flex items-center gap-3 text-sm">
+                {plan.features.map((feature, fi) => (
+                  <li key={fi} className="flex items-center gap-3 text-sm">
                     {feature.included ? (
-                      <span className="text-primary font-bold">✓</span>
+                      <span className="text-primary font-bold">{"\u2713"}</span>
                     ) : (
-                      <span className="text-gray-600 font-bold">✗</span>
+                      <span className="text-gray-600 font-bold">{"\u2717"}</span>
                     )}
                     <span
                       className={

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
+import { useTranslations } from "next-intl";
 
 // TODO: Conectar a Supabase para obtener datos reales
 // import { createClient } from "@supabase/supabase-js";
@@ -14,17 +15,6 @@ interface StatItem {
   label: string;
   decimals?: number;
 }
-
-const stats: StatItem[] = [
-  { value: 5329, label: "tokens analizados" },
-  { value: 88522, label: "candles OHLCV" },
-  { value: 94, label: "features / token" },
-  { value: 67, suffix: "%", label: "hit rate" },
-  { value: 3, label: "blockchains" },
-  { value: 7.3, label: "señales diarias (UTC)", decimals: 1 },
-  { value: 15, prefix: "<", suffix: "s", label: "scoring time" },
-  { value: 24, suffix: "/7", label: "monitoreo" },
-];
 
 function useCountUp(
   target: number,
@@ -96,6 +86,20 @@ function StatCard({ item, index }: { item: StatItem; index: number }) {
 }
 
 export default function Stats() {
+  const t = useTranslations("stats");
+
+  // Los valores numericos no cambian, solo los labels se traducen
+  const statsData: StatItem[] = [
+    { value: 5329, label: t("items.0.label") },
+    { value: 88522, label: t("items.1.label") },
+    { value: 94, label: t("items.2.label") },
+    { value: 67, suffix: "%", label: t("items.3.label") },
+    { value: 3, label: t("items.4.label") },
+    { value: 7.3, label: t("items.5.label"), decimals: 1 },
+    { value: 15, prefix: "<", suffix: "s", label: t("items.6.label") },
+    { value: 24, suffix: "/7", label: t("items.7.label") },
+  ];
+
   return (
     <section id="stats" className="relative py-24 px-4 bg-dark-900">
       {/* Subtle grid background */}
@@ -118,18 +122,18 @@ export default function Stats() {
           className="text-center mb-16"
         >
           <h2 className="text-3xl md:text-5xl font-bold text-white font-mono">
-            Números que hablan
+            {t("section_title")}
           </h2>
           <p className="text-gray-600 text-sm mt-4 font-mono">
-            {/* TODO: Actualizar dinámicamente desde Supabase */}
-            Datos actualizados del pipeline v12
+            {/* TODO: Actualizar dinamicamente desde Supabase */}
+            {t("section_subtitle")}
           </p>
         </motion.div>
 
         {/* Stats grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {stats.map((item, i) => (
-            <StatCard key={item.label} item={item} index={i} />
+          {statsData.map((item, i) => (
+            <StatCard key={i} item={item} index={i} />
           ))}
         </div>
       </div>
