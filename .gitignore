@@ -51,3 +51,4 @@ deploy/secrets_to_purge.txt
 # === GGA ===
 .gga
 supabase/.temp/
+signals/
