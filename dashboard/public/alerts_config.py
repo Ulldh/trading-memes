@@ -12,6 +12,7 @@ Requisitos:
 - Chat ID del usuario (se guarda en tabla profiles de Supabase)
 """
 
+import logging
 import os
 from datetime import datetime
 
@@ -19,6 +20,8 @@ import streamlit as st
 import requests
 
 from src.data.supabase_storage import get_storage as _get_storage
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================
@@ -133,7 +136,8 @@ def _save_telegram_chat_id(user_id: str, chat_id: str) -> bool:
         )
         return True
     except Exception as e:
-        st.error(f"Error al guardar chat ID: {e}")
+        logger.exception("Error al guardar chat ID de Telegram")
+        st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
         return False
 
 

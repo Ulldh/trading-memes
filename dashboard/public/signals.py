@@ -9,6 +9,7 @@ Muestra:
 # Las funciones premium requieren suscripcion Pro
 # (por ahora acceso libre, se activara con Stripe)
 
+import logging
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -18,6 +19,8 @@ from pathlib import Path
 from datetime import datetime
 
 from src.data.supabase_storage import get_storage as _get_storage
+
+logger = logging.getLogger(__name__)
 from dashboard.constants import SIGNAL_COLORS
 
 try:
@@ -455,10 +458,12 @@ def render_backtesting():
                     "Verifica que src/models/backtester.py existe."
                 )
             except FileNotFoundError as e:
-                st.error(f"Modelo no encontrado: {e}")
+                logger.warning("Modelo no encontrado para backtesting: %s", e)
+                st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
                 st.info("Ejecuta retrain.sh para entrenar los modelos primero.")
             except Exception as e:
-                st.error(f"Error en backtesting: {e}")
+                logger.exception("Error en backtesting")
+                st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
 
 
 def render_ohlcv_section(df_signals: pd.DataFrame):

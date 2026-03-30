@@ -37,44 +37,7 @@ except ImportError:
 # =============================================================================
 
 def _legacy_check_password():
-    """Gate legacy con contraseña simple (variable de entorno DASHBOARD_PASSWORD).
-
-    Se usa SOLO si el modulo dashboard.auth no esta disponible.
-    """
-    if "authenticated" not in st.session_state:
-        st.session_state.authenticated = False
-
-    if st.session_state.authenticated:
-        return True
-
-    # Pantalla de login legacy
-    st.set_page_config(
-        page_title="Meme Detector — Login",
-        page_icon="💎",
-        layout="centered",
-        menu_items={
-            "Get Help": "https://t.me/Ull_trading_bot",
-            "Report a Bug": "mailto:info@memedetector.es",
-            "About": "Meme Detector analiza miles de memecoins con ML para encontrar las próximas gems 10x+. https://www.memedetector.es",
-        },
-    )
-
-    st.title(":material/lock: Trading Memes Dashboard")
-    st.markdown("Introduce la contraseña para acceder.")
-
-    password = st.text_input("Contraseña", type="password", key="password_input")
-
-    if st.button("Acceder", type="primary"):
-        dashboard_password = os.getenv("DASHBOARD_PASSWORD", "")
-        if not dashboard_password:
-            st.error("DASHBOARD_PASSWORD no configurada en el servidor.")
-            return False
-        if password == dashboard_password:
-            st.session_state.authenticated = True
-            st.rerun()
-        else:
-            st.error("Contraseña incorrecta.")
-
+    """Legacy auth gate — ELIMINADO. Muestra mensaje de mantenimiento."""
     return False
 
 
@@ -86,9 +49,9 @@ if _AUTH_AVAILABLE:
     # Auth con Supabase — muestra login si no esta autenticado, llama st.stop()
     require_auth()
 else:
-    # Fallback legacy — bloquea hasta que se introduzca la contrasena
-    if not _legacy_check_password():
-        st.stop()
+    # Auth no disponible — bloquear acceso con mensaje de mantenimiento
+    st.error("Sistema de autenticación no disponible. Contacta info@memedetector.es")
+    st.stop()
 
 
 # =============================================================================
@@ -182,7 +145,7 @@ if render_pricing:
 
 # --- Paginas de administracion (solo admin) ---
 admin_pages = []
-_is_admin = is_admin() if _AUTH_AVAILABLE else True  # Legacy: todo visible
+_is_admin = is_admin() if _AUTH_AVAILABLE else False  # Sin auth: nada visible
 
 if _is_admin:
     admin_pages = [

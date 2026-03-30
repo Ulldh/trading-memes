@@ -9,6 +9,7 @@ Muestra estadisticas clave del proyecto:
 - Tokens descubiertos por semana (bar chart)
 - Frescura de los datos (ultima actualización)
 """
+import logging
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -16,6 +17,8 @@ from datetime import datetime, timedelta
 
 from src.data.supabase_storage import get_storage as _get_storage
 from dashboard.constants import LABEL_COLORS, CHAIN_COLORS, SIGNAL_COLORS
+
+logger = logging.getLogger(__name__)
 
 
 @st.cache_resource
@@ -60,7 +63,8 @@ def render():
     try:
         stats = storage.stats()
     except Exception as e:
-        st.error(f"Error al conectar con la base de datos: {e}")
+        logger.exception("Error al conectar con la base de datos en overview")
+        st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
         return
 
     # Mostrar conteos en columnas

@@ -11,11 +11,16 @@ NOTA: Los emails de confirmacion y reset se configuran en:
 Supabase Dashboard → Authentication → Email Templates
 URL: https://supabase.com/dashboard/project/xayfwuqbbqtyerxzjbec/auth/templates
 """
+import logging
 import os
+import time
+
 import streamlit as st
 from supabase import create_client, Client
 
 from dashboard.i18n import t
+
+logger = logging.getLogger(__name__)
 
 
 def get_supabase_client() -> Client:
@@ -45,6 +50,7 @@ def init_session_state():
         "role": "free",        # admin, pro, free
         "profile": None,       # dict completo del profile
         "access_token": None,
+        "login_time": 0,       # timestamp del ultimo login/refresh
     }
     for key, val in defaults.items():
         if key not in st.session_state:
@@ -57,7 +63,20 @@ def login(email: str, password: str) -> bool:
     Usa sign_in_with_password que valida credenciales contra
     la tabla auth.users de Supabase. Si el login es exitoso,
     carga el perfil del usuario desde la tabla 'profiles'.
+
+    Incluye rate limiting exponencial basado en session_state:
+    tras 5 fallos consecutivos, se bloquea con backoff creciente.
     """
+    # --- Rate limiting: bloquear tras demasiados intentos fallidos ---
+    failures = st.session_state.get("login_failures", 0)
+    last_fail = st.session_state.get("last_failure_time", 0)
+    if failures >= 5:
+        wait = min(2 ** (failures - 4), 300)
+        elapsed = time.time() - last_fail
+        if elapsed < wait:
+            st.error(f"Demasiados intentos. Espera {int(wait - elapsed)} segundos.")
+            return False
+
     client = get_supabase_client()
     if not client:
         return False
@@ -72,16 +91,25 @@ def login(email: str, password: str) -> bool:
         st.session_state.authenticated = True
         st.session_state.user = {"id": user.id, "email": user.email}
         st.session_state.access_token = session.access_token
+        st.session_state.login_time = time.time()
+
+        # Reset rate limiting on success
+        st.session_state.login_failures = 0
 
         # Cargar perfil (role, subscription, etc.)
         _load_profile(client, user.id)
         return True
     except Exception as e:
+        # Incrementar contador de fallos para rate limiting
+        st.session_state.login_failures = st.session_state.get("login_failures", 0) + 1
+        st.session_state.last_failure_time = time.time()
+
         error_msg = str(e)
         if "Invalid login" in error_msg or "invalid" in error_msg.lower():
             st.error(t("auth.error_invalid_credentials", "Email o contraseña incorrectos."))
         else:
-            st.error(f"{t('auth.error_auth', 'Error de autenticación')}: {error_msg}")
+            logger.exception("Error de autenticacion en login")
+            st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
         return False
 
 
@@ -112,7 +140,8 @@ def register(email: str, password: str) -> bool:
             st.error(t("auth.error_already_registered",
                         "Este email ya esta registrado. Intenta iniciar sesión."))
         else:
-            st.error(f"{t('auth.error_register', 'Error en registro')}: {error_msg}")
+            logger.exception("Error en registro de usuario")
+            st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
         return False
 
 
@@ -123,6 +152,7 @@ def logout():
     st.session_state.role = "free"
     st.session_state.profile = None
     st.session_state.access_token = None
+    st.session_state.login_time = 0
 
 
 def _load_profile(client: Client, user_id: str):
@@ -168,6 +198,33 @@ def is_pro() -> bool:
     return st.session_state.get("role") in ("pro", "admin")
 
 
+def _check_session_freshness():
+    """Refresh Supabase token if it's about to expire (50+ min old).
+
+    Los tokens de Supabase expiran por defecto en 1 hora.
+    Si el login_time tiene mas de 50 minutos, intentamos refrescar.
+    Si falla, forzamos re-login limpiando el session_state.
+    """
+    login_time = st.session_state.get("login_time", 0)
+    if not login_time or time.time() - login_time <= 3000:
+        return  # Token aun fresco (< 50 min)
+
+    try:
+        client = get_supabase_client()
+        if not client:
+            return
+        response = client.auth.refresh_session()
+        if response and response.session:
+            st.session_state.access_token = response.session.access_token
+            st.session_state.login_time = time.time()
+    except Exception as e:
+        logger.warning(f"Session refresh failed: {e}")
+        # Force re-login
+        for key in ["authenticated", "user", "access_token", "login_time"]:
+            st.session_state.pop(key, None)
+        st.rerun()
+
+
 def require_auth():
     """Muestra login si no autenticado. Llama st.stop() si no pasa.
 
@@ -178,6 +235,7 @@ def require_auth():
     """
     init_session_state()
     if is_authenticated():
+        _check_session_freshness()
         return
     render_login_page()
     st.stop()
@@ -229,7 +287,8 @@ def reset_password(email: str) -> bool:
         client.auth.reset_password_email(email)
         return True
     except Exception as e:
-        st.error(f"{t('auth.error_reset', 'Error al enviar email de recuperacion')}: {e}")
+        logger.exception("Error al enviar email de recuperacion de contrasena")
+        st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
         return False
 
 

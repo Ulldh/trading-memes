@@ -4,8 +4,8 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 // Supabase service_role — solo se ejecuta en server-side (nunca llega al cliente)
-const SUPABASE_URL = process.env.SUPABASE_URL || "https://xayfwuqbbqtyerxzjbec.supabase.co";
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Cache en memoria para evitar queries excesivas (1 hora)
 let cachedStats: Record<string, number> | null = null;
@@ -27,6 +27,13 @@ export async function GET() {
   if (cachedStats && now - cacheTimestamp < CACHE_TTL) {
     return NextResponse.json(cachedStats, {
       headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=1800" },
+    });
+  }
+
+  // Sin credenciales de Supabase, devolver fallback
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    return NextResponse.json(FALLBACK_STATS, {
+      headers: { "Cache-Control": "public, s-maxage=300" },
     });
   }
 

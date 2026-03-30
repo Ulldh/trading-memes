@@ -14,6 +14,7 @@ Permite:
 # (por ahora acceso libre, se activara con Stripe)
 
 import json
+import logging
 import sys
 import time
 from html import escape
@@ -23,6 +24,8 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+
+logger = logging.getLogger(__name__)
 
 from src.data.supabase_storage import get_storage as _get_storage
 from src.utils.helpers import detect_chain
@@ -227,11 +230,9 @@ def add_new_token(token_address: str, chain: str):
             st.caption("Revisa los logs para más detalles.")
 
     except Exception as e:
-        st.error(f"❌ Error al añadir el token: {str(e)}")
+        logger.exception("Error al anadir token desde add_new_token")
+        st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
         st.caption("Es posible que el token no exista o no tenga liquidez suficiente.")
-        import traceback
-        with st.expander("Ver detalles técnicos"):
-            st.code(traceback.format_exc())
 
 
 FEATURE_DESCRIPTIONS = {
@@ -373,7 +374,8 @@ def render():
             (contract_address, selected_chain),
         )
     except Exception as e:
-        st.error(f"Error al consultar la base de datos: {e}")
+        logger.exception("Error al consultar la base de datos en token_lookup")
+        st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
         return
 
     if df_token.empty:
@@ -505,10 +507,8 @@ def render():
                             st.rerun()
 
                 except Exception as e:
-                    st.error(f"❌ Error al añadir el token: {str(e)}")
-                    import traceback
-                    with st.expander("Ver detalles técnicos"):
-                        st.code(traceback.format_exc())
+                    logger.exception("Error al anadir token desde busqueda inline")
+                    st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
                     # Limpiar flags
                     st.session_state["processing_new_token"] = False
                     st.session_state.pop("active_search", None)
@@ -540,12 +540,13 @@ def render():
     col6.metric("Descubierto", str(token_info.get("first_seen", "N/A") or "N/A")[:19])
 
     # Boton de watchlist
-    in_watchlist = storage.is_in_watchlist(contract_address)
+    _user_id = st.session_state.get("user", {}).get("id")
+    in_watchlist = storage.is_in_watchlist(contract_address, user_id=_user_id)
     col_wl1, col_wl2, col_wl3 = st.columns([1, 2, 1])
     with col_wl2:
         if in_watchlist:
             if st.button("Quitar de Watchlist", key="btn_remove_watchlist", use_container_width=True):
-                storage.remove_from_watchlist(contract_address)
+                storage.remove_from_watchlist(contract_address, user_id=_user_id)
                 st.rerun()
         else:
             if st.button("Agregar a Watchlist", key="btn_add_watchlist", type="primary", use_container_width=True):
@@ -555,11 +556,11 @@ def render():
                 _plan = st.session_state.get("profile", {}).get("subscription_plan", "free")
                 _limits = get_plan_limits(_plan if _role != "admin" else "enterprise")
                 _max_wl = _limits.get("max_watchlist", 3)
-                _current_wl = storage.get_watchlist()
+                _current_wl = storage.get_watchlist(user_id=_user_id)
                 if _role != "admin" and len(_current_wl) >= _max_wl:
                     st.error(f"Has alcanzado el limite de {_max_wl} tokens en tu Watchlist. Actualiza a Pro para mas.")
                 else:
-                    storage.add_to_watchlist(contract_address, selected_chain)
+                    storage.add_to_watchlist(contract_address, selected_chain, user_id=_user_id)
                     st.toast("Token agregado a tu Watchlist")
                     st.rerun()
 
@@ -1028,7 +1029,8 @@ def render():
         _render_shap_explanation(model, X, feature_cols or X.columns.tolist())
 
     except Exception as e:
-        st.error(f"Error al hacer prediccion: {e}")
+        logger.exception("Error al hacer prediccion del modelo")
+        st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
         st.info(
             "Esto puede ocurrir si las columnas de features no coinciden con "
             "las que espera el modelo."

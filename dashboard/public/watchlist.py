@@ -10,12 +10,15 @@ PRO enhancements:
 - Probabilidad del modelo (score) si fue re-scored
 - Ultima actualizacion timestamp
 """
+import logging
 from html import escape
 
 import streamlit as st
 import pandas as pd
 
 from src.data.supabase_storage import get_storage as _get_storage
+
+logger = logging.getLogger(__name__)
 from src.utils.helpers import truncate_address
 from dashboard.constants import LABEL_COLORS
 from dashboard.i18n import t
@@ -82,7 +85,8 @@ def render():
     )
 
     storage = get_storage()
-    watchlist_df = storage.get_watchlist()
+    _user_id = st.session_state.get("user", {}).get("id")
+    watchlist_df = storage.get_watchlist(user_id=_user_id)
 
     if watchlist_df.empty:
         st.warning(t("pro.watchlist_empty", "Tu watchlist esta vacia."))
@@ -224,9 +228,10 @@ def render():
                     help=t("pro.wl_remove", "Eliminar de watchlist"),
                 ):
                     try:
-                        storage.remove_from_watchlist(token_id)
+                        storage.remove_from_watchlist(token_id, user_id=_user_id)
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error al eliminar de watchlist: {e}")
+                        logger.exception("Error al eliminar token de watchlist")
+                        st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
 
             st.divider()

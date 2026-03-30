@@ -104,14 +104,18 @@ class SupabaseStorage:
     # Prefijos SQL permitidos (operaciones CRUD + CTEs)
     _ALLOWED_SQL_PREFIXES = ("SELECT", "INSERT", "UPDATE", "DELETE", "WITH")
 
-    # Patrones bloqueados — operaciones DDL, acceso a metadatos, comentarios
+    # Regex con word boundaries para DDL peligroso (evita falsos positivos)
+    _DANGEROUS_SQL = re.compile(
+        r'\b(DROP|ALTER|TRUNCATE|CREATE|GRANT|REVOKE|COPY)\b',
+        re.IGNORECASE,
+    )
+
+    # Patrones bloqueados adicionales — acceso a metadatos, comentarios
     _BLOCKED_PATTERNS = [
-        "DROP ", "ALTER ", "TRUNCATE ", "CREATE ", "GRANT ", "REVOKE ",
         "pg_", "information_schema",
         "--",       # Comentarios SQL de linea
         "/*",       # Comentarios SQL de bloque (apertura)
         "*/",       # Comentarios SQL de bloque (cierre)
-        "COPY ",    # COPY FROM/TO (lectura/escritura de archivos)
         "\\\\",     # Backslash escapes
     ]
 
@@ -126,8 +130,9 @@ class SupabaseStorage:
         Valida que el SQL solo contenga operaciones permitidas.
 
         Defensa en profundidad: bloquea DDL, acceso a catalogo del sistema,
-        comentarios SQL (usados frecuentemente en inyecciones) y otros
-        patrones peligrosos ANTES de enviar al RPC.
+        comentarios SQL (usados frecuentemente en inyecciones), semicolons
+        (multi-statement injection) y otros patrones peligrosos ANTES de
+        enviar al RPC.
 
         Raises:
             ValueError: Si el SQL contiene operaciones no permitidas.
@@ -143,7 +148,22 @@ class SupabaseStorage:
                 f"Recibido: {sql_stripped[:50]}..."
             )
 
-        # Buscar patrones bloqueados
+        # Bloquear semicolons para prevenir multi-statement injection
+        if ";" in sql_stripped:
+            raise ValueError(
+                "SQL contiene ';' — multi-statement no permitido: "
+                f"{sql_stripped[:80]}..."
+            )
+
+        # Buscar DDL peligroso con word boundaries
+        match_ddl = self._DANGEROUS_SQL.search(sql_stripped)
+        if match_ddl:
+            raise ValueError(
+                f"SQL contiene operacion DDL bloqueada: '{match_ddl.group()}' "
+                f"en consulta: {sql_stripped[:80]}..."
+            )
+
+        # Buscar patrones bloqueados adicionales
         match = self._BLOCKED_RE.search(sql_stripped)
         if match:
             raise ValueError(
@@ -613,22 +633,34 @@ class SupabaseStorage:
     # WATCHLIST
     # ============================================================
 
-    def add_to_watchlist(self, token_id: str, chain: str, notes: str = ""):
-        """Agrega un token a la watchlist."""
+    def add_to_watchlist(self, token_id: str, chain: str,
+                         notes: str = "", user_id: str = None):
+        """Agrega un token a la watchlist de un usuario."""
+        row = {"token_id": token_id, "chain": chain, "notes": notes}
+        if user_id:
+            row["user_id"] = user_id
         self._client.table("watchlist").upsert(
-            {"token_id": token_id, "chain": chain, "notes": notes},
-            on_conflict="token_id",
+            row,
+            on_conflict="token_id,user_id",
         ).execute()
 
-    def remove_from_watchlist(self, token_id: str):
-        """Elimina un token de la watchlist."""
-        self._client.table("watchlist").delete().eq(
+    def remove_from_watchlist(self, token_id: str, user_id: str = None):
+        """Elimina un token de la watchlist de un usuario."""
+        q = self._client.table("watchlist").delete().eq(
             "token_id", token_id
-        ).execute()
+        )
+        if user_id:
+            q = q.eq("user_id", user_id)
+        q.execute()
 
-    def get_watchlist(self) -> pd.DataFrame:
-        """Devuelve la watchlist con datos del token."""
-        sql = """
+    def get_watchlist(self, user_id: str = None) -> pd.DataFrame:
+        """Devuelve la watchlist con datos del token, filtrada por usuario."""
+        user_filter = ""
+        if user_id:
+            safe_uid = self._format_param(user_id)
+            user_filter = f"WHERE w.user_id = {safe_uid}"
+
+        sql = f"""
             SELECT w.token_id, w.chain, w.added_at, w.notes,
                    t.name, t.symbol,
                    ps.price_usd, ps.volume_24h, ps.liquidity_usd,
@@ -643,19 +675,22 @@ class SupabaseStorage:
                 LIMIT 1
             ) ps ON true
             LEFT JOIN labels l ON w.token_id = l.token_id
+            {user_filter}
             ORDER BY w.added_at DESC
         """
         data = self._rpc_query(sql)
         return pd.DataFrame(data) if data else pd.DataFrame()
 
-    def is_in_watchlist(self, token_id: str) -> bool:
-        """Verifica si un token esta en la watchlist."""
-        resp = (
+    def is_in_watchlist(self, token_id: str, user_id: str = None) -> bool:
+        """Verifica si un token esta en la watchlist de un usuario."""
+        q = (
             self._client.table("watchlist")
             .select("token_id")
             .eq("token_id", token_id)
-            .execute()
         )
+        if user_id:
+            q = q.eq("user_id", user_id)
+        resp = q.execute()
         return len(resp.data or []) > 0
 
     # ============================================================
