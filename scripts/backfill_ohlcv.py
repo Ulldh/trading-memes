@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-backfill_ohlcv.py - Backfill masivo de OHLCV via Birdeye.
+backfill_ohlcv.py - Backfill masivo de OHLCV via Birdeye (multi-chain).
 
 Lee tokens de la DB que tienen OHLCV insuficiente (menos de 7 velas
 diarias) y obtiene su historial completo via Birdeye API.
@@ -14,7 +14,9 @@ Para cada token:
 Birdeye Lite tier: 15 rps = 900 calls/min. Para 5000 tokens = ~6 min.
 
 Uso:
-    python scripts/backfill_ohlcv.py
+    python scripts/backfill_ohlcv.py                          # Todas las cadenas
+    python scripts/backfill_ohlcv.py --chain solana            # Solo Solana
+    python scripts/backfill_ohlcv.py --chain ethereum          # Solo Ethereum
     python scripts/backfill_ohlcv.py --max-tokens 500
     python scripts/backfill_ohlcv.py --min-ohlcv 0 --days 60
     python scripts/backfill_ohlcv.py --dry-run
@@ -45,9 +47,10 @@ def backfill_ohlcv(
     min_ohlcv: int = 7,
     days: int = 90,
     dry_run: bool = False,
+    chain: str = "all",
 ) -> dict:
     """
-    Backfill masivo de OHLCV via Birdeye para tokens Solana.
+    Backfill masivo de OHLCV via Birdeye (multi-chain: solana, ethereum, base).
 
     Args:
         max_tokens: Maximo de tokens a procesar (controla duracion).
@@ -55,6 +58,7 @@ def backfill_ohlcv(
             7 = tokens que no pueden ser etiquetados por el labeler (return_7d).
         days: Dias de OHLCV a pedir desde la creacion del token.
         dry_run: Si True, solo muestra candidatos sin llamar a Birdeye.
+        chain: Cadena a procesar ("solana", "ethereum", "base" o "all").
 
     Returns:
         Dict con estadisticas: tokens_processed, candles_added, errors, skipped.
@@ -78,23 +82,35 @@ def backfill_ohlcv(
         return stats
 
     logger.info("=" * 60)
-    logger.info("BACKFILL OHLCV: Obteniendo historico via Birdeye")
-    logger.info(f"Max tokens: {max_tokens}, Min OHLCV: {min_ohlcv}, Dias: {days}")
+    logger.info("BACKFILL OHLCV: Obteniendo historico via Birdeye (multi-chain)")
+    logger.info(f"Max tokens: {max_tokens}, Min OHLCV: {min_ohlcv}, Dias: {days}, Chain: {chain}")
     logger.info("=" * 60)
 
-    # Buscar tokens Solana con OHLCV insuficiente
+    # Buscar tokens con OHLCV insuficiente (multi-chain o filtrado)
     # Prioridad: tokens sin OHLCV primero, luego los con pocas velas
-    candidates_df = storage.query("""
-        SELECT t.token_id, t.created_at,
-               COUNT(CASE WHEN o.timeframe = 'day' THEN 1 END) as ohlcv_count
-        FROM tokens t
-        LEFT JOIN ohlcv o ON t.token_id = o.token_id
-        WHERE t.chain = 'solana'
-        GROUP BY t.token_id, t.created_at
-        HAVING COUNT(CASE WHEN o.timeframe = 'day' THEN 1 END) < ?
-        ORDER BY COUNT(CASE WHEN o.timeframe = 'day' THEN 1 END) ASC
-        LIMIT ?
-    """, (min_ohlcv, max_tokens))
+    if chain == "all":
+        candidates_df = storage.query("""
+            SELECT t.token_id, t.chain, t.created_at,
+                   COUNT(CASE WHEN o.timeframe = 'day' THEN 1 END) as ohlcv_count
+            FROM tokens t
+            LEFT JOIN ohlcv o ON t.token_id = o.token_id
+            GROUP BY t.token_id, t.chain, t.created_at
+            HAVING COUNT(CASE WHEN o.timeframe = 'day' THEN 1 END) < ?
+            ORDER BY COUNT(CASE WHEN o.timeframe = 'day' THEN 1 END) ASC
+            LIMIT ?
+        """, (min_ohlcv, max_tokens))
+    else:
+        candidates_df = storage.query("""
+            SELECT t.token_id, t.chain, t.created_at,
+                   COUNT(CASE WHEN o.timeframe = 'day' THEN 1 END) as ohlcv_count
+            FROM tokens t
+            LEFT JOIN ohlcv o ON t.token_id = o.token_id
+            WHERE t.chain = ?
+            GROUP BY t.token_id, t.chain, t.created_at
+            HAVING COUNT(CASE WHEN o.timeframe = 'day' THEN 1 END) < ?
+            ORDER BY COUNT(CASE WHEN o.timeframe = 'day' THEN 1 END) ASC
+            LIMIT ?
+        """, (chain, min_ohlcv, max_tokens))
 
     stats["candidates"] = len(candidates_df)
     logger.info(f"Candidatos encontrados: {len(candidates_df)} tokens con <{min_ohlcv} velas diarias")
@@ -113,12 +129,17 @@ def backfill_ohlcv(
         logger.info(f"  Con algo:      {has_some}")
         logger.info(f"  Con fecha:     {has_date}")
         logger.info(f"  Sin fecha:     {len(candidates_df) - has_date}")
+        # Desglose por cadena
+        if "chain" in candidates_df.columns:
+            chain_counts = candidates_df["chain"].value_counts().to_dict()
+            logger.info(f"  Por cadena:    {chain_counts}")
         return stats
 
     # Procesar cada token
     for _, row in tqdm(candidates_df.iterrows(), total=len(candidates_df),
                        desc="Backfill OHLCV", unit="token"):
         token_id = row["token_id"]
+        token_chain = row["chain"]
         created_at = row["created_at"]
 
         # Determinar timestamp de inicio
@@ -138,7 +159,7 @@ def backfill_ohlcv(
                 created_at_unix=created_unix,
                 days=days,
                 timeframe="1D",
-                chain="solana",
+                chain=token_chain,
             )
 
             if not velas:
@@ -150,7 +171,7 @@ def backfill_ohlcv(
             for vela in velas:
                 ohlcv_rows.append({
                     "token_id": token_id,
-                    "chain": "solana",
+                    "chain": token_chain,
                     "pool_address": token_id,  # Birdeye usa token address, no pool
                     "timeframe": "day",
                     "timestamp": vela["timestamp"],
@@ -237,7 +258,7 @@ def _parse_created_at(created_at) -> int | None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Backfill masivo de OHLCV via Birdeye para tokens Solana"
+        description="Backfill masivo de OHLCV via Birdeye (multi-chain: solana, ethereum, base)"
     )
     parser.add_argument(
         "--max-tokens", type=int, default=5000,
@@ -252,6 +273,11 @@ if __name__ == "__main__":
         help="Dias de OHLCV desde creacion (default: 90)"
     )
     parser.add_argument(
+        "--chain", type=str, default="all",
+        choices=["all", "solana", "ethereum", "base"],
+        help="Cadena a procesar (default: all = todas las cadenas)"
+    )
+    parser.add_argument(
         "--dry-run", action="store_true",
         help="Solo mostrar candidatos, no llamar a Birdeye"
     )
@@ -263,6 +289,7 @@ if __name__ == "__main__":
         min_ohlcv=args.min_ohlcv,
         days=args.days,
         dry_run=args.dry_run,
+        chain=args.chain,
     )
 
     print(f"\nResultado: {stats}")

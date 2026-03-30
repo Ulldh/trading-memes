@@ -374,7 +374,7 @@ class GemScorer:
     # SCORE TODOS LOS TOKENS NUEVOS
     # ============================================================
 
-    def score_all_new(self, min_ohlcv_days: int = 7) -> pd.DataFrame:
+    def score_all_new(self, min_ohlcv_days: int = 3) -> pd.DataFrame:
         """
         Califica todos los tokens sin label que tengan suficiente OHLCV.
 
@@ -539,7 +539,7 @@ class GemScorer:
 
         return df
 
-    def score_and_save(self, min_ohlcv_days: int = 7) -> pd.DataFrame:
+    def score_and_save(self, min_ohlcv_days: int = 3) -> pd.DataFrame:
         """
         Califica tokens usando features pre-calculados de la BD (batch).
 
@@ -555,7 +555,7 @@ class GemScorer:
         5. Upsert de scores en la tabla 'scores' via SupabaseStorage.
 
         Args:
-            min_ohlcv_days: Minimo dias de OHLCV requeridos (default 7).
+            min_ohlcv_days: Minimo dias de OHLCV requeridos (default 3).
 
         Returns:
             DataFrame con los scores generados (puede estar vacio).

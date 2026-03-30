@@ -32,7 +32,7 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-def main(model_name: str = "random_forest", min_ohlcv_days: int = 7) -> int:
+def main(model_name: str = "random_forest", min_ohlcv_days: int = 3) -> int:
     """
     Ejecuta el pipeline completo de scoring.
 
@@ -172,8 +172,8 @@ if __name__ == "__main__":
         help="Modelo a usar para scoring (default: random_forest)"
     )
     parser.add_argument(
-        "--min-days", type=int, default=7,
-        help="Minimo de dias de OHLCV para considerar un token (default: 7)"
+        "--min-days", type=int, default=3,
+        help="Minimo de dias de OHLCV para considerar un token (default: 3)"
     )
 
     args = parser.parse_args()

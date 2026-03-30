@@ -935,120 +935,193 @@ class DataCollector:
             )
 
     # ================================================================
-    # PASO 4: RECOPILAR HOLDERS (solo Solana)
+    # PASO 4: RECOPILAR HOLDERS (Solana via Helius + ETH/Base via Birdeye)
     # ================================================================
+
+    def _save_birdeye_holders(
+        self, token_id: str, chain: str, holders: list[dict],
+    ) -> None:
+        """
+        Convierte holders de Birdeye al formato de holder_snapshots y los guarda.
+
+        Birdeye devuelve holders con keys: wallet, amount, percentage, usd_value.
+        Este metodo los convierte al esquema de la tabla holder_snapshots:
+        token_id, chain, snapshot_time, rank, holder_address, amount, pct_of_supply.
+
+        Args:
+            token_id: Direccion del token.
+            chain: Cadena del token ("solana", "ethereum", "base").
+            holders: Lista de dicts de Birdeye (output de get_token_holder).
+        """
+        snapshot_time = datetime.now(timezone.utc).isoformat()
+
+        holder_rows = []
+        for rank, holder in enumerate(holders[:20], start=1):
+            holder_rows.append({
+                "token_id": token_id,
+                "chain": chain,
+                "snapshot_time": snapshot_time,
+                "rank": rank,
+                "holder_address": holder.get("wallet", ""),
+                "amount": safe_float(holder.get("amount")),
+                "pct_of_supply": safe_float(holder.get("percentage")),
+            })
+
+        if holder_rows:
+            self.storage.insert_holder_snapshot(holder_rows)
 
     def collect_holders(self, tokens: list[dict]) -> None:
         """
-        Recopila los top 20 holders para tokens de Solana.
+        Recopila los top 20 holders para tokens de todas las cadenas.
 
         Los holders son las wallets que poseen mas tokens. Analizar la
         concentracion de holders es clave para detectar rugs:
         - Si 1 wallet tiene >50% del supply, riesgo de rug pull
         - Si top 10 holders tienen >80%, concentracion peligrosa
 
-        Solo funciona para tokens de Solana, ya que usa la API de
-        Helius (RPC de Solana). Para Ethereum/Base, esta informacion
-        se podria obtener de Etherscan en el futuro.
+        Fuentes de datos:
+        - Solana: Helius RPC (primario) + Birdeye (fallback)
+        - Ethereum/Base: Birdeye (unica fuente disponible)
 
         Args:
             tokens: Lista de tokens (output de discover_new_pools).
-                Solo se procesan tokens donde chain == "solana".
 
         Ejemplo:
-            >>> tokens = collector.discover_new_pools(chains=["solana"])
+            >>> tokens = collector.discover_new_pools()
             >>> collector.collect_holders(tokens)
         """
         logger.info("=" * 60)
-        logger.info("PASO 4: Recopilando holders (solo Solana)...")
+        logger.info("PASO 4: Recopilando holders (Solana + ETH/Base)...")
         logger.info("=" * 60)
 
         if not tokens:
             logger.info("No hay tokens para holders, saltando paso 4")
             return
 
-        # Filtrar solo tokens de Solana
+        # --- 4A: Holders de Solana via Helius RPC ---
         solana_tokens = [
             t for t in tokens if t.get("chain") == "solana"
         ]
-
-        if not solana_tokens:
-            logger.info(
-                "No hay tokens de Solana, saltando recopilacion de holders"
-            )
-            return
-
-        logger.info(f"Procesando holders para {len(solana_tokens)} tokens de Solana")
 
         # Timestamp actual para el snapshot
         snapshot_time = datetime.now(timezone.utc).isoformat()
 
         # Contadores
-        exitos = 0
+        exitos_helius = 0
+        exitos_birdeye = 0
         errores = 0
 
-        # Iterar con barra de progreso
-        for token in tqdm(solana_tokens, desc="Holders", unit="token"):
-            try:
-                token_id = token.get("token_id", "")
-                if not token_id:
-                    continue
+        if solana_tokens:
+            logger.info(
+                f"4A: Procesando holders para {len(solana_tokens)} tokens "
+                f"de Solana via Helius RPC"
+            )
 
-                # Obtener total supply para calcular porcentaje
-                total_supply = safe_float(token.get("total_supply"))
+            for token in tqdm(solana_tokens, desc="Holders Solana", unit="token"):
+                try:
+                    token_id = token.get("token_id", "")
+                    if not token_id:
+                        continue
 
-                # Llamar a Solana RPC (Helius) para obtener top holders
-                holders_data = self.solana_rpc.get_token_largest_accounts(
-                    token_id
-                )
+                    # Obtener total supply para calcular porcentaje
+                    total_supply = safe_float(token.get("total_supply"))
 
-                if not holders_data:
-                    logger.debug(
-                        f"Sin holders para {token_id[:10]}..."
+                    # Llamar a Solana RPC (Helius) para obtener top holders
+                    holders_data = self.solana_rpc.get_token_largest_accounts(
+                        token_id
+                    )
+
+                    if holders_data:
+                        # Construir lista de holder snapshots
+                        holder_rows = []
+                        for rank, holder in enumerate(holders_data[:20], start=1):
+                            amount = safe_float(holder.get("amount"))
+                            if total_supply and total_supply > 0:
+                                pct = (amount / total_supply) * 100
+                            else:
+                                pct = 0.0
+
+                            holder_rows.append({
+                                "token_id": token_id,
+                                "chain": "solana",
+                                "snapshot_time": snapshot_time,
+                                "rank": rank,
+                                "holder_address": holder.get("address", ""),
+                                "amount": amount,
+                                "pct_of_supply": pct,
+                            })
+
+                        if holder_rows:
+                            self.storage.insert_holder_snapshot(holder_rows)
+                            exitos_helius += 1
+                            continue  # Exito con Helius, no necesitamos Birdeye
+
+                    # Fallback: Birdeye para Solana si Helius falla
+                    if self.birdeye.is_available:
+                        holders_be = self.birdeye.get_token_holder(
+                            token_id, chain="solana", limit=20,
+                        )
+                        if holders_be:
+                            self._save_birdeye_holders(token_id, "solana", holders_be)
+                            exitos_birdeye += 1
+                            time.sleep(0.07)
+                            continue
+
+                    logger.debug(f"Sin holders para {token_id[:10]}...")
+                    errores += 1
+
+                except Exception as e:
+                    token_id = token.get("token_id", "desconocido")
+                    logger.warning(
+                        f"Error recopilando holders para {token_id[:10]}...: {e}"
                     )
                     errores += 1
-                    time.sleep(0.1)
-                    continue
 
-                # Construir lista de holder snapshots
-                # Cada holder tiene: address, amount
-                holder_rows = []
-                for rank, holder in enumerate(holders_data[:20], start=1):
-                    # Calcular porcentaje del supply total
-                    amount = safe_float(holder.get("amount"))
-                    if total_supply and total_supply > 0:
-                        pct = (amount / total_supply) * 100
-                    else:
-                        pct = 0.0
+                # Pausa breve entre tokens
+                time.sleep(0.3)
 
-                    holder_rows.append({
-                        "token_id": token_id,
-                        "chain": "solana",
-                        "snapshot_time": snapshot_time,
-                        "rank": rank,
-                        "holder_address": holder.get("address", ""),
-                        "amount": amount,
-                        "pct_of_supply": pct,
-                    })
+        # --- 4B: Holders de ETH/Base via Birdeye ---
+        if self.birdeye.is_available:
+            eth_base_tokens = [
+                t for t in tokens
+                if t.get("chain") in ("ethereum", "base")
+            ]
 
-                # Guardar todos los holders de este token
-                if holder_rows:
-                    self.storage.insert_holder_snapshot(holder_rows)
-                    exitos += 1
-
-            except Exception as e:
-                token_id = token.get("token_id", "desconocido")
-                logger.warning(
-                    f"Error recopilando holders para {token_id[:10]}...: {e}"
+            if eth_base_tokens:
+                logger.info(
+                    f"4B: Procesando holders para {len(eth_base_tokens)} tokens "
+                    f"de ETH/Base via Birdeye"
                 )
-                errores += 1
 
-            # Pausa breve entre tokens
-            time.sleep(0.3)
+                for token in tqdm(eth_base_tokens, desc="Holders ETH/Base", unit="token"):
+                    try:
+                        token_id = token.get("token_id", "")
+                        chain = token.get("chain", "")
+                        if not token_id:
+                            continue
+
+                        holders = self.birdeye.get_token_holder(
+                            token_id, chain=chain, limit=20,
+                        )
+                        if holders:
+                            self._save_birdeye_holders(token_id, chain, holders)
+                            exitos_birdeye += 1
+                        else:
+                            errores += 1
+
+                    except Exception as e:
+                        logger.debug(
+                            f"Birdeye holder error {token_id[:10]}...: {e}"
+                        )
+                        errores += 1
+
+                    # Pausa entre llamadas Birdeye (15 rps = 0.07s)
+                    time.sleep(0.07)
 
         # Resumen del paso
         logger.info(
-            f"Holders completado: {exitos} tokens procesados, {errores} errores"
+            f"Holders completado: Helius={exitos_helius}, "
+            f"Birdeye={exitos_birdeye}, errores={errores}"
         )
 
     # ================================================================
@@ -1156,12 +1229,607 @@ class DataCollector:
         )
 
     # ================================================================
+    # PASO 5B: SEGURIDAD VIA BIRDEYE (todas las cadenas)
+    # ================================================================
+
+    def collect_birdeye_security(self, tokens: list[dict]) -> None:
+        """
+        Obtiene datos de seguridad via Birdeye para tokens sin contract_info.
+
+        Birdeye get_token_security() funciona para Solana, Ethereum y Base.
+        Complementa Etherscan (solo ETH/Base) y Solana RPC con datos como:
+        - ownerAddress (si ownership esta renunciado)
+        - mintAuthority / freezeAuthority (Solana)
+        - top10HolderPercent (concentracion de holders)
+        - mutableMetadata (si metadatos pueden cambiar)
+
+        Solo se procesan tokens que NO tienen contract_info en la DB para
+        evitar llamadas duplicadas.
+
+        Args:
+            tokens: Lista de tokens descubiertos en esta sesion.
+        """
+        logger.info("=" * 60)
+        logger.info("PASO 5B: Seguridad via Birdeye (todas las cadenas)...")
+        logger.info("=" * 60)
+
+        if not self.birdeye.is_available:
+            logger.info("Birdeye no disponible, saltando paso 5B")
+            return
+
+        if not tokens:
+            logger.info("No hay tokens para seguridad, saltando paso 5B")
+            return
+
+        # Buscar tokens sin contract_info en la DB
+        # Usamos una query para obtener tokens que no tienen registro
+        try:
+            existing_df = self.storage.query("""
+                SELECT token_id FROM contract_info
+            """)
+            existing_ids = set(existing_df["token_id"].tolist()) if not existing_df.empty else set()
+        except Exception:
+            existing_ids = set()
+
+        # Filtrar tokens sin contract_info
+        tokens_sin_info = [
+            t for t in tokens
+            if t.get("token_id") and t.get("token_id") not in existing_ids
+        ]
+
+        if not tokens_sin_info:
+            logger.info("Todos los tokens ya tienen contract_info, saltando paso 5B")
+            return
+
+        logger.info(
+            f"Procesando seguridad Birdeye para {len(tokens_sin_info)} tokens "
+            f"sin contract_info"
+        )
+
+        exitos = 0
+        errores = 0
+
+        for token in tqdm(tokens_sin_info, desc="Security Birdeye", unit="token"):
+            try:
+                token_id = token.get("token_id", "")
+                chain = token.get("chain", "")
+                if not token_id or not chain:
+                    continue
+
+                security = self.birdeye.get_token_security(token_id, chain=chain)
+                if not security:
+                    errores += 1
+                    time.sleep(0.07)
+                    continue
+
+                # Mapear datos de Birdeye al esquema de contract_info
+                owner_addr = security.get("owner_address")
+                mint_auth = security.get("mint_authority")
+                freeze_auth = security.get("freeze_authority")
+
+                # Determinar si ownership esta renunciado:
+                # - Si owner_address es None o "11111111..." (Solana null address)
+                #   o "0x0000..." (EVM null address), se considera renunciado
+                is_renounced = False
+                if owner_addr is None:
+                    is_renounced = True
+                elif owner_addr in (
+                    "11111111111111111111111111111111",
+                    "0x0000000000000000000000000000000000000000",
+                    "",
+                ):
+                    is_renounced = True
+
+                # Mint authority activa = riesgo de rug
+                has_mint = bool(mint_auth) if mint_auth else False
+
+                contract_info = {
+                    "token_id": token_id,
+                    "chain": chain,
+                    "is_verified": security.get("is_true_token"),
+                    "is_renounced": is_renounced,
+                    "has_mint_authority": has_mint,
+                    "deploy_timestamp": security.get("creation_time"),
+                }
+
+                self.storage.upsert_contract_info(contract_info)
+                exitos += 1
+
+            except Exception as e:
+                logger.debug(f"Birdeye security error {token_id[:10]}...: {e}")
+                errores += 1
+
+            # Pausa entre llamadas Birdeye (15 rps)
+            time.sleep(0.07)
+
+        logger.info(
+            f"Seguridad Birdeye completada: {exitos} exitos, {errores} errores"
+        )
+
+    # ================================================================
+    # PASO 5C: FECHA DE CREACION VIA BIRDEYE (tokens sin created_at)
+    # ================================================================
+
+    def collect_birdeye_creation_dates(self, tokens: list[dict] = None) -> None:
+        """
+        Rellena la fecha de creacion para tokens que no la tienen.
+
+        Muchos tokens (353+) tienen created_at NULL o un valor fallback
+        de 180 dias atras. Birdeye get_token_creation_info() devuelve la
+        fecha real de creacion del token en cualquier cadena.
+
+        Si no se pasan tokens, consulta la DB para encontrar todos los
+        tokens sin created_at.
+
+        Args:
+            tokens: Lista de tokens a procesar. Si es None, consulta
+                la DB para encontrar tokens sin created_at.
+        """
+        logger.info("=" * 60)
+        logger.info("PASO 5C: Fechas de creacion via Birdeye...")
+        logger.info("=" * 60)
+
+        if not self.birdeye.is_available:
+            logger.info("Birdeye no disponible, saltando paso 5C")
+            return
+
+        # Si no se pasan tokens, buscar en la DB los que no tienen created_at
+        if tokens is None:
+            try:
+                missing_df = self.storage.query("""
+                    SELECT token_id, chain
+                    FROM tokens
+                    WHERE created_at IS NULL
+                    LIMIT 1000
+                """)
+                if missing_df.empty:
+                    logger.info("Todos los tokens tienen created_at, saltando paso 5C")
+                    return
+                tokens_to_process = missing_df.to_dict("records")
+            except Exception as e:
+                logger.warning(f"Error consultando tokens sin created_at: {e}")
+                return
+        else:
+            # Filtrar tokens sin created_at de la lista pasada
+            tokens_to_process = [
+                t for t in tokens
+                if t.get("token_id") and not t.get("created_at")
+            ]
+
+        if not tokens_to_process:
+            logger.info("No hay tokens sin created_at, saltando paso 5C")
+            return
+
+        logger.info(
+            f"Procesando fechas de creacion para {len(tokens_to_process)} tokens"
+        )
+
+        exitos = 0
+        errores = 0
+
+        for token in tqdm(tokens_to_process, desc="Creation dates", unit="token"):
+            try:
+                token_id = token.get("token_id", "")
+                chain = token.get("chain", "")
+                if not token_id or not chain:
+                    continue
+
+                creation_info = self.birdeye.get_token_creation_info(
+                    token_id, chain=chain,
+                )
+                if not creation_info or not creation_info.get("created_at_iso"):
+                    errores += 1
+                    time.sleep(0.07)
+                    continue
+
+                # Actualizar el token con la fecha de creacion real
+                self.storage.upsert_token({
+                    "token_id": token_id,
+                    "chain": chain,
+                    "created_at": creation_info["created_at_iso"],
+                })
+                exitos += 1
+
+            except Exception as e:
+                logger.debug(
+                    f"Birdeye creation_info error {token_id[:10]}...: {e}"
+                )
+                errores += 1
+
+            # Pausa entre llamadas Birdeye (15 rps)
+            time.sleep(0.07)
+
+        logger.info(
+            f"Fechas de creacion completadas: {exitos} actualizados, "
+            f"{errores} errores"
+        )
+
+    # ================================================================
+    # PASO 5D: TRADE DATA VIA BIRDEYE (buys/sells/traders unicos)
+    # ================================================================
+
+    def collect_birdeye_trade_data(self, tokens: list[dict]) -> None:
+        """
+        Obtiene datos de trading via Birdeye para todos los tokens.
+
+        get_token_trade_data() proporciona buys, sells, traders unicos,
+        volumen buy/sell en multiples ventanas temporales (30m a 24h).
+        Mejor granularidad que DexScreener para features sociales/momentum.
+
+        Los datos se guardan como pool_snapshots con source="birdeye-trade".
+
+        Args:
+            tokens: Lista de tokens a procesar.
+        """
+        logger.info("=" * 60)
+        logger.info("PASO 5D: Trade data via Birdeye...")
+        logger.info("=" * 60)
+
+        if not self.birdeye.is_available:
+            logger.info("Birdeye no disponible, saltando paso 5D")
+            return
+
+        if not tokens:
+            logger.info("No hay tokens para trade data, saltando paso 5D")
+            return
+
+        logger.info(
+            f"Procesando trade data Birdeye para {len(tokens)} tokens"
+        )
+
+        snapshot_time = datetime.now(timezone.utc).isoformat()
+        exitos = 0
+        errores = 0
+
+        for token in tqdm(tokens, desc="Trade data", unit="token"):
+            try:
+                token_id = token.get("token_id", "")
+                chain = token.get("chain", "")
+                if not token_id or not chain:
+                    continue
+
+                trade_data = self.birdeye.get_token_trade_data(
+                    token_id, chain=chain,
+                )
+                if not trade_data:
+                    errores += 1
+                    time.sleep(0.07)
+                    continue
+
+                # Guardar como pool_snapshot para que las features lo lean
+                snapshot = {
+                    "token_id": token_id,
+                    "chain": chain,
+                    "snapshot_time": snapshot_time,
+                    "price_usd": None,  # No disponible en trade data
+                    "volume_24h": (
+                        safe_float(trade_data.get("volume_buy_24h", 0))
+                        + safe_float(trade_data.get("volume_sell_24h", 0))
+                    ),
+                    "liquidity_usd": None,
+                    "market_cap": None,
+                    "fdv": None,
+                    "buyers_24h": trade_data.get("buy_24h"),
+                    "sellers_24h": trade_data.get("sell_24h"),
+                    "makers_24h": (
+                        safe_int(trade_data.get("buy_24h") or 0)
+                        + safe_int(trade_data.get("sell_24h") or 0)
+                    ),
+                    "tx_count_24h": trade_data.get("trade_24h"),
+                    "source": "birdeye-trade",
+                }
+
+                self.storage.insert_pool_snapshot(snapshot)
+                exitos += 1
+
+            except Exception as e:
+                logger.debug(
+                    f"Birdeye trade_data error {token_id[:10]}...: {e}"
+                )
+                errores += 1
+
+            # Pausa entre llamadas Birdeye (15 rps)
+            time.sleep(0.07)
+
+        logger.info(
+            f"Trade data completado: {exitos} exitos, {errores} errores"
+        )
+
+    # ================================================================
+    # PASO 5E: TOKEN OVERVIEW VIA BIRDEYE (datos completos en 1 call)
+    # ================================================================
+
+    def collect_birdeye_token_overview(self, tokens: list[dict]) -> None:
+        """
+        Obtiene datos completos de tokens via Birdeye token_overview.
+
+        Una sola llamada devuelve: precio, volumen, liquidez, mcap,
+        holders count, buys/sells, unique wallets, supply, price changes.
+        Complementa/reemplaza DexScreener para datos de mercado.
+
+        Se guardan como pool_snapshot con source="birdeye-overview".
+        Ademas, actualiza datos basicos del token (total_supply, decimals).
+
+        Args:
+            tokens: Lista de tokens a procesar.
+        """
+        logger.info("=" * 60)
+        logger.info("PASO 5E: Token overview via Birdeye...")
+        logger.info("=" * 60)
+
+        if not self.birdeye.is_available:
+            logger.info("Birdeye no disponible, saltando paso 5E")
+            return
+
+        if not tokens:
+            logger.info("No hay tokens para overview, saltando paso 5E")
+            return
+
+        logger.info(
+            f"Procesando token overview Birdeye para {len(tokens)} tokens"
+        )
+
+        snapshot_time = datetime.now(timezone.utc).isoformat()
+        exitos = 0
+        errores = 0
+
+        for token in tqdm(tokens, desc="Token overview", unit="token"):
+            try:
+                token_id = token.get("token_id", "")
+                chain = token.get("chain", "")
+                if not token_id or not chain:
+                    continue
+
+                overview = self.birdeye.get_token_overview(
+                    token_id, chain=chain,
+                )
+                if not overview:
+                    errores += 1
+                    time.sleep(0.07)
+                    continue
+
+                # Guardar snapshot con datos de mercado completos
+                snapshot = {
+                    "token_id": token_id,
+                    "chain": chain,
+                    "snapshot_time": snapshot_time,
+                    "price_usd": overview.get("price"),
+                    "volume_24h": overview.get("volume_24h"),
+                    "liquidity_usd": overview.get("liquidity"),
+                    "market_cap": overview.get("mc"),
+                    "fdv": None,  # No disponible en overview
+                    "buyers_24h": overview.get("buy_24h"),
+                    "sellers_24h": overview.get("sell_24h"),
+                    "makers_24h": overview.get("unique_wallet_24h"),
+                    "tx_count_24h": overview.get("trade_24h"),
+                    "source": "birdeye-overview",
+                }
+                self.storage.insert_pool_snapshot(snapshot)
+
+                # Actualizar datos basicos del token si tenemos nueva info
+                update_data = {
+                    "token_id": token_id,
+                    "chain": chain,
+                }
+                if overview.get("supply"):
+                    update_data["total_supply"] = overview["supply"]
+                if overview.get("decimals") is not None:
+                    update_data["decimals"] = overview["decimals"]
+                if overview.get("name") and not token.get("name"):
+                    update_data["name"] = overview["name"]
+                if overview.get("symbol") and not token.get("symbol"):
+                    update_data["symbol"] = overview["symbol"]
+
+                if len(update_data) > 2:  # Mas que solo token_id y chain
+                    self.storage.upsert_token(update_data)
+
+                exitos += 1
+
+            except Exception as e:
+                logger.debug(
+                    f"Birdeye overview error {token_id[:10]}...: {e}"
+                )
+                errores += 1
+
+            # Pausa entre llamadas Birdeye (15 rps)
+            time.sleep(0.07)
+
+        logger.info(
+            f"Token overview completado: {exitos} exitos, {errores} errores"
+        )
+
+    # ================================================================
+    # PASO 5F: BIRDEYE ENRICHMENT PARA TOKENS EXISTENTES SIN DATOS
+    # ================================================================
+
+    def enrich_existing_tokens_birdeye(self, max_tokens: int = 3000) -> dict:
+        """
+        Enriquece tokens existentes en la DB que no tienen holder data
+        o contract_info, usando Birdeye.
+
+        Esto cubre los ~2,665 tokens ETH+Base sin holders y tokens sin
+        contract_info que ya estaban en la DB antes de esta sesion.
+
+        Solo se ejecuta si Birdeye esta disponible.
+
+        Args:
+            max_tokens: Maximo de tokens a procesar por tipo (holders, security).
+
+        Returns:
+            Dict con estadisticas: holders_added, security_added, dates_added.
+        """
+        logger.info("=" * 60)
+        logger.info("PASO 7: Enriquecimiento Birdeye de tokens existentes...")
+        logger.info("=" * 60)
+
+        if not self.birdeye.is_available:
+            logger.info("Birdeye no disponible, saltando paso 7")
+            return {"holders_added": 0, "security_added": 0, "dates_added": 0}
+
+        stats = {"holders_added": 0, "security_added": 0, "dates_added": 0}
+
+        # --- 7A: Holders para ETH/Base tokens sin holder_snapshots ---
+        try:
+            missing_holders_df = self.storage.query("""
+                SELECT t.token_id, t.chain
+                FROM tokens t
+                LEFT JOIN holder_snapshots h ON t.token_id = h.token_id
+                WHERE h.token_id IS NULL
+                  AND t.chain IN ('ethereum', 'base')
+                LIMIT ?
+            """, (max_tokens,))
+
+            if not missing_holders_df.empty:
+                logger.info(
+                    f"7A: {len(missing_holders_df)} tokens ETH/Base sin holders"
+                )
+                exitos = 0
+                for _, row in tqdm(
+                    missing_holders_df.iterrows(),
+                    total=len(missing_holders_df),
+                    desc="Holders existentes",
+                    unit="token",
+                ):
+                    try:
+                        holders = self.birdeye.get_token_holder(
+                            row["token_id"], chain=row["chain"], limit=20,
+                        )
+                        if holders:
+                            self._save_birdeye_holders(
+                                row["token_id"], row["chain"], holders,
+                            )
+                            exitos += 1
+                    except Exception as e:
+                        logger.debug(
+                            f"Birdeye holder error {row['token_id'][:10]}...: {e}"
+                        )
+                    time.sleep(0.07)
+                stats["holders_added"] = exitos
+                logger.info(f"7A: {exitos} tokens con holders nuevos")
+            else:
+                logger.info("7A: Todos los tokens ETH/Base ya tienen holders")
+        except Exception as e:
+            logger.warning(f"Error en paso 7A: {e}")
+
+        # --- 7B: Security para tokens sin contract_info ---
+        try:
+            missing_security_df = self.storage.query("""
+                SELECT t.token_id, t.chain
+                FROM tokens t
+                LEFT JOIN contract_info c ON t.token_id = c.token_id
+                WHERE c.token_id IS NULL
+                LIMIT ?
+            """, (max_tokens,))
+
+            if not missing_security_df.empty:
+                logger.info(
+                    f"7B: {len(missing_security_df)} tokens sin contract_info"
+                )
+                exitos = 0
+                for _, row in tqdm(
+                    missing_security_df.iterrows(),
+                    total=len(missing_security_df),
+                    desc="Security existentes",
+                    unit="token",
+                ):
+                    try:
+                        security = self.birdeye.get_token_security(
+                            row["token_id"], chain=row["chain"],
+                        )
+                        if security:
+                            owner_addr = security.get("owner_address")
+                            mint_auth = security.get("mint_authority")
+
+                            is_renounced = False
+                            if owner_addr is None:
+                                is_renounced = True
+                            elif owner_addr in (
+                                "11111111111111111111111111111111",
+                                "0x0000000000000000000000000000000000000000",
+                                "",
+                            ):
+                                is_renounced = True
+
+                            contract_info = {
+                                "token_id": row["token_id"],
+                                "chain": row["chain"],
+                                "is_verified": security.get("is_true_token"),
+                                "is_renounced": is_renounced,
+                                "has_mint_authority": bool(mint_auth) if mint_auth else False,
+                                "deploy_timestamp": security.get("creation_time"),
+                            }
+                            self.storage.upsert_contract_info(contract_info)
+                            exitos += 1
+                    except Exception as e:
+                        logger.debug(
+                            f"Birdeye security error {row['token_id'][:10]}...: {e}"
+                        )
+                    time.sleep(0.07)
+                stats["security_added"] = exitos
+                logger.info(f"7B: {exitos} tokens con security nueva")
+            else:
+                logger.info("7B: Todos los tokens ya tienen contract_info")
+        except Exception as e:
+            logger.warning(f"Error en paso 7B: {e}")
+
+        # --- 7C: Fechas de creacion para tokens sin created_at ---
+        try:
+            missing_dates_df = self.storage.query("""
+                SELECT token_id, chain
+                FROM tokens
+                WHERE created_at IS NULL
+                LIMIT ?
+            """, (max_tokens,))
+
+            if not missing_dates_df.empty:
+                logger.info(
+                    f"7C: {len(missing_dates_df)} tokens sin created_at"
+                )
+                exitos = 0
+                for _, row in tqdm(
+                    missing_dates_df.iterrows(),
+                    total=len(missing_dates_df),
+                    desc="Dates existentes",
+                    unit="token",
+                ):
+                    try:
+                        creation = self.birdeye.get_token_creation_info(
+                            row["token_id"], chain=row["chain"],
+                        )
+                        if creation and creation.get("created_at_iso"):
+                            self.storage.upsert_token({
+                                "token_id": row["token_id"],
+                                "chain": row["chain"],
+                                "created_at": creation["created_at_iso"],
+                            })
+                            exitos += 1
+                    except Exception as e:
+                        logger.debug(
+                            f"Birdeye creation error {row['token_id'][:10]}...: {e}"
+                        )
+                    time.sleep(0.07)
+                stats["dates_added"] = exitos
+                logger.info(f"7C: {exitos} tokens con fecha de creacion nueva")
+            else:
+                logger.info("7C: Todos los tokens ya tienen created_at")
+        except Exception as e:
+            logger.warning(f"Error en paso 7C: {e}")
+
+        logger.info(
+            f"Enriquecimiento Birdeye completado: "
+            f"holders={stats['holders_added']}, "
+            f"security={stats['security_added']}, "
+            f"dates={stats['dates_added']}"
+        )
+        return stats
+
+    # ================================================================
     # PIPELINE COMPLETO: RECOPILACION DIARIA
     # ================================================================
 
     def run_daily_collection(
         self, chains: Optional[list[str]] = None,
-        max_tokens_ohlcv: int = 200,
+        max_tokens_ohlcv: int = 1000,
     ) -> dict:
         """
         Ejecuta el pipeline completo de recopilacion diaria.
@@ -1170,11 +1838,17 @@ class DataCollector:
             1.  Descubrir pools nuevos (GeckoTerminal, 10 paginas/cadena)
             1B. Descubrir tokens desde DexScreener (boosted, profiles, CTO)
             1C. Descubrir tokens desde categorias CoinGecko (meme-token, etc.)
+            1D. Descubrir tokens desde Birdeye (new listings + meme list)
             2.  Enriquecer con DexScreener (buyers/sellers)
             3.  Obtener OHLCV historico
-            4.  Obtener holders (solo Solana)
+            4.  Obtener holders (Solana via Helius + ETH/Base via Birdeye)
             5.  Verificar contratos (Etherscan + RPC)
+            5B. Seguridad via Birdeye (todas las cadenas, tokens sin info)
+            5C. Fechas de creacion via Birdeye (tokens sin created_at)
+            5D. Trade data via Birdeye (buys/sells/traders unicos)
+            5E. Token overview via Birdeye (datos completos en 1 call)
             6.  Actualizar OHLCV de tokens existentes
+            7.  Enriquecer tokens existentes via Birdeye (holders, security, dates)
 
         Este metodo esta diseñado para ejecutarse una vez al dia
         (ej: con un cron job o un scheduler de Python).
@@ -1183,8 +1857,9 @@ class DataCollector:
             chains: Lista de cadenas a procesar. Si es None, usa todas
                 las soportadas (solana, ethereum, base).
             max_tokens_ohlcv: Maximo de tokens existentes a actualizar en
-                el paso 6 (OHLCV update). Default 200. En CI se controla
-                via env var MAX_TOKENS_OHLCV (default 500 para cron).
+                el paso 6 (OHLCV update). Default 1000. Con Birdeye (900/min),
+                1000 tokens = ~3 min. En CI se controla via env var
+                MAX_TOKENS_OHLCV.
 
         Returns:
             Diccionario con estadisticas de la recopilacion:
@@ -1250,14 +1925,31 @@ class DataCollector:
         # --- Paso 3: Recopilar OHLCV ---
         self.collect_ohlcv(tokens)
 
-        # --- Paso 4: Recopilar holders (solo Solana) ---
+        # --- Paso 4: Recopilar holders (Solana + ETH/Base via Birdeye) ---
         self.collect_holders(tokens)
 
-        # --- Paso 5: Verificar contratos ---
+        # --- Paso 5: Verificar contratos (Etherscan + RPC) ---
         self.collect_contract_info(tokens)
+
+        # --- Paso 5B: Seguridad via Birdeye (tokens sin contract_info) ---
+        self.collect_birdeye_security(tokens)
+
+        # --- Paso 5C: Fechas de creacion via Birdeye ---
+        self.collect_birdeye_creation_dates(tokens)
+
+        # --- Paso 5D: Trade data via Birdeye (buys/sells/traders) ---
+        self.collect_birdeye_trade_data(tokens)
+
+        # --- Paso 5E: Token overview via Birdeye (datos completos) ---
+        self.collect_birdeye_token_overview(tokens)
 
         # --- Paso 6: Actualizar OHLCV de tokens existentes ---
         ohlcv_update_stats = self.update_existing_ohlcv(max_tokens=max_tokens_ohlcv)
+
+        # --- Paso 7: Enriquecer tokens existentes sin datos via Birdeye ---
+        # max_tokens=3000 por tipo (holders, security, dates) = hasta ~9000 calls
+        # Con 900 calls/min, esto toma ~10 min. Bien dentro del presupuesto diario.
+        birdeye_enrich_stats = self.enrich_existing_tokens_birdeye(max_tokens=3000)
 
         # Calcular duracion total
         duracion = time.time() - inicio
@@ -1269,6 +1961,7 @@ class DataCollector:
             "tokens_dexscreener": len(dex_tokens),
             "tokens_coingecko_categories": len(cg_tokens),
             "tokens_birdeye": len(birdeye_tokens),
+            "birdeye_enrichment": birdeye_enrich_stats,
             "chains_processed": chains or list(SUPPORTED_CHAINS.keys()),
             "duration_seconds": round(duracion, 2),
             "timestamp": timestamp,
@@ -1281,6 +1974,7 @@ class DataCollector:
         logger.info("#" * 60)
         logger.info("RECOPILACION DIARIA COMPLETADA")
         logger.info(f"Tokens descubiertos: {stats['tokens_discovered']}")
+        logger.info(f"Birdeye enrichment: {birdeye_enrich_stats}")
         logger.info(f"Duracion: {duracion:.1f} segundos")
         logger.info(f"Totales en DB: {db_stats}")
         logger.info("#" * 60)
@@ -1420,7 +2114,7 @@ class DataCollector:
         except Exception as e:
             logger.warning(f"Error obteniendo OHLCV: {e}")
 
-        # --- 4. Holders (solo Solana) ---
+        # --- 4. Holders (Solana via Helius + ETH/Base via Birdeye) ---
         if chain == "solana":
             try:
                 holders_data = self.solana_rpc.get_token_largest_accounts(
@@ -1450,8 +2144,28 @@ class DataCollector:
                         })
                     self.storage.insert_holder_snapshot(holder_rows)
                     resultado["holders"] = holder_rows
+                elif self.birdeye.is_available:
+                    # Fallback: Birdeye para Solana
+                    holders_be = self.birdeye.get_token_holder(
+                        token_address, chain="solana", limit=20,
+                    )
+                    if holders_be:
+                        self._save_birdeye_holders(token_address, "solana", holders_be)
+                        resultado["holders"] = holders_be
             except Exception as e:
                 logger.warning(f"Error obteniendo holders: {e}")
+        else:
+            # ETH/Base: usar Birdeye para holders
+            if self.birdeye.is_available:
+                try:
+                    holders_be = self.birdeye.get_token_holder(
+                        token_address, chain=chain, limit=20,
+                    )
+                    if holders_be:
+                        self._save_birdeye_holders(token_address, chain, holders_be)
+                        resultado["holders"] = holders_be
+                except Exception as e:
+                    logger.warning(f"Error obteniendo holders Birdeye: {e}")
 
         # --- 5. Info de contrato ---
         try:
@@ -1473,8 +2187,6 @@ class DataCollector:
 
                 source = ethclient.get_contract_source(token_address)
                 if source:
-                    # Limitacion: is_proxy=False NO implica ownership renunciado.
-                    # Dejamos False (desconocido) hasta tener fuente fiable.
                     contract_info["is_renounced"] = False
 
             elif chain == "solana":
@@ -1489,6 +2201,81 @@ class DataCollector:
 
         except Exception as e:
             logger.warning(f"Error verificando contrato: {e}")
+
+        # --- 5B. Seguridad Birdeye (complementa Etherscan/RPC) ---
+        if self.birdeye.is_available:
+            try:
+                security = self.birdeye.get_token_security(
+                    token_address, chain=chain,
+                )
+                if security:
+                    resultado["birdeye_security"] = security
+            except Exception as e:
+                logger.debug(f"Error obteniendo seguridad Birdeye: {e}")
+
+        # --- 5C. Trade data Birdeye ---
+        if self.birdeye.is_available:
+            try:
+                trade_data = self.birdeye.get_token_trade_data(
+                    token_address, chain=chain,
+                )
+                if trade_data:
+                    resultado["birdeye_trade_data"] = trade_data
+                    # Guardar como snapshot
+                    snapshot_time = datetime.now(timezone.utc).isoformat()
+                    snapshot = {
+                        "token_id": token_address,
+                        "chain": chain,
+                        "snapshot_time": snapshot_time,
+                        "price_usd": None,
+                        "volume_24h": (
+                            safe_float(trade_data.get("volume_buy_24h", 0))
+                            + safe_float(trade_data.get("volume_sell_24h", 0))
+                        ),
+                        "liquidity_usd": None,
+                        "market_cap": None,
+                        "fdv": None,
+                        "buyers_24h": trade_data.get("buy_24h"),
+                        "sellers_24h": trade_data.get("sell_24h"),
+                        "makers_24h": (
+                            safe_int(trade_data.get("buy_24h") or 0)
+                            + safe_int(trade_data.get("sell_24h") or 0)
+                        ),
+                        "tx_count_24h": trade_data.get("trade_24h"),
+                        "source": "birdeye-trade",
+                    }
+                    self.storage.insert_pool_snapshot(snapshot)
+            except Exception as e:
+                logger.debug(f"Error obteniendo trade data Birdeye: {e}")
+
+        # --- 5D. Token overview Birdeye ---
+        if self.birdeye.is_available:
+            try:
+                overview = self.birdeye.get_token_overview(
+                    token_address, chain=chain,
+                )
+                if overview:
+                    resultado["birdeye_overview"] = overview
+                    # Guardar como snapshot
+                    snapshot_time = datetime.now(timezone.utc).isoformat()
+                    snapshot = {
+                        "token_id": token_address,
+                        "chain": chain,
+                        "snapshot_time": snapshot_time,
+                        "price_usd": overview.get("price"),
+                        "volume_24h": overview.get("volume_24h"),
+                        "liquidity_usd": overview.get("liquidity"),
+                        "market_cap": overview.get("mc"),
+                        "fdv": None,
+                        "buyers_24h": overview.get("buy_24h"),
+                        "sellers_24h": overview.get("sell_24h"),
+                        "makers_24h": overview.get("unique_wallet_24h"),
+                        "tx_count_24h": overview.get("trade_24h"),
+                        "source": "birdeye-overview",
+                    }
+                    self.storage.insert_pool_snapshot(snapshot)
+            except Exception as e:
+                logger.debug(f"Error obteniendo overview Birdeye: {e}")
 
         logger.info(
             f"Recopilacion de token {token_address[:10]}... completada"
