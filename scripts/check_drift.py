@@ -132,6 +132,15 @@ def write_github_output(key: str, value: str):
             fh.write(f"{key}={value}\n")
 
 
+def write_all_outputs(needs_retrain: bool = False, model_version: str = "desconocido",
+                      overall_score: float = 0.0, reasons: list = None):
+    """Escribe TODOS los outputs de una vez (evita campos vacios en Telegram)."""
+    write_github_output("needs_retrain", "true" if needs_retrain else "false")
+    write_github_output("model_version", model_version)
+    write_github_output("overall_score", str(overall_score))
+    write_github_output("reasons", json.dumps(reasons or []))
+
+
 def main(
     model_version: str = None,
     dry_run: bool = False,
@@ -202,7 +211,7 @@ def main(
                     "Probablemente no se ha entrenado ningun modelo todavia. "
                     "Saltando drift check."
                 )
-                write_github_output("needs_retrain", "false")
+                write_all_outputs(needs_retrain=False)
                 return EXIT_OK
             # Actualizar model_version si se descargo
             if not model_version:
@@ -212,7 +221,7 @@ def main(
                 f"No se pudieron descargar modelos: {e}. "
                 "Saltando drift check (modelos no disponibles)."
             )
-            write_github_output("needs_retrain", "false")
+            write_all_outputs(needs_retrain=False)
             return EXIT_OK
 
     # ================================================================
@@ -228,7 +237,7 @@ def main(
             f"Artefactos no disponibles: {e}. "
             "Saltando drift check hasta que se entrene un modelo."
         )
-        write_github_output("needs_retrain", "false")
+        write_all_outputs(needs_retrain=False)
         return EXIT_OK
     except Exception as e:
         logger.error(f"Error cargando artefactos: {e}")
@@ -262,7 +271,7 @@ def main(
             "No se pudieron calcular medianas actuales. "
             "Saltando drift check (sin datos de features)."
         )
-        write_github_output("needs_retrain", "false")
+        write_all_outputs(needs_retrain=False)
         return EXIT_OK
 
     logger.info(f"  Features actuales: {len(current_medians)}")
@@ -302,10 +311,12 @@ def main(
     needs_retrain = report.get("needs_retraining", False)
 
     if not dry_run:
-        write_github_output("needs_retrain", "true" if needs_retrain else "false")
-        write_github_output("reasons", json.dumps(report.get("reasons", [])))
-        write_github_output("overall_score", str(report.get("overall_score", 0)))
-        write_github_output("model_version", model_version)
+        write_all_outputs(
+            needs_retrain=needs_retrain,
+            model_version=model_version,
+            overall_score=report.get("overall_score", 0),
+            reasons=report.get("reasons", []),
+        )
 
     # ================================================================
     # Imprimir resumen

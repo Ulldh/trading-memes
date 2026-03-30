@@ -80,7 +80,20 @@ jobs:
             STATUS="Modelo OK, no necesita re-entrenamiento"
           fi
 
+          # Valores por defecto si el script no los proporcionó
+          VERSION="${VERSION:-desconocido}"
+          SCORE="${SCORE:-N/A}"
+          REASONS="${REASONS:-ninguna}"
+
+          MSG="${EMOJI} Drift Check — Meme Detector
+
+Status: ${STATUS}
+Modelo: ${VERSION}
+Score: ${SCORE}
+Razones: ${REASONS}
+
+Ver run: ${RUN_URL}"
+
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_CHAT_ID}" \
-            -d parse_mode="Markdown" \
-            -d text="${EMOJI} *Drift Check*%0A%0A*Status:* ${STATUS}%0A*Modelo:* ${VERSION}%0A*Score:* ${SCORE}%0A*Razones:* ${REASONS}%0A%0A[Ver run](${RUN_URL})"
+            -d "text=${MSG}"
