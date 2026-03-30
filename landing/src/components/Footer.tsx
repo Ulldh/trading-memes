@@ -51,14 +51,14 @@ export default function Footer() {
             >
               {t("link_disclaimer")}
             </Link>
-            <span className="text-dark-600">|</span>
+            <span className="text-gray-500">|</span>
             <Link
               href="/legal"
               className="hover:text-primary transition-colors duration-200"
             >
               {t("link_legal")}
             </Link>
-            <span className="text-dark-600">|</span>
+            <span className="text-gray-500">|</span>
             <Link
               href="/legal#privacidad"
               className="hover:text-primary transition-colors duration-200"
@@ -75,7 +75,7 @@ export default function Footer() {
             >
               info@memedetector.es
             </a>
-            <span className="text-dark-600">&middot;</span>
+            <span className="text-gray-500">&middot;</span>
             <a
               href="https://t.me/Ull_trading_bot"
               target="_blank"

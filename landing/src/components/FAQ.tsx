@@ -25,16 +25,20 @@ function FAQItem({
     >
       <button
         onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        aria-controls={`faq-answer-${index}`}
+        id={`faq-question-${index}`}
         className="w-full flex items-center justify-between py-5 text-left group"
       >
         <span className="text-sm md:text-base text-primary group-hover:glow-green transition-all duration-200">
-          <span className="text-dark-600 mr-3">
+          <span className="text-gray-500 mr-3">
             {String(index + 1).padStart(2, "0")}.
           </span>
           {question}
         </span>
         <span
-          className={`text-dark-600 text-lg ml-4 transition-transform duration-200 ${
+          aria-hidden="true"
+          className={`text-gray-500 text-lg ml-4 transition-transform duration-200 ${
             isOpen ? "rotate-45" : ""
           }`}
         >
@@ -45,6 +49,9 @@ function FAQItem({
       <AnimatePresence>
         {isOpen && (
           <motion.div
+            id={`faq-answer-${index}`}
+            role="region"
+            aria-labelledby={`faq-question-${index}`}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -82,7 +89,7 @@ export default function FAQ() {
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
         >
-          <p className="text-xs text-dark-600 tracking-widest uppercase mb-4">
+          <p className="text-xs text-gray-500 tracking-widest uppercase mb-4">
             <span className="text-primary">$</span> {t("terminal_prompt").replace("$ ", "")}
           </p>
           <h2 className="text-3xl md:text-4xl font-bold">

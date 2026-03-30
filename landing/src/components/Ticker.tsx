@@ -95,6 +95,7 @@ export function Ticker(): React.JSX.Element {
   const t = useTranslations("ticker");
   const [signals, setSignals] = useState<TickerSignal[]>(FALLBACK_SIGNALS);
   const [isLive, setIsLive] = useState(false);
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     fetch("/api/signals")
@@ -116,7 +117,7 @@ export function Ticker(): React.JSX.Element {
   const statusLabel = isLive ? t("live_label") : t("demo_label");
 
   return (
-    <div className="relative w-full bg-dark-800 border-b border-dark-600 overflow-hidden">
+    <div className="relative w-full bg-dark-800 border-b border-dark-600 overflow-hidden" aria-label="Señales de trading en tiempo real">
       {/* Status indicator */}
       <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center bg-dark-800 pl-3 pr-4 border-r border-dark-600" aria-live="polite">
         <span
@@ -133,16 +134,28 @@ export function Ticker(): React.JSX.Element {
         </span>
       </div>
 
+      {/* Pause/play button */}
+      <button
+        onClick={() => setPaused(!paused)}
+        aria-label={paused ? "Reanudar ticker" : "Pausar ticker"}
+        className="absolute left-[108px] top-0 bottom-0 z-10 shrink-0 px-2 text-gray-500 hover:text-white text-xs"
+      >
+        {paused ? "\u25B6" : "\u23F8"}
+      </button>
+
       {/* Scrolling ticker */}
-      <div className="py-2.5 pl-20">
-        <ul className="animate-ticker inline-flex text-xs list-none m-0 p-0">
-          {/* Duplicamos para loop infinito */}
+      <div className="py-2.5 pl-28" role="marquee">
+        <ul className="animate-ticker inline-flex text-xs list-none m-0 p-0" style={{ animationPlayState: paused ? 'paused' : 'running' }}>
+          {/* Señales originales */}
           {signals.map((s, i) => (
             <SignalItem key={`a-${i}`} signal={s} />
           ))}
-          {signals.map((s, i) => (
-            <SignalItem key={`b-${i}`} signal={s} />
-          ))}
+          {/* Duplicado para loop infinito */}
+          <span aria-hidden="true" className="inline-flex">
+            {signals.map((s, i) => (
+              <SignalItem key={`b-${i}`} signal={s} />
+            ))}
+          </span>
         </ul>
       </div>
 

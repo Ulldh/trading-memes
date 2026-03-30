@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import { MotionConfig } from "framer-motion";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -41,8 +42,13 @@ export default async function RootLayout({
   return (
     <html lang={locale}>
       <body className="antialiased">
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:bg-primary focus:text-dark-900 focus:px-4 focus:py-2 focus:font-bold focus:rounded">
+          Skip to main content
+        </a>
         <NextIntlClientProvider locale={locale} messages={messages}>
-          {children}
+          <MotionConfig reducedMotion="user">
+            {children}
+          </MotionConfig>
         </NextIntlClientProvider>
       </body>
     </html>

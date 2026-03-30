@@ -10,12 +10,12 @@ import Footer from "@/components/Footer";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-dark-900">
+    <main id="main-content" className="min-h-screen bg-dark-900">
       {/* Header fijo: Navbar + Ticker (siempre visibles) */}
-      <div className="fixed top-0 left-0 right-0 z-50">
+      <header className="fixed top-0 left-0 right-0 z-50">
         <Navbar />
         <Ticker />
-      </div>
+      </header>
 
       {/* Contenido con padding para compensar header fijo */}
       <div className="pt-[88px]">

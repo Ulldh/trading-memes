@@ -234,7 +234,7 @@ export default function Backtesting() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Inversion */}
             <div>
-              <label className="block text-xs text-gray-500 font-mono uppercase tracking-widest mb-2">
+              <label htmlFor="backtesting-investment" className="block text-xs text-gray-500 font-mono uppercase tracking-widest mb-2">
                 {t("investment_label")}
               </label>
               <div className="relative">
@@ -242,6 +242,7 @@ export default function Backtesting() {
                   $
                 </span>
                 <input
+                  id="backtesting-investment"
                   type="number"
                   min={100}
                   max={1000000}
@@ -252,7 +253,7 @@ export default function Backtesting() {
                       Math.max(100, Math.min(1000000, Number(e.target.value)))
                     )
                   }
-                  className="w-full bg-dark-900 border border-dark-600 text-primary font-mono text-lg pl-8 pr-4 py-3 focus:outline-none focus:border-primary transition-colors"
+                  className="w-full bg-dark-900 border border-dark-600 text-primary font-mono text-lg pl-8 pr-4 py-3 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-dark-900 transition-colors"
                 />
               </div>
             </div>
@@ -262,10 +263,12 @@ export default function Backtesting() {
               <label className="block text-xs text-gray-500 font-mono uppercase tracking-widest mb-2">
                 {t("period_label")}
               </label>
-              <div className="flex gap-2">
+              <div className="flex gap-2" role="radiogroup" aria-label="Período de simulación">
                 {periodoOptions.map((opt) => (
                   <button
                     key={opt.value}
+                    role="radio"
+                    aria-checked={periodo === opt.value}
                     onClick={() => setPeriodo(opt.value)}
                     className={`flex-1 py-3 font-mono text-sm border transition-colors ${
                       periodo === opt.value
@@ -284,10 +287,12 @@ export default function Backtesting() {
               <label className="block text-xs text-gray-500 font-mono uppercase tracking-widest mb-2">
                 {t("strategy_label")}
               </label>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2" role="radiogroup" aria-label="Estrategia de señales">
                 {estrategiaOptions.map((opt) => (
                   <button
                     key={opt.value}
+                    role="radio"
+                    aria-checked={estrategia === opt.value}
                     onClick={() => setEstrategia(opt.value)}
                     className={`py-2 px-3 font-mono text-xs border text-left transition-colors ${
                       estrategia === opt.value
@@ -376,7 +381,7 @@ export default function Backtesting() {
           </div>
 
           {/* Chart */}
-          <div className="h-[280px] w-full mb-6">
+          <div className="h-[280px] w-full mb-6" role="img" aria-label={`Simulación de portfolio: inversión $${investment.toLocaleString("es-ES")}, valor final $${result.finalValue.toLocaleString("es-ES")}, retorno ${result.returnPct >= 0 ? "+" : ""}${result.returnPct}%, win rate ${result.winRate}%`}>
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={result.data}

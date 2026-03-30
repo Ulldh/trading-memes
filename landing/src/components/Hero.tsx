@@ -57,7 +57,7 @@ export default function Hero() {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mb-8 text-xs text-dark-600 tracking-widest uppercase"
+          className="mb-8 text-xs text-gray-500 tracking-widest uppercase"
         >
           <span className="text-primary">$</span> meme-detector
           <span className="text-primary"> --</span>scan
@@ -144,7 +144,7 @@ export default function Hero() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 1.2 }}
-          className="mt-16 text-xs text-dark-600 font-mono"
+          className="mt-16 text-xs text-gray-500 font-mono"
         >
           <span className="text-gem-green">{t("status_label")}</span> {t("status_value")} &middot;{" "}
           <span className="text-gem-green">{t("model_label")}</span> {t("model_value")} &middot;{" "}

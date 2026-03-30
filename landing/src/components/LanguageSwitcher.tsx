@@ -24,14 +24,16 @@ export default function LanguageSwitcher() {
         <button
           key={lang.code}
           onClick={() => setLanguage(lang.code)}
-          className={`text-sm px-1.5 py-0.5 transition-all duration-200 ${
+          aria-label={`Cambiar idioma a ${lang.label}`}
+          aria-current={currentLocale === lang.code ? "true" : undefined}
+          className={`text-sm min-w-[44px] min-h-[44px] flex items-center justify-center transition-all duration-200 ${
             currentLocale === lang.code
               ? "opacity-100 scale-110"
               : "opacity-50 hover:opacity-100"
           }`}
           title={lang.label}
         >
-          {lang.flag}
+          <span aria-hidden="true">{lang.flag}</span>
         </button>
       ))}
     </div>

@@ -27,6 +27,7 @@ export default function Navbar() {
 
   return (
     <nav
+      aria-label="Main navigation"
       className={`w-full transition-all duration-300 ${
         scrolled
           ? "bg-dark-900/95 backdrop-blur-md border-b border-dark-600"
@@ -36,9 +37,9 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-14">
           {/* Logo */}
-          <a href="#" className="flex items-center gap-2 shrink-0">
+          <a href="/" aria-label="Meme Detector - Inicio" className="flex items-center gap-2 shrink-0">
             <span className="text-primary text-lg font-bold tracking-tight">
-              {"\u{1F48E}"} {t("brand")}
+              <span aria-hidden="true">{"\u{1F48E}"}</span> {t("brand")}
             </span>
           </a>
 
@@ -79,6 +80,9 @@ export default function Navbar() {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-nav"
             className="md:hidden text-gray-400 hover:text-white"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -93,7 +97,7 @@ export default function Navbar() {
 
         {/* Mobile menu */}
         {menuOpen && (
-          <div className="md:hidden border-t border-dark-600 py-4 space-y-3">
+          <div id="mobile-nav" className="md:hidden border-t border-dark-600 py-4 space-y-3">
             {navLinks.map((link) => (
               <a
                 key={link.href}

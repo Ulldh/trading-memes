@@ -47,7 +47,7 @@ export default function Pipeline() {
           {t("section_title")}
           <span className="inline-block w-[2px] h-[1em] bg-primary ml-2 animate-pulse align-middle" />
         </h2>
-        <p className="text-dark-600 text-sm mt-4 font-mono tracking-wide uppercase">
+        <p className="text-gray-500 text-sm mt-4 font-mono tracking-wide uppercase">
           {t("section_subtitle")}
         </p>
       </motion.div>
