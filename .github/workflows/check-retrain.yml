@@ -85,14 +85,17 @@ jobs:
           SCORE="${SCORE:-N/A}"
           REASONS="${REASONS:-ninguna}"
 
-          MSG="${EMOJI} Drift Check — Meme Detector
+          MSG=$(cat <<EOMSG
+          ${EMOJI} Drift Check — Meme Detector
 
-Status: ${STATUS}
-Modelo: ${VERSION}
-Score: ${SCORE}
-Razones: ${REASONS}
+          Status: ${STATUS}
+          Modelo: ${VERSION}
+          Score: ${SCORE}
+          Razones: ${REASONS}
 
-Ver run: ${RUN_URL}"
+          Ver run: ${RUN_URL}
+          EOMSG
+          )
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_CHAT_ID}" \

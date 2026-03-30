@@ -23,7 +23,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
 
     env:
       # Backend de almacenamiento
@@ -98,7 +98,7 @@ jobs:
           if missing:
               builder = FeatureBuilder(storage)
               # Process max 1000 per run to stay within timeout
-              batch = missing[:1000]
+              batch = missing[:200]
               print(f'Procesando {len(batch)} tokens...')
               for i, token_id in enumerate(batch):
                   try:
