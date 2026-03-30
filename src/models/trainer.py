@@ -361,6 +361,8 @@ class ModelTrainer:
             "token_id", "label_multi", "label_binary",
             "max_multiple", "final_multiple", "return_7d", "notes",
             "labeled_at", "computed_at",
+            # Data leakage: columnas de labels que codifican directamente el resultado
+            "tier", "tier_numeric", "close_max_multiple",
             # Columnas de texto/metadata que pueden venir del storage
             "chain", "symbol", "name", "dex_id", "pool_address",
             "first_seen", "last_updated",

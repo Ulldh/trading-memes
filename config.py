@@ -197,6 +197,10 @@ EXCLUDED_FEATURES = [
     "market_fear_greed",
     # Social/DexScreener: buyers/sellers solo en snapshots, no en OHLCV
     "buyer_seller_ratio_24h",
+    # Data leakage: columnas de labels que codifican directamente el resultado
+    "tier_numeric",            # codifica directamente el outcome (1-5 tiers)
+    "tier",                    # string pero red de seguridad contra leakage
+    "close_max_multiple",      # metrica de resultado (max close / close inicial)
 ]
 
 # ============================================================
