@@ -42,8 +42,8 @@ def create_checkout_session(
         mode="subscription",
         customer_email=user_email,
         line_items=[{"price": price_id, "quantity": 1}],
-        success_url=success_url or "https://www.memedetector.es/?success=true",
-        cancel_url=cancel_url or "https://www.memedetector.es/?cancelled=true",
+        success_url=success_url or "https://app.memedetector.es/?payment=success",
+        cancel_url=cancel_url or "https://app.memedetector.es/?payment=cancelled",
         metadata={"plan": plan},
     )
     return session.url
@@ -60,7 +60,7 @@ def create_portal_session(stripe_customer_id: str) -> str:
 
     session = stripe.billing_portal.Session.create(
         customer=stripe_customer_id,
-        return_url="https://www.memedetector.es/",
+        return_url="https://app.memedetector.es/",
     )
     return session.url
 

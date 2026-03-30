@@ -37,7 +37,7 @@ serve(async (req) => {
       const plan = priceId === Deno.env.get('STRIPE_PRICE_ID_ENTERPRISE') ? 'enterprise' : 'pro'
       const maxTokens = plan === 'enterprise' ? 999 : 10
 
-      await supabase.from('profiles').update({
+      const { error } = await supabase.from('profiles').update({
         role: plan,
         subscription_status: 'active',
         subscription_plan: plan,
@@ -47,6 +47,11 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       }).eq('email', email)
 
+      if (error) {
+        console.error('checkout.session.completed: failed to update profile by email', { email, error })
+        return new Response(JSON.stringify({ error: 'DB update failed' }), { status: 500 })
+      }
+
       break
     }
 
@@ -54,11 +59,16 @@ serve(async (req) => {
       const sub = event.data.object as Stripe.Subscription
       const customerId = sub.customer as string
 
-      await supabase.from('profiles').update({
+      const { error } = await supabase.from('profiles').update({
         subscription_status: sub.status,
         subscription_end: new Date(sub.current_period_end * 1000).toISOString(),
         updated_at: new Date().toISOString(),
       }).eq('stripe_customer_id', customerId)
+
+      if (error) {
+        console.error('customer.subscription.updated: failed to update profile', { customerId, error })
+        return new Response(JSON.stringify({ error: 'DB update failed' }), { status: 500 })
+      }
 
       break
     }
@@ -67,13 +77,18 @@ serve(async (req) => {
       const sub = event.data.object as Stripe.Subscription
       const customerId = sub.customer as string
 
-      await supabase.from('profiles').update({
+      const { error } = await supabase.from('profiles').update({
         role: 'free',
         subscription_status: 'cancelled',
         subscription_plan: 'free',
         max_watchlist_tokens: 3,
         updated_at: new Date().toISOString(),
       }).eq('stripe_customer_id', customerId)
+
+      if (error) {
+        console.error('customer.subscription.deleted: failed to update profile', { customerId, error })
+        return new Response(JSON.stringify({ error: 'DB update failed' }), { status: 500 })
+      }
 
       break
     }
@@ -82,10 +97,15 @@ serve(async (req) => {
       const invoice = event.data.object as Stripe.Invoice
       const customerId = invoice.customer as string
 
-      await supabase.from('profiles').update({
+      const { error } = await supabase.from('profiles').update({
         subscription_status: 'past_due',
         updated_at: new Date().toISOString(),
       }).eq('stripe_customer_id', customerId)
+
+      if (error) {
+        console.error('invoice.payment_failed: failed to update profile', { customerId, error })
+        return new Response(JSON.stringify({ error: 'DB update failed' }), { status: 500 })
+      }
 
       break
     }

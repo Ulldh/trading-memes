@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 
 // URLs de pago (no se traducen)
 const planHrefs = [
-  "https://app.memedetector.es",
+  "https://app.memedetector.es/?tab=register",
   "https://buy.stripe.com/bJe8wPgnT7Ai6RT4xCaZi00",
   "https://buy.stripe.com/8x2fZh4Fbg6Oekld48aZi01",
 ];
@@ -35,7 +35,7 @@ export default function Pricing() {
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
         >
-          <p className="text-xs text-dark-600 tracking-widest uppercase mb-4">
+          <p className="text-xs text-gray-500 tracking-widest uppercase mb-4">
             <span className="text-primary">$</span> {t("terminal_prompt").replace("$ ", "")}
           </p>
           <h2 className="text-3xl md:text-4xl font-bold">
@@ -93,15 +93,16 @@ export default function Pricing() {
                 {plan.features.map((feature, fi) => (
                   <li key={fi} className="flex items-center gap-3 text-sm">
                     {feature.included ? (
-                      <span className="text-primary font-bold">{"\u2713"}</span>
+                      <span className="text-primary font-bold" aria-hidden="true">{"\u2713"}</span>
                     ) : (
-                      <span className="text-gray-600 font-bold">{"\u2717"}</span>
+                      <span className="text-gray-600 font-bold" aria-hidden="true">{"\u2717"}</span>
                     )}
                     <span
                       className={
                         feature.included ? "text-gray-300" : "text-gray-600"
                       }
                     >
+                      <span className="sr-only">{feature.included ? "Incluido: " : "No incluido: "}</span>
                       {feature.text}
                     </span>
                   </li>
@@ -121,6 +122,12 @@ export default function Pricing() {
               >
                 {plan.cta}
               </a>
+              {/* Nota para planes de pago: usar mismo email */}
+              {index > 0 && (
+                <p className="text-xs text-gray-500 text-center mt-3">
+                  Usa el mismo email de tu cuenta Meme Detector
+                </p>
+              )}
             </motion.div>
           ))}
         </div>

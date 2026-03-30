@@ -6,6 +6,7 @@ ver el estado de suscripción, la conexion con Telegram, y eliminar
 la cuenta (zona de peligro).
 """
 
+import logging
 import streamlit as st
 
 from src.data.supabase_storage import get_storage as _get_storage
@@ -21,6 +22,14 @@ except Exception:
     _create_checkout = None  # type: ignore[assignment]
     _create_portal = None  # type: ignore[assignment]
     _stripe_configured = lambda: False  # noqa: E731
+
+# Importar stripe directamente para cancelar suscripciones en eliminacion de cuenta
+try:
+    import stripe as _stripe_lib
+except Exception:
+    _stripe_lib = None  # type: ignore[assignment]
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================
@@ -65,8 +74,35 @@ def _update_display_name(user_id: str, new_name: str) -> bool:
         )
         return True
     except Exception as e:
-        st.error(f"Error al guardar el nombre: {e}")
+        logger.exception("Error al guardar display_name en perfil")
+        st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
         return False
+
+
+def _cancel_stripe_subscriptions(stripe_customer_id: str) -> None:
+    """Cancela todas las suscripciones activas de un cliente en Stripe.
+
+    Si Stripe no esta configurado o la llamada falla, solo loguea un
+    warning sin bloquear la eliminacion de la cuenta.
+    """
+    if not _stripe_lib or not stripe_customer_id:
+        return
+    if not callable(_stripe_configured) or not _stripe_configured():
+        return
+
+    try:
+        subscriptions = _stripe_lib.Subscription.list(
+            customer=stripe_customer_id,
+            status="active",
+        )
+        for sub in subscriptions.auto_paging_iter():
+            try:
+                _stripe_lib.Subscription.cancel(sub.id)
+                logger.info("Stripe subscription %s cancelled for customer %s", sub.id, stripe_customer_id)
+            except Exception as e:
+                logger.warning("Failed to cancel Stripe subscription %s: %s", sub.id, e)
+    except Exception as e:
+        logger.warning("Failed to list Stripe subscriptions for customer %s: %s", stripe_customer_id, e)
 
 
 def _delete_user_account(user_id: str) -> bool:
@@ -74,10 +110,21 @@ def _delete_user_account(user_id: str) -> bool:
 
     Borra el perfil de la tabla profiles. La eliminación de auth.users
     debe hacerse via Supabase Admin o un edge function con service_role.
+    Cancela suscripciones activas en Stripe antes de eliminar.
     Retorna True si la operacion fue exitosa.
     """
     try:
         storage = _get_db()
+
+        # Cancelar suscripciones Stripe antes de eliminar el perfil
+        try:
+            profile = _load_profile(user_id)
+            stripe_customer_id = profile.get("stripe_customer_id", "")
+            if stripe_customer_id:
+                _cancel_stripe_subscriptions(stripe_customer_id)
+        except Exception as e:
+            logger.warning("Could not cancel Stripe subscriptions during account deletion: %s", e)
+
         # Eliminar datos asociados (watchlist, alertas, etc.)
         for table in ("watchlist", "alert_preferences"):
             try:
@@ -90,7 +137,8 @@ def _delete_user_account(user_id: str) -> bool:
         storage.execute("DELETE FROM profiles WHERE id = ?", (user_id,))
         return True
     except Exception as e:
-        st.error(f"Error al eliminar la cuenta: {e}")
+        logger.exception("Error al eliminar la cuenta del usuario")
+        st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
         return False
 
 
@@ -291,8 +339,8 @@ def render():
         st.markdown(
             "**Eliminar cuenta**: esta accion es irreversible. Se eliminaran "
             "todos tus datos, incluyendo watchlists, preferencias de alertas "
-            "y perfil. Tu suscripción activa (si la hay) no se cancelara "
-            "automáticamente en Stripe — contacta a info@memedetector.es "
+            "y perfil. Si tienes una suscripcion activa en Stripe, se "
+            "cancelara automaticamente. Contacta info@memedetector.es "
             "si necesitas un reembolso."
         )
 

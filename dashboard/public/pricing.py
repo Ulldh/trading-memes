@@ -7,6 +7,31 @@ de valor del producto, como funciona, los planes de precios y un FAQ.
 
 import streamlit as st
 
+# Importar stripe_client con try/except (las keys pueden no estar configuradas)
+try:
+    from src.billing.stripe_client import create_checkout_session, is_configured as _stripe_configured
+except Exception:
+    create_checkout_session = None  # type: ignore[assignment]
+    _stripe_configured = lambda: False  # noqa: E731
+
+
+def _get_checkout_url(plan: str = "pro") -> str:
+    """Genera URL de Stripe Checkout para el usuario actual.
+
+    Retorna la URL o cadena vacia si Stripe no esta configurado.
+    """
+    if create_checkout_session is None or not _stripe_configured():
+        return ""
+
+    email = st.session_state.get("user", {}).get("email", "")
+    if not email:
+        return ""
+
+    try:
+        return create_checkout_session(user_email=email, plan=plan) or ""
+    except Exception:
+        return ""
+
 
 def render():
     """Landing page con pricing — propuesta de valor y planes de suscripción."""
@@ -18,7 +43,7 @@ def render():
         """
         <div style="text-align: center; padding: 2rem 0 1rem 0;">
             <h1 style="font-size: 2.8rem; margin-bottom: 0.2rem;">
-                Trading Memes — Gem Detector
+                Meme Detector — Gem Detector
             </h1>
             <p style="font-size: 1.25rem; opacity: 0.85; max-width: 640px; margin: 0.8rem auto;">
                 Detecta las proximas memecoins 10x antes que nadie.<br>
@@ -89,6 +114,10 @@ def render():
 
     tier_free, tier_pro, tier_enterprise = st.columns(3)
 
+    # Detectar si el usuario esta logueado y si Stripe esta configurado
+    _stripe_ok = callable(_stripe_configured) and _stripe_configured()
+    user_email = st.session_state.get("user", {}).get("email", "")
+
     # --- Free ----------------------------------------------------------------
     with tier_free:
         st.markdown("#### Free")
@@ -104,7 +133,7 @@ def render():
         )
         st.markdown("**Gratis**")
         if st.button("Crear cuenta gratuita", key="cta_free", use_container_width=True):
-            st.info("Proximamente — registro de usuarios en desarrollo.")
+            st.switch_page("dashboard/public/login.py")
 
     # --- Pro (recomendado) ---------------------------------------------------
     with tier_pro:
@@ -122,8 +151,30 @@ def render():
                 """
             )
             st.markdown("**$29 / mes**")
-            if st.button("Empezar con Pro", key="cta_pro", type="primary", use_container_width=True):
-                st.info("Proximamente — pasarela de pago en desarrollo.")
+            if _stripe_ok and user_email:
+                checkout_url = _get_checkout_url("pro")
+                if checkout_url:
+                    st.link_button(
+                        "Empezar con Pro",
+                        checkout_url,
+                        type="primary",
+                        use_container_width=True,
+                    )
+                else:
+                    st.info(
+                        "No se pudo generar el enlace de pago. "
+                        "Contacta info@memedetector.es"
+                    )
+            elif user_email:
+                # Logueado pero Stripe no configurado
+                st.info(
+                    "Pagos proximamente. Contacta info@memedetector.es "
+                    "para mas informacion."
+                )
+            else:
+                # No logueado — redirigir a registro
+                if st.button("Empezar con Pro", key="cta_pro", type="primary", use_container_width=True):
+                    st.switch_page("dashboard/public/login.py")
 
     # --- Enterprise ----------------------------------------------------------
     with tier_enterprise:
@@ -138,8 +189,27 @@ def render():
             """
         )
         st.markdown("**$99 / mes**")
-        if st.button("Contactar ventas", key="cta_enterprise", use_container_width=True):
-            st.info("Proximamente — escribe a soporte@tradingmemes.io")
+        if _stripe_ok and user_email:
+            checkout_url = _get_checkout_url("enterprise")
+            if checkout_url:
+                st.link_button(
+                    "Contactar ventas",
+                    checkout_url,
+                    use_container_width=True,
+                )
+            else:
+                st.info(
+                    "No se pudo generar el enlace de pago. "
+                    "Contacta info@memedetector.es"
+                )
+        elif user_email:
+            st.info(
+                "Pagos proximamente. Contacta info@memedetector.es "
+                "para mas informacion."
+            )
+        else:
+            if st.button("Contactar ventas", key="cta_enterprise", use_container_width=True):
+                st.switch_page("dashboard/public/login.py")
 
     st.divider()
 
@@ -201,8 +271,8 @@ def render():
 
     foot1, foot2, foot3 = st.columns(3)
     with foot1:
-        st.markdown("[Twitter / X](https://x.com/tradingmemes_io)")
+        st.markdown("[Twitter / X](https://x.com/memedetector_es)")
     with foot2:
-        st.markdown("[Telegram grupo](https://t.me/tradingmemes_io)")
+        st.markdown("[Telegram grupo](https://t.me/memedetector_es)")
     with foot3:
-        st.markdown("[soporte@tradingmemes.io](mailto:soporte@tradingmemes.io)")
+        st.markdown("[info@memedetector.es](mailto:info@memedetector.es)")
