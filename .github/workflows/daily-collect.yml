@@ -38,6 +38,7 @@ jobs:
       BASESCAN_API_KEY: ${{ secrets.BASESCAN_API_KEY }}
       COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
       BIRDEYE_API_KEY: ${{ secrets.BIRDEYE_API_KEY }}
+      JUPITER_API_KEY: ${{ secrets.JUPITER_API_KEY }}
       X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
       # Limite de tokens para OHLCV update (default 500 para cron, configurable en manual)
       MAX_TOKENS_OHLCV: ${{ inputs.max_tokens_ohlcv || '500' }}
