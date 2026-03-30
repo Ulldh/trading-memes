@@ -101,7 +101,7 @@ def _load_user_profile() -> dict:
 
     Busca por user_id en session_state. Retorna dict vacio si no hay perfil.
     """
-    user_id = st.session_state.get("user_id")
+    user_id = st.session_state.get("user", {}).get("id")
     if not user_id:
         return {}
 
@@ -243,7 +243,7 @@ def render():
 
         # Opcion para desconectar
         if st.button("Desconectar Telegram", type="secondary"):
-            user_id = st.session_state.get("user_id")
+            user_id = st.session_state.get("user", {}).get("id")
             if user_id and _save_telegram_chat_id(user_id, ""):
                 st.success("Telegram desconectado correctamente.")
                 st.rerun()
@@ -275,7 +275,7 @@ def render():
             if not new_chat_id or not new_chat_id.strip().lstrip("-").isdigit():
                 st.error("Introduce un Chat ID valido (solo números).")
             else:
-                user_id = st.session_state.get("user_id")
+                user_id = st.session_state.get("user", {}).get("id")
                 if not user_id:
                     st.error("No se encontro tu sesión. Inicia sesión de nuevo.")
                 else:
@@ -476,7 +476,7 @@ def _show_alert_history_placeholder():
             "WHERE user_id = ? "
             "ORDER BY created_at DESC "
             "LIMIT 10",
-            (st.session_state.get("user_id", ""),),
+            (st.session_state.get("user", {}).get("id", ""),),
         )
         if not df.empty:
             # Truncar mensajes largos para la tabla

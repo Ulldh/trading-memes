@@ -101,6 +101,13 @@ def render():
 
     df = load_todays_signals()
 
+    # --- Limitar señales para usuarios Free ---
+    from dashboard.paywall import limit_signals
+    role = st.session_state.get("role", "free")
+    plan = st.session_state.get("profile", {}).get("subscription_plan", "free")
+    if role != "admin":
+        df = limit_signals(df, plan=plan)
+
     # --- Estado vacio: mensaje amigable ---
     if df.empty:
         st.info(

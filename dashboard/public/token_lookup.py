@@ -267,6 +267,15 @@ FEATURE_DESCRIPTIONS = {
 
 def render():
     """Renderiza la pagina de Busqueda de Token."""
+    # --- Gate de acceso Pro ---
+    try:
+        from dashboard.paywall import check_feature_access, show_upgrade_prompt
+        if not check_feature_access("token_lookup"):
+            show_upgrade_prompt("Buscar Token")
+            return
+    except ImportError:
+        pass  # Sin paywall en desarrollo
+
     st.title("Buscar Token")
 
     st.info(
@@ -540,9 +549,19 @@ def render():
                 st.rerun()
         else:
             if st.button("Agregar a Watchlist", key="btn_add_watchlist", type="primary", use_container_width=True):
-                storage.add_to_watchlist(contract_address, selected_chain)
-                st.toast("Token agregado a tu Watchlist")
-                st.rerun()
+                # Verificar limite de watchlist segun plan
+                from src.billing.subscription import get_plan_limits
+                _role = st.session_state.get("role", "free")
+                _plan = st.session_state.get("profile", {}).get("subscription_plan", "free")
+                _limits = get_plan_limits(_plan if _role != "admin" else "enterprise")
+                _max_wl = _limits.get("max_watchlist", 3)
+                _current_wl = storage.get_watchlist()
+                if _role != "admin" and len(_current_wl) >= _max_wl:
+                    st.error(f"Has alcanzado el limite de {_max_wl} tokens en tu Watchlist. Actualiza a Pro para mas.")
+                else:
+                    storage.add_to_watchlist(contract_address, selected_chain)
+                    st.toast("Token agregado a tu Watchlist")
+                    st.rerun()
 
     # Mostrar label si existe
     try:

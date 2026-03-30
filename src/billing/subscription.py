@@ -72,6 +72,7 @@ PLAN_LIMITS = {
         "shap_analysis": False,
         "telegram_alerts": False,
         "api_access": False,
+        "academy_pro": False,
     },
     "pro": {
         "max_signals_visible": 999,
@@ -80,6 +81,7 @@ PLAN_LIMITS = {
         "shap_analysis": True,
         "telegram_alerts": True,
         "api_access": False,
+        "academy_pro": True,
     },
     "enterprise": {
         "max_signals_visible": 999,
@@ -88,6 +90,7 @@ PLAN_LIMITS = {
         "shap_analysis": True,
         "telegram_alerts": True,
         "api_access": True,
+        "academy_pro": True,
     },
 }
 

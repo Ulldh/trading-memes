@@ -145,7 +145,6 @@ from public.alerts_config import render as render_alerts_config
 from public.pricing import render as render_pricing
 from public.profile import render as render_profile
 from public.legal import render as render_legal
-from public.welcome import render as render_welcome
 from public.academy import render as render_academy
 from admin.drift_monitor import render as render_drift_monitor
 from admin.retrain_panel import render as render_retrain_panel
@@ -178,6 +177,8 @@ if render_profile:
     public_pages.append(st.Page(render_profile, title="Mi Perfil", icon=":material/person:", url_path="profile"))
 if render_academy:
     public_pages.append(st.Page(render_academy, title="Academia", icon=":material/school:", url_path="academy"))
+if render_pricing:
+    public_pages.append(st.Page(render_pricing, title="Planes", icon=":material/payments:", url_path="pricing"))
 
 # --- Paginas de administracion (solo admin) ---
 admin_pages = []
