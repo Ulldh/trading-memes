@@ -406,18 +406,18 @@ class FeatureSelector:
     def auto_select(
         self,
         model,
-        min_variance: float = 0.01,
+        skip_variance: bool = True,
+        min_variance: float = 0.001,
         corr_threshold: float = 0.95,
         min_importance: float = 0.01,
     ) -> tuple[pd.DataFrame, list[str]]:
         """
-        Pipeline completo de seleccion: varianza -> correlacion -> importancia.
+        Pipeline de seleccion: [varianza] -> correlacion -> importancia.
 
-        Ejecuta los tres filtros en secuencia, eliminando features en cada paso.
-        El orden importa:
-        1. Varianza: elimina constantes (rapido, sin modelo).
-        2. Correlacion: elimina redundantes (usa importancia del modelo si disponible).
-        3. Importancia: elimina features de bajo impacto (requiere modelo).
+        Varianza se SALTA por defecto (skip_variance=True) porque en datos
+        crypto muchas features son binarias o near-zero por diseño.
+
+        Ejecuta los filtros en secuencia, eliminando features en cada paso.
 
         Args:
             model: Modelo entrenado (RF o XGB, puede ser ImbPipeline).
@@ -438,10 +438,14 @@ class FeatureSelector:
         # Conjunto de features a eliminar (union de todos los filtros)
         all_to_remove = set()
 
-        # --- Paso 1: Filtro de varianza ---
-        logger.info("\n--- Paso 1/3: Filtro de varianza ---")
-        low_var = self.filter_by_variance(min_variance=min_variance)
-        all_to_remove.update(low_var)
+        # --- Paso 1: Filtro de varianza (saltado por defecto en crypto) ---
+        if skip_variance:
+            logger.info("\n--- Paso 1/3: Filtro de varianza SALTADO (skip_variance=True) ---")
+            logger.info("  Razon: features crypto son frecuentemente binarias/near-zero por diseño")
+        else:
+            logger.info("\n--- Paso 1/3: Filtro de varianza ---")
+            low_var = self.filter_by_variance(min_variance=min_variance)
+            all_to_remove.update(low_var)
 
         # --- Paso 2: Filtro de correlacion ---
         logger.info("\n--- Paso 2/3: Filtro de correlacion ---")
