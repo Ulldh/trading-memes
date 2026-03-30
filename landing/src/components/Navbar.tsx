@@ -60,7 +60,7 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             <LanguageSwitcher />
             <a
-              href="https://app.memedetector.es"
+              href="https://app.memedetector.es/?tab=login"
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-gray-400 hover:text-white transition-colors uppercase tracking-wider"
@@ -68,7 +68,7 @@ export default function Navbar() {
               {t("login")}
             </a>
             <a
-              href="https://app.memedetector.es"
+              href="https://app.memedetector.es/?tab=register"
               target="_blank"
               rel="noopener noreferrer"
               className="border border-primary text-primary px-4 py-1.5 text-xs font-semibold uppercase tracking-wider hover:bg-primary hover:text-dark-900 transition-all duration-300"
@@ -114,7 +114,7 @@ export default function Navbar() {
               </div>
               <div className="flex gap-3">
                 <a
-                  href="https://app.memedetector.es"
+                  href="https://app.memedetector.es/?tab=login"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-gray-400 hover:text-white"
@@ -122,7 +122,7 @@ export default function Navbar() {
                   {t("login")}
                 </a>
                 <a
-                  href="https://app.memedetector.es"
+                  href="https://app.memedetector.es/?tab=register"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="border border-primary text-primary px-4 py-1 text-sm"

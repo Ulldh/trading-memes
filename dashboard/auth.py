@@ -284,7 +284,10 @@ def reset_password(email: str) -> bool:
     if not client:
         return False
     try:
-        client.auth.reset_password_email(email)
+        client.auth.reset_password_email(
+            email,
+            options={"redirect_to": "https://app.memedetector.es"},
+        )
         return True
     except Exception as e:
         logger.exception("Error al enviar email de recuperacion de contrasena")
@@ -302,10 +305,19 @@ def render_login_page():
     st.title(t("auth.login_title", "🔒 Trading Memes"))
     st.markdown(t("auth.login_subtitle", "Detector de Gems en Memecoins con Machine Learning"))
 
-    tab_login, tab_register = st.tabs([
+    # Determinar tab inicial segun query param ?tab=register|login
+    tab_labels = [
         t("auth.tab_login", "Iniciar Sesión"),
         t("auth.tab_register", "Crear Cuenta"),
-    ])
+    ]
+    qp = st.query_params
+    default_tab = qp.get("tab", "login")
+    # st.tabs no soporta default index, pero podemos reordenar para que el tab
+    # deseado aparezca primero. Si tab=register, ponemos Crear Cuenta primero.
+    if default_tab == "register":
+        tab_register, tab_login = st.tabs(list(reversed(tab_labels)))
+    else:
+        tab_login, tab_register = st.tabs(tab_labels)
 
     with tab_login:
         # --- Formulario de login ---

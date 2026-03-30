@@ -22,14 +22,6 @@ export default function Hero() {
       });
   }, []);
 
-  // Incremento lento para dar sensacion de actividad
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTokenCount((prev) => prev + Math.floor(Math.random() * 3) + 1);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
-
   return (
     <section className="relative min-h-screen flex items-center justify-center matrix-bg overflow-hidden">
       {/* Scanline overlay */}
@@ -121,7 +113,7 @@ export default function Hero() {
         >
           <div className="flex gap-4 justify-center flex-wrap">
             <a
-              href="https://app.memedetector.es"
+              href="https://app.memedetector.es/?tab=register"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-block border-2 border-primary text-primary px-8 py-4 text-sm font-semibold tracking-wider uppercase hover:bg-primary hover:text-dark-900 transition-all duration-300"
@@ -129,7 +121,7 @@ export default function Hero() {
               {t("cta_signup")}
             </a>
             <a
-              href="https://app.memedetector.es"
+              href="https://app.memedetector.es/?tab=login"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-block border-2 border-dark-600 text-gray-400 px-8 py-4 text-sm font-semibold tracking-wider uppercase hover:border-gray-400 hover:text-white transition-all duration-300"

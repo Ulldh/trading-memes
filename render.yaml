@@ -4,7 +4,7 @@ services:
     runtime: docker
     repo: https://github.com/Ulldh/trading-memes
     branch: main
-    plan: free
+    plan: starter
     dockerfilePath: ./Dockerfile
     healthCheckPath: /_stcore/health
     envVars:
@@ -16,5 +16,7 @@ services:
         value: supabase
       - key: RENDER
         value: "true"
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - key: DASHBOARD_PASSWORD
         sync: false

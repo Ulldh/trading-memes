@@ -16,10 +16,24 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import streamlit as st
 
+# =============================================================================
+# Configuracion de pagina — DEBE ser la primera llamada a Streamlit
+# =============================================================================
+
+st.set_page_config(
+    page_title="Meme Detector — Detecta Gems en Memecoins",
+    page_icon="💎",
+    layout="wide",
+    menu_items={
+        "Get Help": "https://t.me/Ull_trading_bot",
+        "Report a Bug": "mailto:info@memedetector.es",
+        "About": "Meme Detector analiza miles de memecoins con ML para encontrar las próximas gems 10x+. https://www.memedetector.es",
+    },
+)
+
 from dashboard.i18n import render_language_selector
 
 # --- Intentar cargar el modulo de autenticacion Supabase ---
-# Si auth.py aun no existe (se crea en paralelo), usamos el gate legacy con contrasena
 try:
     from dashboard.auth import (
         require_auth,
@@ -33,15 +47,6 @@ except ImportError:
 
 
 # =============================================================================
-# Fallback legacy: gate con contrasena (se eliminara cuando auth.py este listo)
-# =============================================================================
-
-def _legacy_check_password():
-    """Legacy auth gate — ELIMINADO. Muestra mensaje de mantenimiento."""
-    return False
-
-
-# =============================================================================
 # Gate de autenticacion
 # =============================================================================
 
@@ -52,22 +57,6 @@ else:
     # Auth no disponible — bloquear acceso con mensaje de mantenimiento
     st.error("Sistema de autenticación no disponible. Contacta info@memedetector.es")
     st.stop()
-
-
-# =============================================================================
-# Configuracion de pagina (solo se ejecuta si el usuario esta autenticado)
-# =============================================================================
-
-st.set_page_config(
-    page_title="Meme Detector — Detecta Gems en Memecoins",
-    page_icon="💎",
-    layout="wide",
-    menu_items={
-        "Get Help": "https://t.me/Ull_trading_bot",
-        "Report a Bug": "mailto:info@memedetector.es",
-        "About": "Meme Detector analiza miles de memecoins con ML para encontrar las próximas gems 10x+. https://www.memedetector.es",
-    },
-)
 
 
 # =============================================================================

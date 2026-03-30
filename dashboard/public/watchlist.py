@@ -97,12 +97,28 @@ def render():
         )
         return
 
+    is_pro = _is_pro_or_admin()
+
+    # Enforce plan limits on display for downgraded users
+    if not is_pro:
+        from src.billing.subscription import get_plan_limits
+        role = st.session_state.get("role", "free")
+        plan = (st.session_state.get("profile") or {}).get("subscription_plan", role)
+        limits = get_plan_limits(plan)
+        max_wl = limits.get("max_watchlist", 3)
+        if len(watchlist_df) > max_wl:
+            st.warning(
+                t("pro.watchlist_limit_exceeded",
+                  "Tu plan permite **{max} tokens** en la watchlist. "
+                  "Mostrando los primeros {max}. Actualiza a **Pro** para monitorear hasta 10."
+                ).format(max=max_wl)
+            )
+            watchlist_df = watchlist_df.head(max_wl)
+
     st.caption(
         t("pro.watchlist_count",
           "**{count} tokens** en tu watchlist").format(count=len(watchlist_df))
     )
-
-    is_pro = _is_pro_or_admin()
 
     # Cargar scores si es Pro (para mostrar probabilidad del modelo)
     scores_map = {}
