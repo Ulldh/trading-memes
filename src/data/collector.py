@@ -143,7 +143,7 @@ class DataCollector:
     # ================================================================
 
     def discover_new_pools(
-        self, chains: Optional[list[str]] = None, pages: int = 3
+        self, chains: Optional[list[str]] = None, pages: int = 10
     ) -> list[dict]:
         """
         Descubre pools nuevos en GeckoTerminal para todas las cadenas soportadas.
@@ -156,8 +156,9 @@ class DataCollector:
             chains: Lista de cadenas a consultar. Si es None, usa todas
                 las cadenas de SUPPORTED_CHAINS (solana, ethereum, base).
             pages: Numero de paginas a consultar por cadena (cada pagina
-                tiene ~20 pools). Mas paginas = mas tokens descubiertos
-                pero mas llamadas a la API.
+                tiene ~20 pools). Default 10 = ~200 tokens/cadena.
+                Mas paginas = mas tokens descubiertos pero mas llamadas
+                a la API.
 
         Returns:
             Lista de diccionarios con los tokens descubiertos. Cada dict
@@ -234,6 +235,226 @@ class DataCollector:
         logger.info(
             f"Descubrimiento completado: {len(all_tokens)} tokens nuevos "
             f"en {len(chains)} cadenas"
+        )
+        return all_tokens
+
+    # ================================================================
+    # PASO 1B: DESCUBRIR TOKENS DESDE DEXSCREENER
+    # ================================================================
+
+    def discover_from_dexscreener(self) -> list[dict]:
+        """
+        Descubre tokens adicionales usando endpoints de DexScreener.
+
+        DexScreener tiene 3 fuentes de descubrimiento que complementan
+        a GeckoTerminal:
+        1. Boosted tokens: tokens que pagaron por promocion (activos)
+        2. Token profiles: tokens recientes con info social
+        3. Community takeovers: tokens revividos por la comunidad
+
+        Solo se añaden tokens de cadenas soportadas (solana, ethereum, base).
+        Los tokens que ya existen en la BD se actualizan (upsert).
+
+        Returns:
+            Lista de diccionarios con tokens descubiertos.
+        """
+        logger.info("=" * 60)
+        logger.info("PASO 1B: Descubriendo tokens desde DexScreener...")
+        logger.info("=" * 60)
+
+        all_tokens: list[dict] = []
+        cadenas_soportadas = set(SUPPORTED_CHAINS.keys())
+
+        # --- 1. Tokens boosted (pagaron por promocion = proyectos activos) ---
+        try:
+            boosted = self.dex.get_boosted_tokens()
+            logger.info(f"DexScreener boosted: {len(boosted)} tokens obtenidos")
+
+            for item in boosted:
+                chain = item.get("chain", "")
+                address = item.get("token_address", "")
+
+                # Solo cadenas soportadas y con direccion valida
+                if chain not in cadenas_soportadas or not address:
+                    continue
+
+                token = {
+                    "token_id": address,
+                    "chain": chain,
+                    "name": item.get("description", "")[:100],
+                    "symbol": "",
+                    "pool_address": "",
+                    "dex": "dexscreener-boost",
+                    "created_at": None,
+                    "total_supply": None,
+                    "decimals": None,
+                }
+
+                try:
+                    self.storage.upsert_token(token)
+                    all_tokens.append(token)
+                except Exception as e:
+                    logger.debug(f"Error guardando token boosted {address[:10]}...: {e}")
+
+        except Exception as e:
+            logger.warning(f"Error obteniendo tokens boosted de DexScreener: {e}")
+
+        # --- 2. Perfiles de tokens recientes (con info social) ---
+        try:
+            profiles = self.dex.get_token_profiles()
+            logger.info(f"DexScreener profiles: {len(profiles)} tokens obtenidos")
+
+            for item in profiles:
+                chain = item.get("chain", "")
+                address = item.get("token_address", "")
+
+                if chain not in cadenas_soportadas or not address:
+                    continue
+
+                token = {
+                    "token_id": address,
+                    "chain": chain,
+                    "name": item.get("description", "")[:100],
+                    "symbol": "",
+                    "pool_address": "",
+                    "dex": "dexscreener-profile",
+                    "created_at": None,
+                    "total_supply": None,
+                    "decimals": None,
+                }
+
+                try:
+                    self.storage.upsert_token(token)
+                    all_tokens.append(token)
+                except Exception as e:
+                    logger.debug(f"Error guardando token profile {address[:10]}...: {e}")
+
+        except Exception as e:
+            logger.warning(f"Error obteniendo perfiles de DexScreener: {e}")
+
+        # --- 3. Community takeovers (tokens revividos) ---
+        try:
+            takeovers = self.dex.get_community_takeovers()
+            logger.info(f"DexScreener takeovers: {len(takeovers)} tokens obtenidos")
+
+            for item in takeovers:
+                chain = item.get("chain", "")
+                address = item.get("token_address", "")
+
+                if chain not in cadenas_soportadas or not address:
+                    continue
+
+                token = {
+                    "token_id": address,
+                    "chain": chain,
+                    "name": item.get("description", "")[:100],
+                    "symbol": "",
+                    "pool_address": "",
+                    "dex": "dexscreener-cto",
+                    "created_at": None,
+                    "total_supply": None,
+                    "decimals": None,
+                }
+
+                try:
+                    self.storage.upsert_token(token)
+                    all_tokens.append(token)
+                except Exception as e:
+                    logger.debug(f"Error guardando token CTO {address[:10]}...: {e}")
+
+        except Exception as e:
+            logger.warning(f"Error obteniendo community takeovers de DexScreener: {e}")
+
+        logger.info(
+            f"Descubrimiento DexScreener completado: "
+            f"{len(all_tokens)} tokens nuevos añadidos"
+        )
+        return all_tokens
+
+    # ================================================================
+    # PASO 1C: DESCUBRIR TOKENS DESDE COINGECKO CATEGORIAS
+    # ================================================================
+
+    def discover_from_coingecko_categories(self) -> list[dict]:
+        """
+        Descubre memecoins usando categorias de CoinGecko.
+
+        CoinGecko tiene categorias tematicas de tokens. Consultamos las
+        mas relevantes para memecoins. La API devuelve tokens con sus
+        contract addresses por chain, filtramos por cadenas soportadas.
+
+        Categorias consultadas:
+        - meme-token: categoria principal de memecoins
+        - solana-meme-coins: memecoins especificas de Solana
+
+        Returns:
+            Lista de diccionarios con tokens descubiertos.
+        """
+        logger.info("=" * 60)
+        logger.info("PASO 1C: Descubriendo tokens desde categorias CoinGecko...")
+        logger.info("=" * 60)
+
+        all_tokens: list[dict] = []
+
+        # Categorias de CoinGecko relevantes para memecoins
+        # Los slugs se obtienen de: https://api.coingecko.com/api/v3/coins/categories/list
+        categorias = [
+            "meme-token",
+            "solana-meme-coins",
+        ]
+
+        for categoria in categorias:
+            try:
+                tokens_cat = self.gecko.get_category_coins(
+                    category=categoria,
+                    per_page=250,
+                    page=1,
+                )
+
+                logger.info(
+                    f"CoinGecko categoria '{categoria}': "
+                    f"{len(tokens_cat)} tokens en chains soportadas"
+                )
+
+                for item in tokens_cat:
+                    address = item.get("token_address", "")
+                    chain = item.get("chain", "")
+
+                    if not address or not chain:
+                        continue
+
+                    token = {
+                        "token_id": address,
+                        "chain": chain,
+                        "name": item.get("name", ""),
+                        "symbol": item.get("symbol", ""),
+                        "pool_address": "",
+                        "dex": f"coingecko-{categoria}",
+                        "created_at": None,
+                        "total_supply": None,
+                        "decimals": None,
+                    }
+
+                    try:
+                        self.storage.upsert_token(token)
+                        all_tokens.append(token)
+                    except Exception as e:
+                        logger.debug(
+                            f"Error guardando token CoinGecko {address[:10]}...: {e}"
+                        )
+
+                # Pausa entre categorias para respetar rate limits (30/min)
+                time.sleep(2.0)
+
+            except Exception as e:
+                logger.warning(
+                    f"Error obteniendo categoria '{categoria}' de CoinGecko: {e}"
+                )
+                continue
+
+        logger.info(
+            f"Descubrimiento CoinGecko categorias completado: "
+            f"{len(all_tokens)} tokens nuevos añadidos"
         )
         return all_tokens
 
@@ -473,8 +694,9 @@ class DataCollector:
                 )
                 errores += 1
 
-            # Pausa breve entre tokens
-            time.sleep(0.2)
+            # Pausa entre tokens para GeckoTerminal (30/min = 0.5/s refill)
+            # Con 0.5s garantizamos no exceder el rate limit en loops largos
+            time.sleep(0.5)
 
         # Resumen del paso
         logger.info(
@@ -713,12 +935,15 @@ class DataCollector:
         """
         Ejecuta el pipeline completo de recopilacion diaria.
 
-        Llama a los 5 pasos en orden:
-            1. Descubrir pools nuevos (GeckoTerminal)
-            2. Enriquecer con DexScreener (buyers/sellers)
-            3. Obtener OHLCV historico
-            4. Obtener holders (solo Solana)
-            5. Verificar contratos (Etherscan + RPC)
+        Llama a los pasos en orden:
+            1.  Descubrir pools nuevos (GeckoTerminal, 10 paginas/cadena)
+            1B. Descubrir tokens desde DexScreener (boosted, profiles, CTO)
+            1C. Descubrir tokens desde categorias CoinGecko (meme-token, etc.)
+            2.  Enriquecer con DexScreener (buyers/sellers)
+            3.  Obtener OHLCV historico
+            4.  Obtener holders (solo Solana)
+            5.  Verificar contratos (Etherscan + RPC)
+            6.  Actualizar OHLCV de tokens existentes
 
         Este metodo esta diseñado para ejecutarse una vez al dia
         (ej: con un cron job o un scheduler de Python).
@@ -755,8 +980,34 @@ class DataCollector:
         logger.info(f"Cadenas: {chains or list(SUPPORTED_CHAINS.keys())}")
         logger.info("#" * 60)
 
-        # --- Paso 1: Descubrir pools nuevos ---
+        # Resetear circuit breaker de Pump.fun al inicio de cada run diario
+        # (si estaba abierto de un run anterior, le damos otra oportunidad)
+        self.solana_discovery.reset_circuit_breaker()
+
+        # --- Paso 1: Descubrir pools nuevos (GeckoTerminal) ---
         tokens = self.discover_new_pools(chains=chains)
+
+        # --- Paso 1B: Descubrir tokens desde DexScreener ---
+        dex_tokens = self.discover_from_dexscreener()
+        tokens.extend(dex_tokens)
+
+        # --- Paso 1C: Descubrir tokens desde categorias CoinGecko ---
+        cg_tokens = self.discover_from_coingecko_categories()
+        tokens.extend(cg_tokens)
+
+        # Deduplicar tokens por token_id (puede haber solapamiento entre fuentes)
+        seen_ids: set[str] = set()
+        unique_tokens: list[dict] = []
+        for token in tokens:
+            tid = token.get("token_id", "")
+            if tid and tid not in seen_ids:
+                seen_ids.add(tid)
+                unique_tokens.append(token)
+        tokens = unique_tokens
+        logger.info(
+            f"Total tokens descubiertos (deduplicados): {len(tokens)} "
+            f"(GeckoTerminal + DexScreener + CoinGecko)"
+        )
 
         # --- Paso 2: Enriquecer con DexScreener ---
         self.enrich_with_dexscreener(tokens)
@@ -779,6 +1030,9 @@ class DataCollector:
         # Construir diccionario de estadisticas
         stats = {
             "tokens_discovered": len(tokens),
+            "tokens_gecko": len(tokens) - len(dex_tokens) - len(cg_tokens),
+            "tokens_dexscreener": len(dex_tokens),
+            "tokens_coingecko_categories": len(cg_tokens),
             "chains_processed": chains or list(SUPPORTED_CHAINS.keys()),
             "duration_seconds": round(duracion, 2),
             "timestamp": timestamp,
@@ -1240,6 +1494,9 @@ class DataCollector:
                     f"Error actualizando OHLCV para {row['token_id'][:10]}...: {e}"
                 )
                 errores += 1
+
+            # Pausa entre tokens para GeckoTerminal (30/min = 0.5/s refill)
+            time.sleep(0.5)
 
         stats = {
             "tokens_processed": exitos,

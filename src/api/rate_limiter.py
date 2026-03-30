@@ -40,9 +40,10 @@ class RateLimiter:
         self.tokens_per_second = calls_per_minute / 60.0
 
         # Limitar rafaga inicial para evitar 429 en APIs estrictas.
-        # Un burst de 30 calls instantaneas dispara rate limits aunque
-        # el promedio sea correcto. Limitamos a 5 tokens de burst.
-        self.max_tokens = min(calls_per_minute, 5)
+        # Un burst demasiado grande dispara rate limits aunque el promedio
+        # sea correcto. 10 tokens de burst permite cadencia fluida sin
+        # largas esperas entre rafagas (con 5 y 30/min habia 10s de espera).
+        self.max_tokens = min(calls_per_minute, 10)
         self.tokens = float(self.max_tokens)
 
         # Timestamp de la ultima vez que recargamos tokens

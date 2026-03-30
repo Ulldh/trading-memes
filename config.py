@@ -49,12 +49,12 @@ RATE_LIMITS = {
     "geckoterminal": 30,    # 30 calls/min, sin limite mensual documentado
     "coingecko": 30,        # 30 calls/min, 10K calls/mes (demo)
     "dexscreener": 300,     # 300 calls/min, sin limite mensual
-    "helius": 50,           # ~50 calls/sec free tier, usamos conservador
+    "helius": 1000,         # Free tier: 50 rps = 3000/min. Usamos 1000 (headroom)
     "etherscan": 5 * 60,    # 5 calls/seg = 300/min
     "basescan": 5 * 60,     # Mismo que Etherscan
     "twitter": 30,          # 450 calls/15min = ~30/min (Basic tier)
     "pumpfun": 30,          # API no oficial, conservador
-    "birdeye": 60,          # Free tier: 1 rps = 60/min. Lite: 15 rps = 900/min
+    "birdeye": 900,         # Lite tier ($39/m): 15 rps = 900/min
     "jupiter": 60,          # JSON estatico, sin rate limit documentado
     "raydium": 60,          # JSON estatico, sin rate limit documentado
 }

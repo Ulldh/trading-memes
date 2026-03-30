@@ -81,8 +81,54 @@ class SolanaDiscoveryClient(BaseAPIClient):
         self._pumpfun_failures = 0
         self._pumpfun_circuit_open = False
         self._pumpfun_max_failures = 3
+        # Timestamp de cuando se abrio el circuit breaker (para auto-reset)
+        self._pumpfun_circuit_opened_at: float = 0.0
+        # Tiempo en segundos antes de auto-resetear el circuit breaker (1 hora)
+        self._pumpfun_circuit_reset_after: float = 3600.0
 
         logger.info("SolanaDiscoveryClient inicializado (Pump.fun + Jupiter + Raydium)")
+
+    # ================================================================
+    # CIRCUIT BREAKER: RESET
+    # ================================================================
+
+    def reset_circuit_breaker(self) -> None:
+        """
+        Resetea manualmente el circuit breaker de Pump.fun.
+
+        Usar al inicio de cada run diario para darle otra oportunidad
+        a la API de Pump.fun, incluso si fallo en el run anterior.
+
+        Tambien se llama automaticamente si el circuit breaker lleva
+        abierto mas de 1 hora (auto-reset en _check_circuit_auto_reset).
+        """
+        if self._pumpfun_circuit_open:
+            logger.info(
+                "Reseteando circuit breaker de Pump.fun "
+                "(estaba abierto, dandole otra oportunidad)"
+            )
+        self._pumpfun_failures = 0
+        self._pumpfun_circuit_open = False
+        self._pumpfun_circuit_opened_at = 0.0
+
+    def _check_circuit_auto_reset(self) -> None:
+        """
+        Auto-resetea el circuit breaker si lleva abierto > 1 hora.
+
+        Esto evita que el circuit breaker quede permanentemente abierto
+        si la API de Pump.fun tuvo un problema temporal y ya se recupero.
+        """
+        if (
+            self._pumpfun_circuit_open
+            and self._pumpfun_circuit_opened_at > 0
+            and (time.time() - self._pumpfun_circuit_opened_at)
+                > self._pumpfun_circuit_reset_after
+        ):
+            logger.info(
+                f"Auto-reseteando circuit breaker de Pump.fun "
+                f"(abierto hace >{self._pumpfun_circuit_reset_after / 60:.0f} min)"
+            )
+            self.reset_circuit_breaker()
 
     # ================================================================
     # PUMP.FUN - API no oficial (con circuit breaker)
@@ -107,6 +153,7 @@ class SolanaDiscoveryClient(BaseAPIClient):
             token_address, chain ("solana"), name, symbol, dex ("pump-fun").
             Lista vacia si circuit breaker esta abierto o hay error.
         """
+        self._check_circuit_auto_reset()
         if self._pumpfun_circuit_open:
             logger.debug("Pump.fun circuit breaker abierto, saltando")
             return []
@@ -153,6 +200,7 @@ class SolanaDiscoveryClient(BaseAPIClient):
             Lista de diccionarios con tokens.
             Lista vacia si circuit breaker esta abierto o hay error.
         """
+        self._check_circuit_auto_reset()
         if self._pumpfun_circuit_open:
             logger.debug("Pump.fun circuit breaker abierto, saltando")
             return []
@@ -211,9 +259,11 @@ class SolanaDiscoveryClient(BaseAPIClient):
         # Verificar circuit breaker
         if self._pumpfun_failures >= self._pumpfun_max_failures:
             self._pumpfun_circuit_open = True
+            self._pumpfun_circuit_opened_at = time.time()
             logger.warning(
                 f"Pump.fun circuit breaker ABIERTO tras "
-                f"{self._pumpfun_failures} fallos consecutivos"
+                f"{self._pumpfun_failures} fallos consecutivos. "
+                f"Se auto-reseteara en {self._pumpfun_circuit_reset_after / 60:.0f} min."
             )
 
         return None
@@ -335,7 +385,11 @@ class SolanaDiscoveryClient(BaseAPIClient):
         La v1 gratuita fue desactivada. Si no hay JUPITER_API_KEY en .env,
         esta fuente queda deshabilitada y retorna lista vacia.
 
-        Para obtener API key gratuita: https://portal.jup.ag
+        Para activar Jupiter como fuente de descubrimiento:
+        1. Registrarse en https://portal.jup.ag (API key gratuita)
+        2. Agregar JUPITER_API_KEY=tu_key_aqui al archivo .env local
+        3. Agregar JUPITER_API_KEY como secret en GitHub Actions
+           (Settings > Secrets > Actions > New repository secret)
 
         Returns:
             Lista de diccionarios con tokens. Cada dict tiene:
@@ -347,11 +401,13 @@ class SolanaDiscoveryClient(BaseAPIClient):
         # V2 API requiere API key (generar gratis en portal.jup.ag)
         api_key = os.environ.get("JUPITER_API_KEY", "")
         if not api_key:
+            # TODO: El usuario necesita registrarse en portal.jup.ag y
+            # agregar JUPITER_API_KEY al .env y a GitHub Secrets.
             logger.warning(
                 "Jupiter API key no configurada. "
                 "La v1 gratuita fue desactivada (2026-03). "
-                "Genera una key gratis en https://portal.jup.ag y "
-                "agrega JUPITER_API_KEY al .env"
+                "Registrate gratis en https://portal.jup.ag y agrega "
+                "JUPITER_API_KEY al .env y GitHub Secrets"
             )
             return []
 
