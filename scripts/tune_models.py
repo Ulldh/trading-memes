@@ -177,6 +177,8 @@ def _prepare_data(
         "token_id", "label_multi", "label_binary",
         "max_multiple", "final_multiple", "return_7d", "notes",
         "labeled_at", "computed_at",
+        # Columnas de tier (data leakage si se usan como features)
+        "tier", "tier_numeric", "close_max_multiple",
         "chain", "symbol", "name", "dex_id", "pool_address",
         "first_seen", "last_updated",
     ]
