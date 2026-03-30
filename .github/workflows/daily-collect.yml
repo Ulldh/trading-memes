@@ -136,6 +136,15 @@ jobs:
           "
         timeout-minutes: 10
 
+      # Birdeye backfill: tokens con <7 velas diarias no pueden ser etiquetados
+      # por el labeler (necesita return_7d). Birdeye rellena el historial.
+      # Procesa tokens Solana con OHLCV insuficiente via Birdeye API.
+      # max-tokens=500 para no exceder el timeout de 30 min.
+      # BIRDEYE_API_KEY ya esta en env del job (linea 40).
+      - name: Birdeye OHLCV backfill for tokens with few candles
+        run: python scripts/backfill_ohlcv.py --max-tokens 500 --min-ohlcv 7
+        timeout-minutes: 30
+
       # Scoring de tokens con modelos ML
       # Descarga modelos de Supabase Storage si no estan localmente.
       # Si no hay modelos entrenados todavia, skip graceful (exit 0).

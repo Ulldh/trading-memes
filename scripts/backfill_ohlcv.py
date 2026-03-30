@@ -2,15 +2,16 @@
 """
 backfill_ohlcv.py - Backfill masivo de OHLCV via Birdeye.
 
-Lee tokens Solana de la DB que tienen OHLCV insuficiente (menos de 7 velas
+Lee tokens de la DB que tienen OHLCV insuficiente (menos de 7 velas
 diarias) y obtiene su historial completo via Birdeye API.
+Soporta multi-chain: solana, ethereum, base.
 
 Para cada token:
     1. Determina la fecha de creacion (created_at en DB, o primera vela existente)
     2. Pide OHLCV diario desde creacion hasta creacion + 90 dias
     3. Guarda las velas nuevas en la tabla ohlcv
 
-Birdeye free tier: 1 rps = 60 calls/min. Para 5000 tokens = ~83 min.
+Birdeye Lite tier: 15 rps = 900 calls/min. Para 5000 tokens = ~6 min.
 
 Uso:
     python scripts/backfill_ohlcv.py
@@ -128,8 +129,8 @@ def backfill_ohlcv(
             created_unix = now - (180 * 86400)
             stats["skipped_no_date"] += 1
 
-        # Respetar rate limit de Birdeye (1 RPS en tier gratuito)
-        time.sleep(1.2)
+        # Respetar rate limit de Birdeye (15 RPS en Lite tier $39/m)
+        time.sleep(0.07)
 
         try:
             velas = birdeye.get_token_ohlcv_full(
