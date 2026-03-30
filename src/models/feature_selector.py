@@ -442,6 +442,7 @@ class FeatureSelector:
         if skip_variance:
             logger.info("\n--- Paso 1/3: Filtro de varianza SALTADO (skip_variance=True) ---")
             logger.info("  Razon: features crypto son frecuentemente binarias/near-zero por diseño")
+            low_var = []
         else:
             logger.info("\n--- Paso 1/3: Filtro de varianza ---")
             low_var = self.filter_by_variance(min_variance=min_variance)
