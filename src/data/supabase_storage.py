@@ -767,7 +767,7 @@ class SupabaseStorage:
         Returns:
             DataFrame con scores + datos del token (JOIN con tokens).
         """
-        # Validar que min_probability es un numero finito (no inyectable)
+        # Validar que min_probability es un numero finito
         prob = float(min_probability)
         if math.isnan(prob) or math.isinf(prob):
             prob = 0.0
@@ -776,16 +776,15 @@ class SupabaseStorage:
             SELECT s.*, t.name, t.symbol, t.chain, t.pool_address
             FROM scores s
             JOIN tokens t ON s.token_id = t.token_id
-            WHERE s.probability >= {prob}
-        """.format(prob=prob)
+            WHERE s.probability >= ?
+        """
 
         if scored_today:
             sql += " AND s.scored_at::date = CURRENT_DATE"
 
         sql += " ORDER BY s.probability DESC"
 
-        data = self._rpc_query(sql)
-        return pd.DataFrame(data) if data else pd.DataFrame()
+        return self.query(sql, (prob,))
 
     # ============================================================
     # DRIFT REPORTS

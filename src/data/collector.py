@@ -886,9 +886,10 @@ class DataCollector:
                     # Intentar obtener source code para mas detalles
                     source = ethclient.get_contract_source(token_id)
                     if source:
-                        contract_info["is_renounced"] = source.get(
-                            "is_proxy", False
-                        ) is False
+                        # Limitacion: la API de Etherscan no expone si el ownership
+                        # fue renunciado. is_proxy=False NO implica renounced.
+                        # Dejamos False (desconocido) hasta tener una fuente fiable.
+                        contract_info["is_renounced"] = False
                         contract_info["deploy_timestamp"] = source.get(
                             "deploy_timestamp"
                         )
@@ -953,7 +954,7 @@ class DataCollector:
                 las soportadas (solana, ethereum, base).
             max_tokens_ohlcv: Maximo de tokens existentes a actualizar en
                 el paso 6 (OHLCV update). Default 200. En CI se controla
-                via env var MAX_TOKENS_OHLCV (default 100 para cron).
+                via env var MAX_TOKENS_OHLCV (default 500 para cron).
 
         Returns:
             Diccionario con estadisticas de la recopilacion:
@@ -1237,9 +1238,9 @@ class DataCollector:
 
                 source = ethclient.get_contract_source(token_address)
                 if source:
-                    contract_info["is_renounced"] = source.get(
-                        "is_proxy", False
-                    ) is False
+                    # Limitacion: is_proxy=False NO implica ownership renunciado.
+                    # Dejamos False (desconocido) hasta tener fuente fiable.
+                    contract_info["is_renounced"] = False
 
             elif chain == "solana":
                 supply_info = self.solana_rpc.get_token_supply(
@@ -1659,7 +1660,7 @@ if __name__ == "__main__":
     logger.info("Iniciando recopilacion diaria desde linea de comandos...")
 
     # Leer limite de tokens OHLCV desde variable de entorno (GitHub Actions lo pasa)
-    max_ohlcv = int(_os.getenv("MAX_TOKENS_OHLCV", "200"))
+    max_ohlcv = int(_os.getenv("MAX_TOKENS_OHLCV", "500"))
     logger.info(f"MAX_TOKENS_OHLCV = {max_ohlcv}")
 
     # Crear el collector con configuracion por defecto

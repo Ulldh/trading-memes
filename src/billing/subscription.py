@@ -1,7 +1,14 @@
 """
 subscription.py — Gestión de suscripciones en tabla profiles.
+
+NOTE: Las funciones activate_subscription() y cancel_subscription() son stubs.
+El procesamiento real de webhooks de Stripe se hace en la Edge Function de Supabase:
+  supabase/functions/stripe-webhook/index.ts
 """
 from src.data.supabase_storage import get_storage
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def get_subscription(user_id: str) -> dict:
@@ -19,16 +26,35 @@ def get_subscription(user_id: str) -> dict:
 
 def activate_subscription(user_id: str, plan: str, stripe_customer_id: str,
                           period_end: str) -> bool:
-    """Activa suscripción (llamado por webhook Stripe)."""
-    # UPDATE profiles SET subscription_status='active', subscription_plan=plan,
-    # stripe_customer_id=..., subscription_end=..., max_watchlist_tokens=...
-    # WHERE id = user_id
-    pass  # TODO: implement when Stripe is ready
+    """
+    Stub: activar suscripcion.
+
+    NOTE: Actual webhook processing in supabase/functions/stripe-webhook/index.ts
+    La Edge Function de Supabase maneja checkout.session.completed y
+    customer.subscription.updated, actualizando profiles directamente.
+    Este stub existe solo por compatibilidad. No se usa en produccion.
+    """
+    logger.info(
+        f"activate_subscription() llamado para user={user_id}, plan={plan}. "
+        f"NOTA: El procesamiento real esta en la Edge Function stripe-webhook."
+    )
+    return False
 
 
 def cancel_subscription(user_id: str) -> bool:
-    """Cancela suscripción (llamado por webhook Stripe)."""
-    pass  # TODO
+    """
+    Stub: cancelar suscripcion.
+
+    NOTE: Actual webhook processing in supabase/functions/stripe-webhook/index.ts
+    La Edge Function de Supabase maneja customer.subscription.deleted,
+    actualizando profiles directamente.
+    Este stub existe solo por compatibilidad. No se usa en produccion.
+    """
+    logger.info(
+        f"cancel_subscription() llamado para user={user_id}. "
+        f"NOTA: El procesamiento real esta en la Edge Function stripe-webhook."
+    )
+    return False
 
 
 def is_subscription_active(user_id: str) -> bool:

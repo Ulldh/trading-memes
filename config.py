@@ -158,6 +158,16 @@ TIER_THRESHOLDS = {
     "rug_max_hours": 72,     # ventana de deteccion de rug
 }
 
+# Umbrales de senal para scoring (unica fuente de verdad)
+# Ajustados para modelos con pocos positivos (<200 gems):
+# Las probabilidades se distribuyen en rango bajo (0.10-0.50),
+# no llegan a 0.80+ porque el modelo es conservador.
+SIGNAL_THRESHOLDS = {
+    "STRONG": 0.60,    # >= 60% probabilidad de gem
+    "MEDIUM": 0.40,    # >= 40%
+    "WEAK": 0.30,      # >= 30% (alineado con threshold por defecto)
+}
+
 # Clasificacion binaria simplificada
 LABEL_BINARY_THRESHOLD = 5.0  # success = alcanzo 5x en 30 dias
 
@@ -261,9 +271,6 @@ STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "sqlite")
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")
-# Credenciales directas de DB (alternativa a service_role para psycopg2)
-SUPABASE_DB_USER = os.getenv("SUPABASE_DB_USER", "trading_app")
-SUPABASE_DB_PASSWORD = os.getenv("SUPABASE_DB_PASSWORD", "")
 
 # ============================================================
 # CACHE

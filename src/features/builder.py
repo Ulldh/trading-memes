@@ -76,6 +76,9 @@ class FeatureBuilder:
             storage: Instancia de Storage con la base de datos del proyecto.
         """
         self.storage = storage
+        # Cache de precios de mercado (BTC, ETH, SOL) — igual para todos los tokens
+        # Evita 3 queries repetidas por token (ahorra ~9,000 queries para 3,000 tokens)
+        self._market_context_cache = None
 
     def build_features_for_token(self, token_id: str) -> dict:
         """
@@ -185,16 +188,21 @@ class FeatureBuilder:
             modules_fail += 1
 
         # ============================================================
+        # 4. OBTENER OHLCV (una sola vez, reutilizado en pasos 4, 9, 11)
+        # ============================================================
+        # Fetch OHLCV una sola vez en lugar de 3 veces (ahorra 2 queries por token)
+        ohlcv_df = pd.DataFrame()
+        try:
+            ohlcv_df = self.storage.get_ohlcv(token_id, timeframe="hour")
+            if ohlcv_df.empty:
+                ohlcv_df = self.storage.get_ohlcv(token_id, timeframe="day")
+        except Exception as e:
+            logger.error(f"Error obteniendo OHLCV para {token_id}: {e}")
+
+        # ============================================================
         # 4. FEATURES DE PRICE ACTION (OHLCV)
         # ============================================================
         try:
-            # Obtener datos OHLCV (velas horarias para mas detalle)
-            ohlcv_df = self.storage.get_ohlcv(token_id, timeframe="hour")
-
-            # Si no hay datos horarios, intentar con datos diarios
-            if ohlcv_df.empty:
-                ohlcv_df = self.storage.get_ohlcv(token_id, timeframe="day")
-
             price_action = compute_price_action_features(ohlcv_df)
             all_features.update(price_action)
             modules_ok += 1
@@ -259,10 +267,18 @@ class FeatureBuilder:
         # 7. FEATURES DE CONTEXTO DE MERCADO
         # ============================================================
         try:
-            # Obtener precios de BTC, ETH, SOL
-            btc_prices = self._get_asset_prices("btc")
-            eth_prices = self._get_asset_prices("eth")
-            sol_prices = self._get_asset_prices("sol")
+            # Obtener precios de BTC, ETH, SOL (cacheados — iguales para todos los tokens)
+            if self._market_context_cache is None:
+                self._market_context_cache = {
+                    "btc": self._get_asset_prices("btc"),
+                    "eth": self._get_asset_prices("eth"),
+                    "sol": self._get_asset_prices("sol"),
+                }
+                logger.info("Cache de precios de mercado inicializado (BTC, ETH, SOL)")
+
+            btc_prices = self._market_context_cache["btc"]
+            eth_prices = self._market_context_cache["eth"]
+            sol_prices = self._market_context_cache["sol"]
 
             market = compute_market_context_features(
                 launch_time=created_at,
@@ -293,13 +309,7 @@ class FeatureBuilder:
         # 9. FEATURES DE VOLATILIDAD AVANZADA
         # ============================================================
         try:
-            # Obtener datos OHLCV (reutilizamos los mismos datos que price_action)
-            ohlcv_df = self.storage.get_ohlcv(token_id, timeframe="hour")
-
-            # Si no hay datos horarios, intentar con datos diarios
-            if ohlcv_df.empty:
-                ohlcv_df = self.storage.get_ohlcv(token_id, timeframe="day")
-
+            # Reutilizar datos OHLCV (ya obtenidos en paso 4)
             volatility = compute_volatility_advanced_features(ohlcv_df)
             all_features.update(volatility)
             modules_ok += 1
@@ -324,13 +334,7 @@ class FeatureBuilder:
         # 11. FEATURES TECNICAS (momentum, volume profile, token age)
         # ============================================================
         try:
-            # Reutilizar datos OHLCV (ya obtenidos en paso 4/9)
-            ohlcv_df = self.storage.get_ohlcv(token_id, timeframe="hour")
-
-            # Si no hay datos horarios, intentar con datos diarios
-            if ohlcv_df.empty:
-                ohlcv_df = self.storage.get_ohlcv(token_id, timeframe="day")
-
+            # Reutilizar datos OHLCV (ya obtenidos en paso 4)
             technical = extract_technical_features(ohlcv_df)
             all_features.update(technical)
             modules_ok += 1

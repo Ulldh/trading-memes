@@ -31,6 +31,7 @@ Uso:
     btc_precios = cliente.get_coin_price_history("bitcoin", days=7)
 """
 
+import time
 import requests
 from typing import Optional
 
@@ -400,30 +401,41 @@ class CoinGeckoClient(BaseAPIClient):
         """
         url = f"{self._cg_base_url}{endpoint}"
 
-        # Respetar el rate limiter (compartido con GeckoTerminal)
-        self.rate_limiter.wait()
+        # Reintentos con backoff exponencial (3 intentos: 1s, 2s, 4s)
+        for attempt in range(3):
+            # Respetar el rate limiter (compartido con GeckoTerminal)
+            self.rate_limiter.wait()
 
-        try:
-            respuesta = self._cg_session.get(
-                url, params=params, timeout=self.timeout
-            )
-            self._call_count += 1
+            try:
+                respuesta = self._cg_session.get(
+                    url, params=params, timeout=10
+                )
+                self._call_count += 1
 
-            # Verificar errores HTTP
-            if respuesta.status_code == 429:
-                logger.warning("CoinGecko Demo: Rate limited (429)")
+                # Rate limited: esperar con backoff exponencial y reintentar
+                if respuesta.status_code == 429:
+                    wait = 2 ** attempt
+                    logger.warning(f"CoinGecko rate limited, esperando {wait}s...")
+                    time.sleep(wait)
+                    continue
+
+                if respuesta.status_code == 404:
+                    logger.debug(f"CoinGecko Demo: No encontrado (404): {endpoint}")
+                    return None
+
+                respuesta.raise_for_status()
+                return respuesta.json()
+
+            except Exception as e:
+                if attempt < 2:
+                    time.sleep(2 ** attempt)
+                    continue
+                logger.error(f"CoinGecko error tras 3 intentos: {e}")
                 return None
 
-            if respuesta.status_code == 404:
-                logger.debug(f"CoinGecko Demo: No encontrado (404): {endpoint}")
-                return None
-
-            respuesta.raise_for_status()
-            return respuesta.json()
-
-        except requests.exceptions.RequestException as e:
-            logger.error(f"CoinGecko Demo: Error en {endpoint}: {e}")
-            return None
+        # Si los 3 intentos fueron rate limited
+        logger.error(f"CoinGecko Demo: Rate limited en {endpoint} tras 3 intentos")
+        return None
 
     def get_coin_price_history(
         self, coin_id: str, days: int = 30

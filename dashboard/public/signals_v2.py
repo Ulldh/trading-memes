@@ -24,9 +24,9 @@ from src.data.supabase_storage import get_storage as _get_storage
 from dashboard.constants import SIGNAL_COLORS, CHAIN_COLORS
 
 try:
-    from src.models.scorer import SIGNAL_THRESHOLDS
+    from config import SIGNAL_THRESHOLDS
 except ImportError:
-    SIGNAL_THRESHOLDS = {"STRONG": 0.80, "MEDIUM": 0.65, "WEAK": 0.50}
+    SIGNAL_THRESHOLDS = {"STRONG": 0.60, "MEDIUM": 0.40, "WEAK": 0.30}
 
 
 # ============================================================

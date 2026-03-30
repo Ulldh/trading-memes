@@ -40,22 +40,13 @@ from src.features.builder import FeatureBuilder
 from src.utils.logger import get_logger
 
 try:
-    from config import MODELS_DIR, PROCESSED_DIR
+    from config import MODELS_DIR, PROCESSED_DIR, SIGNAL_THRESHOLDS
 except ImportError:
     MODELS_DIR = Path("data/models")
     PROCESSED_DIR = Path("data/processed")
+    SIGNAL_THRESHOLDS = {"STRONG": 0.60, "MEDIUM": 0.40, "WEAK": 0.30}
 
 logger = get_logger(__name__)
-
-# Umbrales de senal
-# Ajustados para modelos con pocos positivos (<200 gems):
-# Las probabilidades se distribuyen en rango bajo (0.10-0.50),
-# no llegan a 0.80+ porque el modelo es conservador.
-SIGNAL_THRESHOLDS = {
-    "STRONG": 0.60,    # >= 60% probabilidad de gem
-    "MEDIUM": 0.40,    # >= 40%
-    "WEAK": 0.30,      # >= 30% (alineado con threshold por defecto)
-}
 
 
 class GemScorer:

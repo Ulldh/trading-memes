@@ -73,8 +73,8 @@ class SolanaDiscoveryClient(BaseAPIClient):
             calls_per_minute=RATE_LIMITS.get("pumpfun", 30),
         )
 
-        # URLs de Jupiter y Raydium (JSON estatico, no necesitan BaseAPIClient)
-        self._jupiter_url = API_URLS.get("jupiter", "https://tokens.jup.ag")
+        # URL de Raydium (JSON estatico, no necesita BaseAPIClient)
+        # NOTA: Jupiter se llama directamente en get_jupiter_tokens() con URL v2
         self._raydium_url = API_URLS.get("raydium", "https://api-v3.raydium.io")
 
         # Circuit breaker para Pump.fun (API no oficial)

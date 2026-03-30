@@ -46,6 +46,9 @@ from datetime import timedelta
 from typing import Optional
 
 from src.utils.helpers import safe_float, safe_divide
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def compute_volatility_advanced_features(ohlcv_df: pd.DataFrame) -> dict:
@@ -154,7 +157,7 @@ def compute_volatility_advanced_features(ohlcv_df: pd.DataFrame) -> dict:
 
     except Exception as e:
         # Si hay error en el calculo, los features quedan None
-        pass
+        logger.debug(f"Error calculando bollinger_bands: {e}")
 
     # ============================================================
     # ATR - AVERAGE TRUE RANGE (7 DIAS)
@@ -195,7 +198,7 @@ def compute_volatility_advanced_features(ohlcv_df: pd.DataFrame) -> dict:
                     features["atr_pct_7d"] = atr_pct
 
     except Exception as e:
-        pass
+        logger.debug(f"Error calculando atr: {e}")
 
     # ============================================================
     # RSI - RELATIVE STRENGTH INDEX (7 DIAS)
@@ -241,7 +244,7 @@ def compute_volatility_advanced_features(ohlcv_df: pd.DataFrame) -> dict:
                 features["rsi_divergence_7d"] = 50.0
 
     except Exception as e:
-        pass
+        logger.debug(f"Error calculando rsi: {e}")
 
     # ============================================================
     # RANGO INTRADAY (7 DIAS)
@@ -275,7 +278,7 @@ def compute_volatility_advanced_features(ohlcv_df: pd.DataFrame) -> dict:
             features["max_intraday_range_7d"] = float(np.max(intraday_ranges))
 
     except Exception as e:
-        pass
+        logger.debug(f"Error calculando intraday_range: {e}")
 
     # ============================================================
     # VOLATILITY SPIKES (7 DIAS)
@@ -304,7 +307,7 @@ def compute_volatility_advanced_features(ohlcv_df: pd.DataFrame) -> dict:
                     features["volatility_spike_count_7d"] = int(spike_count)
 
     except Exception as e:
-        pass
+        logger.debug(f"Error calculando volatility_spikes: {e}")
 
     return features
 

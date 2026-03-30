@@ -107,6 +107,12 @@ jobs:
               f.write(f"rollback_to={stats.get('rollback_to', '')}\n")
           PYEOF
 
+      # Re-scoring de tokens con el nuevo modelo (solo si no hubo rollback)
+      - name: Re-score tokens with new model
+        if: steps.retrain.outcome == 'success' && steps.retrain.outputs.rollback != 'True' && inputs.dry_run != true
+        run: python scripts/score_tokens.py --model random_forest --min-days 7
+        timeout-minutes: 15
+
       # Subir artefactos del modelo (todos los archivos en data/models/)
       - name: Upload model artifacts
         if: ${{ inputs.dry_run != true }}

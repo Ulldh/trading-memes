@@ -45,6 +45,9 @@ import pandas as pd
 from datetime import timedelta
 
 from src.utils.helpers import safe_float, safe_divide
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def extract_technical_features(ohlcv_df: pd.DataFrame) -> dict:
@@ -224,9 +227,9 @@ def _compute_rsi_14(df: pd.DataFrame, features: dict) -> None:
                 # Sin cambios -> RSI = 50 (neutral)
                 features["rsi_14"] = 50.0
 
-    except (ValueError, ZeroDivisionError, IndexError, TypeError):
+    except (ValueError, ZeroDivisionError, IndexError, TypeError) as e:
         # Si hay error en el calculo, el feature queda None
-        pass
+        logger.debug(f"Error calculando rsi_14: {e}")
 
 
 def _compute_momentum(df: pd.DataFrame, first_time: pd.Timestamp, features: dict) -> None:
@@ -261,8 +264,8 @@ def _compute_momentum(df: pd.DataFrame, first_time: pd.Timestamp, features: dict
         if close_7d is not None and close_7d > 0:
             features["momentum_7d"] = (last_close / close_7d) - 1.0
 
-    except (ValueError, ZeroDivisionError, IndexError, TypeError):
-        pass
+    except (ValueError, ZeroDivisionError, IndexError, TypeError) as e:
+        logger.debug(f"Error calculando momentum: {e}")
 
 
 def _get_close_at_time(df: pd.DataFrame, target_time: pd.Timestamp) -> float:
@@ -326,8 +329,8 @@ def _compute_vwap_ratio(df: pd.DataFrame, features: dict) -> None:
         if current_close > 0:
             features["vwap_ratio"] = safe_divide(current_close, vwap)
 
-    except (ValueError, ZeroDivisionError, IndexError, TypeError):
-        pass
+    except (ValueError, ZeroDivisionError, IndexError, TypeError) as e:
+        logger.debug(f"Error calculando vwap_ratio: {e}")
 
 
 def _compute_obv_trend(df: pd.DataFrame, first_time: pd.Timestamp, features: dict) -> None:
@@ -382,8 +385,8 @@ def _compute_obv_trend(df: pd.DataFrame, first_time: pd.Timestamp, features: dic
         else:
             features["obv_trend"] = 0.0
 
-    except (np.linalg.LinAlgError, ValueError, ZeroDivisionError, IndexError, TypeError):
-        pass
+    except (np.linalg.LinAlgError, ValueError, ZeroDivisionError, IndexError, TypeError) as e:
+        logger.debug(f"Error calculando obv_trend: {e}")
 
 
 def _compute_volume_momentum(df: pd.DataFrame, first_time: pd.Timestamp, features: dict) -> None:
@@ -419,8 +422,8 @@ def _compute_volume_momentum(df: pd.DataFrame, first_time: pd.Timestamp, feature
 
         features["volume_momentum"] = safe_divide(last_vol, mean_vol)
 
-    except (ValueError, ZeroDivisionError, IndexError, TypeError):
-        pass
+    except (ValueError, ZeroDivisionError, IndexError, TypeError) as e:
+        logger.debug(f"Error calculando volume_momentum: {e}")
 
 
 def _compute_volume_price_corr(df: pd.DataFrame, first_time: pd.Timestamp, features: dict) -> None:
@@ -467,8 +470,8 @@ def _compute_volume_price_corr(df: pd.DataFrame, first_time: pd.Timestamp, featu
         if pd.notna(corr):
             features["volume_price_corr"] = float(corr)
 
-    except (ValueError, ZeroDivisionError, IndexError, TypeError):
-        pass
+    except (ValueError, ZeroDivisionError, IndexError, TypeError) as e:
+        logger.debug(f"Error calculando volume_price_corr: {e}")
 
 
 def _compute_token_age_features(df: pd.DataFrame, features: dict) -> None:
@@ -503,5 +506,5 @@ def _compute_token_age_features(df: pd.DataFrame, features: dict) -> None:
         # Puede indicar la region/zona horaria del equipo del token
         features["launch_hour_utc"] = int(first_time.hour)
 
-    except (ValueError, ZeroDivisionError, IndexError, TypeError):
-        pass
+    except (ValueError, ZeroDivisionError, IndexError, TypeError) as e:
+        logger.debug(f"Error calculando token_age: {e}")

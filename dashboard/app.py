@@ -128,48 +128,27 @@ render_language_selector()
 # Importar funciones render de cada vista
 # =============================================================================
 
-# Imports: intentar desde public/admin (Fase B), fallback a views/
-try:
-    from public.overview import render as render_overview
-    from public.signals import render as render_signals
-    from public.token_lookup import render as render_token_lookup
-    from public.watchlist import render as render_watchlist
-    from admin.model_results import render as render_model_results
-    from admin.feature_importance import render as render_feature_importance
-    from admin.eda import render as render_eda
-    from admin.system_health import render as render_system_health
-    # Nuevas vistas (Fase C+D)
-    from public.signals_v2 import render as render_signals_v2
-    from public.track_record import render as render_track_record
-    from public.portfolio import render as render_portfolio
-    from public.alerts_config import render as render_alerts_config
-    from public.pricing import render as render_pricing
-    from public.profile import render as render_profile
-    from public.legal import render as render_legal
-    from public.welcome import render as render_welcome
-    from public.academy import render as render_academy
-    from admin.drift_monitor import render as render_drift_monitor
-    from admin.retrain_panel import render as render_retrain_panel
-except ImportError:
-    from views.overview import render as render_overview
-    from views.eda import render as render_eda
-    from views.model_results import render as render_model_results
-    from views.feature_importance import render as render_feature_importance
-    from views.token_lookup import render as render_token_lookup
-    from views.signals import render as render_signals
-    from views.system_health import render as render_system_health
-    from views.watchlist import render as render_watchlist
-    render_signals_v2 = None
-    render_track_record = None
-    render_portfolio = None
-    render_alerts_config = None
-    render_pricing = None
-    render_profile = None
-    render_legal = None
-    render_welcome = None
-    render_academy = None
-    render_drift_monitor = None
-    render_retrain_panel = None
+# Imports desde public/ y admin/
+from public.overview import render as render_overview
+from public.signals import render as render_signals
+from public.token_lookup import render as render_token_lookup
+from public.watchlist import render as render_watchlist
+from admin.model_results import render as render_model_results
+from admin.feature_importance import render as render_feature_importance
+from admin.eda import render as render_eda
+from admin.system_health import render as render_system_health
+# Nuevas vistas (Fase C+D)
+from public.signals_v2 import render as render_signals_v2
+from public.track_record import render as render_track_record
+from public.portfolio import render as render_portfolio
+from public.alerts_config import render as render_alerts_config
+from public.pricing import render as render_pricing
+from public.profile import render as render_profile
+from public.legal import render as render_legal
+from public.welcome import render as render_welcome
+from public.academy import render as render_academy
+from admin.drift_monitor import render as render_drift_monitor
+from admin.retrain_panel import render as render_retrain_panel
 
 
 # =============================================================================
