@@ -412,7 +412,8 @@ def render_sidebar_user_info():
             badge_color = "#2ecc71" if role == "pro" else "#e74c3c"
             badge_text = t('roles.pro', 'Pro') if role == "pro" else t('roles.admin', 'Admin')
             st.sidebar.markdown(
-                f"<div style='background-color:{badge_color}; color:white; "
+                f"<div role='status' aria-label='Plan: {badge_text}' "
+                f"style='background-color:{badge_color}; color:white; "
                 f"padding:6px 12px; border-radius:8px; text-align:center; "
                 f"font-weight:bold; margin:4px 0 8px 0;'>"
                 f"{badge_text}</div>",

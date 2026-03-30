@@ -183,7 +183,7 @@ def render_blurred_signals_teaser(df_all, visible_count: int):
         unsafe_allow_html=True,
     )
 
-    st.markdown('<div class="blurred-table">', unsafe_allow_html=True)
+    st.markdown('<div class="blurred-table" aria-hidden="true">', unsafe_allow_html=True)
     st.dataframe(
         df_blurred,
         use_container_width=True,

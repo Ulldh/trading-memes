@@ -441,7 +441,8 @@ def _render_pro_signal_cards(df_filtered: pd.DataFrame):
             with col_name:
                 st.markdown(
                     f"{icon} **{token_label}**"
-                    f" <span style='color:{signal_color}; font-weight:bold;'>"
+                    f" <span style='color:{signal_color}; font-weight:bold;'"
+                    f" role='status' aria-label='Senal: {signal}'>"
                     f"[{signal}]</span>",
                     unsafe_allow_html=True,
                 )
@@ -452,7 +453,8 @@ def _render_pro_signal_cards(df_filtered: pd.DataFrame):
 
             with col_conf:
                 st.markdown(
-                    f"<span style='background-color:{conf_color}; color:white; "
+                    f"<span role='status' aria-label='Confianza: {conf_badge}' "
+                    f"style='background-color:{conf_color}; color:white; "
                     f"padding:2px 10px; border-radius:12px; font-size:0.85em; "
                     f"font-weight:bold;'>"
                     f"{t('pro.confidence_label', 'Confianza')}: {conf_badge}</span>",
@@ -564,6 +566,8 @@ def _render_signal_distribution(df: pd.DataFrame):
     )
 
     st.plotly_chart(fig, use_container_width=True)
+    dist_parts = ", ".join(f"{r['Cantidad']} {r['Senal']}" for _, r in signal_counts.iterrows())
+    st.caption(f"Distribucion: {dist_parts}")
 
 
 def _render_chain_distribution(df: pd.DataFrame):
@@ -604,6 +608,8 @@ def _render_chain_distribution(df: pd.DataFrame):
     )
 
     st.plotly_chart(fig, use_container_width=True)
+    chain_parts = ", ".join(f"{r['Chain_label']}: {r['Cantidad']}" for _, r in chain_counts.iterrows())
+    st.caption(f"Senales por chain: {chain_parts}")
 
 
 def _render_disclaimer():

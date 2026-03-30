@@ -145,6 +145,8 @@ def render():
         )
         fig_chain.update_traces(textposition="inside", textinfo="percent+label+value")
         st.plotly_chart(fig_chain, use_container_width=True)
+        chain_summary = ", ".join(f"{r['chain']}: {r['count']}" for _, r in df_tokens.iterrows())
+        st.caption(f"Distribucion por cadena: {chain_summary}")
 
     st.divider()
 
@@ -182,6 +184,8 @@ def render():
         )
         fig_labels.update_traces(textposition="inside", textinfo="percent+label+value")
         st.plotly_chart(fig_labels, use_container_width=True)
+        label_summary = ", ".join(f"{r['label_multi']}: {r['count']}" for _, r in df_labels.iterrows())
+        st.caption(f"Clasificaciones: {label_summary}")
 
     st.divider()
 
@@ -223,6 +227,8 @@ def render():
             )
             fig_weekly.update_layout(xaxis_title="Semana", yaxis_title="Cantidad de tokens")
             st.plotly_chart(fig_weekly, use_container_width=True)
+            total_nuevos = df_weekly["tokens_nuevos"].sum()
+            st.caption(f"Total de tokens descubiertos: {total_nuevos} en {len(df_weekly)} semanas")
 
     st.divider()
 
@@ -297,7 +303,7 @@ def _render_welcome_message():
                         margin-bottom: 16px;">
                 <h3 style="margin-top: 0;">Bienvenido a Meme Detector, {user_name}!</h3>
                 <p>Tu cuenta <strong>Free</strong> incluye:</p>
-                <table style="width: 100%; border-collapse: collapse;">
+                <table aria-label="Funciones incluidas en plan Free" style="width: 100%; border-collapse: collapse;">
                     <tr>
                         <td style="padding: 4px 12px;">&#9989; <strong>Overview</strong> — Resumen del mercado y Market Pulse</td>
                         <td style="padding: 4px 12px;">&#9989; <strong>3 señales diarias</strong> — Top tokens detectados</td>
@@ -308,7 +314,7 @@ def _render_welcome_message():
                     </tr>
                 </table>
                 <p style="margin-top: 12px;">Con <strong>Pro ($29/mes)</strong> desbloqueas:</p>
-                <table style="width: 100%; border-collapse: collapse;">
+                <table aria-label="Funciones del plan Pro" style="width: 100%; border-collapse: collapse;">
                     <tr>
                         <td style="padding: 4px 12px;">&#128273; Todas las señales diarias (sin limite)</td>
                         <td style="padding: 4px 12px;">&#128273; Busqueda de tokens ilimitada</td>
@@ -426,7 +432,8 @@ def _render_market_pulse(storage):
                     symbol = row.get("symbol", "???")
                     prob = row.get("probability", 0.0)
                     st.markdown(
-                        f"<div style='border-left: 4px solid {signal_color}; "
+                        f"<div aria-label='{symbol}: senal {signal}, {prob:.0%}' "
+                        f"style='border-left: 4px solid {signal_color}; "
                         f"padding: 8px 12px; border-radius: 4px; "
                         f"background: rgba(255,255,255,0.03);'>"
                         f"<strong>{symbol}</strong><br>"
@@ -438,13 +445,14 @@ def _render_market_pulse(storage):
                 else:
                     # Free: muestra señal pero oculta probabilidad
                     st.markdown(
-                        f"<div style='border-left: 4px solid {signal_color}; "
+                        f"<div aria-label='Senal {signal} — token y probabilidad ocultos (plan Pro)' "
+                        f"style='border-left: 4px solid {signal_color}; "
                         f"padding: 8px 12px; border-radius: 4px; "
                         f"background: rgba(255,255,255,0.03);'>"
-                        f"<strong style='filter: blur(5px);'>??????</strong><br>"
+                        f"<strong style='filter: blur(5px);' aria-hidden='true'>??????</strong><br>"
                         f"<span style='color: {signal_color}; font-weight: bold;'>"
                         f"{signal}</span> — "
-                        f"<span style='filter: blur(5px);'>??%</span>"
+                        f"<span style='filter: blur(5px);' aria-hidden='true'>??%</span>"
                         f"</div>",
                         unsafe_allow_html=True,
                     )

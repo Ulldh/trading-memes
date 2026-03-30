@@ -33,6 +33,10 @@ st.set_page_config(
 
 from dashboard.i18n import render_language_selector
 
+# Set HTML lang attribute for accessibility
+_locale = st.session_state.get("locale", "es")
+st.markdown(f'<script>document.documentElement.lang="{_locale}";</script>', unsafe_allow_html=True)
+
 # --- Intentar cargar el modulo de autenticacion Supabase ---
 try:
     from dashboard.auth import (

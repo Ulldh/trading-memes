@@ -520,6 +520,9 @@ def _render_portfolio_chart(positions: list[dict]):
     fig.update_yaxes(showgrid=True, gridcolor="rgba(128,128,128,0.2)")
 
     st.plotly_chart(fig, use_container_width=True)
+    total_inv = sum(invested)
+    total_cur = sum(current)
+    st.caption(f"Grafico de barras: {len(names)} posiciones, invertido total {_format_usd(total_inv)}, valor actual {_format_usd(total_cur)}")
 
 
 def _render_performance_metrics(positions: list[dict]):
