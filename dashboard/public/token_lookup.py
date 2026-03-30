@@ -1022,9 +1022,226 @@ def render():
             "Nunca inviertas mas de lo que puedas perder."
         )
 
+        # ----------------------------------------------------------
+        # 6b. Explicacion SHAP (solo Pro/Admin)
+        # ----------------------------------------------------------
+        _render_shap_explanation(model, X, feature_cols or X.columns.tolist())
+
     except Exception as e:
         st.error(f"Error al hacer prediccion: {e}")
         st.info(
             "Esto puede ocurrir si las columnas de features no coinciden con "
             "las que espera el modelo."
+        )
+
+
+def _render_shap_explanation(model, X: pd.DataFrame, feature_names: list):
+    """Muestra top 5 features que influyeron en la prediccion (SHAP-like).
+
+    Para usuarios Pro/Admin, calcula la importancia de cada feature en
+    la prediccion individual y muestra cuales empujan hacia gem (+) o no gem (-).
+    Para Free, muestra un teaser con paywall.
+    """
+    from dashboard.i18n import t
+
+    st.divider()
+    st.subheader(t("pro.shap_title", "Explicacion del Modelo (SHAP)"))
+    st.caption(
+        t("pro.shap_desc",
+          "Que factores influyeron mas en la prediccion de este token. "
+          "Los valores positivos empujan hacia 'gem', los negativos hacia 'no gem'.")
+    )
+
+    # Verificar acceso Pro
+    try:
+        from dashboard.paywall import check_feature_access, show_upgrade_prompt
+        if not check_feature_access("shap_analysis"):
+            show_upgrade_prompt(t("pro.shap_feature_name", "Analisis SHAP"))
+            return
+    except ImportError:
+        pass  # Sin paywall en desarrollo
+
+    # Calcular contribuciones de features usando el modelo directamente
+    # Usamos feature importances + valores del token como aproximacion rapida
+    # (no requiere shap library en produccion, mas ligero para el dashboard)
+    try:
+        import numpy as np
+
+        # Intentar usar SHAP real si esta disponible
+        shap_values = None
+        try:
+            from src.models.explainer import SHAPExplainer
+            explainer = SHAPExplainer(model, X)
+            explanation = explainer.explain_single_token(X, idx=0)
+            if explanation:
+                contributions = explanation["all_contributions"].head(5)
+                shap_values = True
+        except Exception:
+            shap_values = None
+
+        if shap_values and contributions is not None and not contributions.empty:
+            # Mostrar contribuciones SHAP reales
+            _display_shap_contributions(contributions)
+        else:
+            # Fallback: usar feature_importances_ del modelo
+            _display_feature_importance_fallback(model, X, feature_names)
+
+    except Exception as e:
+        st.info(
+            t("pro.shap_unavailable",
+              "No se pudo calcular la explicacion SHAP para este token.")
+        )
+
+
+def _display_shap_contributions(contributions: pd.DataFrame):
+    """Muestra las contribuciones SHAP como cards visuales."""
+    import numpy as np
+    from dashboard.i18n import t
+
+    FEATURE_DESCRIPTIONS_LOCAL = {
+        "initial_liquidity_usd": "Liquidez inicial del pool",
+        "liquidity_growth_24h": "Cambio de liquidez 24h",
+        "liquidity_growth_7d": "Cambio de liquidez 7d",
+        "return_24h": "Retorno de precio 24h",
+        "return_7d": "Retorno de precio 7d",
+        "volatility_7d": "Volatilidad 7d",
+        "buyer_seller_ratio_24h": "Ratio compradores/vendedores",
+        "volume_to_liq_ratio_24h": "Volumen/Liquidez 24h",
+        "volume_spike_ratio": "Pico de volumen",
+        "tx_count_24h": "Transacciones 24h",
+        "green_candle_ratio_24h": "% velas verdes 24h",
+        "contract_age_hours": "Edad del contrato (horas)",
+        "has_mint_authority": "Mint authority activa",
+        "is_verified": "Contrato verificado",
+        "rsi_14": "RSI (14 periodos)",
+        "momentum_3d": "Momentum 3 dias",
+        "momentum_7d": "Momentum 7 dias",
+    }
+
+    st.markdown(f"**{t('pro.shap_top5', 'Top 5 factores que influyeron en la prediccion')}:**")
+
+    for _, row in contributions.iterrows():
+        feature = row["feature"]
+        shap_val = row["shap_value"]
+        feat_val = row["valor_feature"]
+
+        # Descripcion legible del feature
+        desc = FEATURE_DESCRIPTIONS_LOCAL.get(feature, feature.replace("_", " ").title())
+
+        # Color y signo segun contribucion
+        if shap_val > 0:
+            color = "#2ecc71"
+            direction = "+"
+            arrow = "+"
+        else:
+            color = "#e74c3c"
+            direction = ""
+            arrow = "-"
+
+        st.markdown(
+            f"<div style='padding:4px 8px; margin:2px 0; border-left:4px solid {color}; "
+            f"background-color:rgba(0,0,0,0.02); border-radius:0 4px 4px 0;'>"
+            f"<strong>{desc}</strong> "
+            f"<span style='color:{color}; font-weight:bold;'>({direction}{shap_val:.4f})</span> "
+            f"<span style='color:#888; font-size:0.85em;'>valor: {feat_val:.4f}</span>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+
+def _display_feature_importance_fallback(model, X: pd.DataFrame, feature_names: list):
+    """Fallback cuando SHAP no esta disponible: usa feature importances del modelo."""
+    import numpy as np
+    from dashboard.i18n import t
+
+    FEATURE_DESCRIPTIONS_LOCAL = {
+        "initial_liquidity_usd": "Liquidez inicial del pool",
+        "liquidity_growth_24h": "Cambio de liquidez 24h",
+        "liquidity_growth_7d": "Cambio de liquidez 7d",
+        "return_24h": "Retorno de precio 24h",
+        "return_7d": "Retorno de precio 7d",
+        "volatility_7d": "Volatilidad 7d",
+        "buyer_seller_ratio_24h": "Ratio compradores/vendedores",
+        "volume_to_liq_ratio_24h": "Volumen/Liquidez 24h",
+        "volume_spike_ratio": "Pico de volumen",
+        "tx_count_24h": "Transacciones 24h",
+        "green_candle_ratio_24h": "% velas verdes 24h",
+        "contract_age_hours": "Edad del contrato (horas)",
+        "has_mint_authority": "Mint authority activa",
+        "is_verified": "Contrato verificado",
+        "rsi_14": "RSI (14 periodos)",
+        "momentum_3d": "Momentum 3 dias",
+        "momentum_7d": "Momentum 7 dias",
+    }
+
+    # Extraer importances del modelo
+    importances = None
+    base_model = model
+
+    # Intentar extraer el clasificador base si es un pipeline
+    try:
+        from imblearn.pipeline import Pipeline as ImbPipeline
+        if isinstance(model, ImbPipeline):
+            base_model = model.steps[-1][1]
+    except ImportError:
+        pass
+
+    try:
+        from sklearn.calibration import CalibratedClassifierCV
+        if isinstance(base_model, CalibratedClassifierCV):
+            base_model = base_model.calibrated_classifiers_[0].estimator
+    except (ImportError, AttributeError):
+        pass
+
+    if hasattr(base_model, "feature_importances_"):
+        importances = base_model.feature_importances_
+
+    if importances is None:
+        st.info(
+            t("pro.shap_model_no_importances",
+              "Este modelo no soporta explicacion de features.")
+        )
+        return
+
+    # Combinar importances con valores del token y nombre
+    cols = X.columns.tolist()
+    token_vals = X.iloc[0].values
+
+    feat_data = []
+    for i, col in enumerate(cols):
+        feat_data.append({
+            "feature": col,
+            "importance": importances[i] if i < len(importances) else 0,
+            "valor": token_vals[i] if i < len(token_vals) else 0,
+        })
+
+    import pandas as pd
+    df_imp = pd.DataFrame(feat_data)
+    df_imp = df_imp.sort_values("importance", ascending=False).head(5)
+
+    st.markdown(
+        f"**{t('pro.shap_top5_importance', 'Top 5 features mas importantes para la prediccion')}:**"
+    )
+    st.caption(
+        t("pro.shap_fallback_note",
+          "Nota: importancia general del modelo (no SHAP individual). "
+          "La importancia indica cuanto usa el modelo cada feature en sus decisiones.")
+    )
+
+    for _, row in df_imp.iterrows():
+        feature = row["feature"]
+        imp = row["importance"]
+        val = row["valor"]
+
+        desc = FEATURE_DESCRIPTIONS_LOCAL.get(feature, feature.replace("_", " ").title())
+
+        st.markdown(
+            f"<div style='padding:4px 8px; margin:2px 0; border-left:4px solid #3498db; "
+            f"background-color:rgba(0,0,0,0.02); border-radius:0 4px 4px 0;'>"
+            f"<strong>{desc}</strong> "
+            f"<span style='color:#3498db; font-weight:bold;'>"
+            f"(importancia: {imp:.4f})</span> "
+            f"<span style='color:#888; font-size:0.85em;'>valor: {val:.4f}</span>"
+            f"</div>",
+            unsafe_allow_html=True,
         )

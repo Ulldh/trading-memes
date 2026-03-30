@@ -5,6 +5,7 @@ Si Stripe esta configurado (STRIPE_SECRET_KEY + STRIPE_PRICE_ID_PRO),
 genera una URL de checkout real. Si no, muestra mensaje "Proximamente".
 """
 import streamlit as st
+import pandas as pd
 
 # Importar stripe_client con try/except (las keys pueden no estar configuradas)
 try:
@@ -93,12 +94,110 @@ def show_upgrade_prompt(feature_name: str = "esta función"):
 
 
 def limit_signals(df, plan: str = "free"):
-    """Limita el número de señales visibles segun plan."""
+    """Limita el número de señales visibles segun plan.
+
+    Para usuarios Free, devuelve solo las señales permitidas.
+    El mensaje teaser con las señales ocultas se muestra aparte
+    via render_blurred_signals_teaser().
+    """
     from src.billing.subscription import get_plan_limits
     limits = get_plan_limits(plan)
     max_visible = limits.get("max_signals_visible", 3)
 
     if len(df) > max_visible:
-        st.info(f"Mostrando {max_visible} de {len(df)} señales. Suscríbete a Pro para ver todas.")
         return df.head(max_visible)
     return df
+
+
+def get_total_signals_count() -> int:
+    """Obtiene el total de señales disponibles hoy (sin limite de plan).
+
+    Usado para mostrar al usuario Free cuantas señales se esta perdiendo.
+    """
+    try:
+        from src.data.supabase_storage import get_storage
+        storage = get_storage()
+        df = storage.get_scores(min_probability=0.0, scored_today=True)
+        if df.empty:
+            df = storage.get_scores(min_probability=0.0)
+            if not df.empty:
+                df = df.head(200)
+        return len(df)
+    except Exception:
+        return 0
+
+
+def render_blurred_signals_teaser(df_all, visible_count: int):
+    """Muestra filas de señales 'ocultas' con datos difuminados para Free users.
+
+    Args:
+        df_all: DataFrame completo de señales (todas, no solo las visibles).
+        visible_count: Cuantas señales ya se mostraron con datos completos.
+    """
+    total = len(df_all)
+    if total <= visible_count:
+        return
+
+    remaining = total - visible_count
+
+    st.markdown("---")
+    st.markdown(
+        f":lock: **Mostrando {visible_count} de {total} señales.** "
+        f"Actualiza a **Pro** para desbloquear las **{remaining} señales restantes**."
+    )
+
+    # Mostrar filas ocultas con datos difuminados (maximo 10 filas teaser)
+    df_hidden = df_all.iloc[visible_count:visible_count + 10].copy()
+
+    if df_hidden.empty:
+        return
+
+    # Preparar datos difuminados — solo se ve el nivel de señal
+    blurred_rows = []
+    for _, row in df_hidden.iterrows():
+        signal = row.get("signal", "NONE")
+        chain = row.get("chain", "")
+        chain_label = chain.capitalize() if chain else "?"
+        blurred_rows.append({
+            "Token": "--------",
+            "Chain": chain_label,
+            "Score": "---",
+            "Senal": signal,
+            "DexScreener": "",
+        })
+
+    df_blurred = pd.DataFrame(blurred_rows)
+
+    # Estilo CSS para difuminar las filas
+    st.markdown(
+        """
+        <style>
+        .blurred-table {
+            opacity: 0.45;
+            filter: blur(2px);
+            pointer-events: none;
+            user-select: none;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="blurred-table">', unsafe_allow_html=True)
+    st.dataframe(
+        df_blurred,
+        use_container_width=True,
+        hide_index=True,
+        height=min(len(df_blurred) * 38 + 40, 420),
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if remaining > 10:
+        st.caption(f"... y {remaining - 10} señales mas.")
+
+    # CTA de upgrade
+    checkout_url = _get_checkout_url("pro")
+    if checkout_url:
+        st.link_button(":rocket: Desbloquear todas las señales — Pro $29/mes", checkout_url, type="primary")
+    else:
+        st.markdown(":rocket: **[Ver planes y precios](/pricing)**")

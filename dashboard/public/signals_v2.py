@@ -10,18 +10,28 @@ visualizaciones limpias y un disclaimer claro.
 Secciones:
   1. KPI cards: total señales, STRONG, mejor score, chains activas
   2. Tabla principal: tokens del dia ordenados por score
-  3. Distribución de señales (donut chart)
-  4. Distribución por chain (bar chart horizontal)
+  3. Distribucion de señales (donut chart)
+  4. Distribucion por chain (bar chart horizontal)
   5. Disclaimer legal
+
+PRO enhancements:
+  - Indicador de confianza del modelo (Alta/Media/Baja) por señal
+  - Barra de probabilidad visual
+  - Icono de chain (Solana/ETH/Base) junto a cada token
+  - Tiempo desde que el token fue descubierto
+  - Quick link a DexScreener y GeckoTerminal
+  - Boton de exportar CSV (solo Pro/Admin)
 """
 
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from datetime import datetime, timezone
 
 from src.data.supabase_storage import get_storage as _get_storage
 from dashboard.constants import SIGNAL_COLORS, CHAIN_COLORS
+from dashboard.i18n import t
 
 try:
     from config import SIGNAL_THRESHOLDS
@@ -86,6 +96,80 @@ def _chain_badge(chain: str) -> str:
     return badges.get(chain, chain.capitalize() if chain else "Desconocida")
 
 
+def _chain_icon(chain: str) -> str:
+    """Devuelve un icono de blockchain para uso en la tabla Pro."""
+    icons = {
+        "solana": "🟣",
+        "ethereum": "🔵",
+        "base": "🔷",
+    }
+    return icons.get(chain, "⚪")
+
+
+def _geckoterminal_url(chain: str, pool_address: str) -> str:
+    """Construye la URL de GeckoTerminal para un token."""
+    chain_slug = {
+        "solana": "solana",
+        "ethereum": "eth",
+        "base": "base",
+    }.get(chain, chain)
+    return f"https://www.geckoterminal.com/{chain_slug}/pools/{pool_address}"
+
+
+def _confidence_badge(probability: float) -> str:
+    """Devuelve badge de confianza: Alta/Media/Baja segun probabilidad."""
+    if probability >= 0.70:
+        return t("pro.confidence_high", "Alta")
+    elif probability >= 0.50:
+        return t("pro.confidence_medium", "Media")
+    else:
+        return t("pro.confidence_low", "Baja")
+
+
+def _confidence_color(probability: float) -> str:
+    """Devuelve color CSS segun nivel de confianza."""
+    if probability >= 0.70:
+        return "#2ecc71"  # verde
+    elif probability >= 0.50:
+        return "#f39c12"  # naranja
+    else:
+        return "#e74c3c"  # rojo
+
+
+def _time_since_discovered(first_seen) -> str:
+    """Calcula tiempo transcurrido desde que se descubrio el token."""
+    if not first_seen:
+        return "N/A"
+    try:
+        if isinstance(first_seen, str):
+            # Intentar parsear ISO format
+            first_seen = datetime.fromisoformat(first_seen.replace("Z", "+00:00"))
+        if not hasattr(first_seen, "tzinfo") or first_seen.tzinfo is None:
+            first_seen = first_seen.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        delta = now - first_seen
+        days = delta.days
+        hours = delta.seconds // 3600
+
+        if days > 30:
+            return f"{days // 30}m {days % 30}d"
+        elif days > 0:
+            return f"{days}d {hours}h"
+        else:
+            return f"{hours}h"
+    except Exception:
+        return "N/A"
+
+
+def _is_pro_or_admin() -> bool:
+    """Verifica si el usuario actual es Pro o Admin."""
+    role = st.session_state.get("role", "free")
+    if role == "admin":
+        return True
+    plan = st.session_state.get("profile", {}).get("subscription_plan", "free")
+    return plan in ("pro", "enterprise") or role == "pro"
+
+
 # ============================================================
 # Render principal
 # ============================================================
@@ -93,10 +177,11 @@ def _chain_badge(chain: str) -> str:
 def render():
     """Señales del dia — pagina principal del producto."""
 
-    st.header(":fire: Señales del Dia")
+    st.header(t("pro.signals_title", ":fire: Señales del Dia"))
     st.caption(
-        "Tokens con mayor probabilidad de ser gems, detectados por nuestro modelo ML. "
-        "Actualizado diariamente a las 07:00 UTC."
+        t("pro.signals_subtitle",
+          "Tokens con mayor probabilidad de ser gems, detectados por nuestro modelo ML. "
+          "Actualizado diariamente a las 07:00 UTC.")
     )
 
     df = load_todays_signals()
@@ -111,9 +196,10 @@ def render():
     # --- Estado vacio: mensaje amigable ---
     if df.empty:
         st.info(
-            ":hourglass_flowing_sand: **No hay señales disponibles en este momento.**\n\n"
-            "El modelo se ejecuta diariamente a las 07:00 UTC. "
-            "Las señales aparecen aqui automáticamente tras cada análisis."
+            t("pro.no_signals",
+              ":hourglass_flowing_sand: **No hay señales disponibles en este momento.**\n\n"
+              "El modelo se ejecuta diariamente a las 07:00 UTC. "
+              "Las señales aparecen aqui automaticamente tras cada analisis.")
         )
         return
 
@@ -125,9 +211,19 @@ def render():
     st.divider()
 
     # ======================================================
-    # 2. TABLA PRINCIPAL
+    # 2. TABLA PRINCIPAL (con mejoras Pro)
     # ======================================================
-    _render_signals_table(df)
+    is_pro = _is_pro_or_admin()
+    _render_signals_table(df, is_pro=is_pro)
+
+    # --- Exportar CSV (solo Pro/Admin) ---
+    if is_pro:
+        _render_export_csv(df)
+    else:
+        st.caption(
+            t("pro.export_pro_only",
+              "Exportar a CSV disponible con suscripcion Pro.")
+        )
 
     st.divider()
 
@@ -165,31 +261,35 @@ def _render_kpis(df: pd.DataFrame):
     col1, col2, col3, col4 = st.columns(4)
 
     col1.metric(
-        "Total señales",
+        t("pro.kpi_total", "Total señales"),
         total,
-        help="Número total de tokens analizados con senal activa.",
+        help=t("pro.kpi_total_help", "Numero total de tokens analizados con senal activa."),
     )
     col2.metric(
-        "Señales STRONG",
+        t("pro.kpi_strong", "Señales STRONG"),
         strong_count,
         help=f"Tokens con probabilidad >= {SIGNAL_THRESHOLDS['STRONG']:.0%}. Alta confianza.",
     )
     col3.metric(
-        "Mejor score",
+        t("pro.kpi_best", "Mejor score"),
         f"{best_score:.1%}",
-        help="La probabilidad mas alta asignada por el modelo hoy.",
+        help=t("pro.kpi_best_help", "La probabilidad mas alta asignada por el modelo hoy."),
     )
     col4.metric(
-        "Chains activas",
+        t("pro.kpi_chains", "Chains activas"),
         chains_activas,
-        help="Número de blockchains con señales (Solana, Ethereum, Base).",
+        help=t("pro.kpi_chains_help", "Numero de blockchains con señales (Solana, Ethereum, Base)."),
     )
 
 
-def _render_signals_table(df: pd.DataFrame):
-    """Tabla principal de señales del dia, ordenada por score descendente."""
+def _render_signals_table(df: pd.DataFrame, is_pro: bool = False):
+    """Tabla principal de señales del dia, ordenada por score descendente.
 
-    st.subheader("Candidatos detectados")
+    Si is_pro=True, muestra vista enriquecida con indicadores de confianza,
+    iconos de chain, tiempo desde descubrimiento y links multiples.
+    """
+
+    st.subheader(t("pro.candidates_title", "Candidatos detectados"))
 
     # Filtros rapidos
     col_f1, col_f2 = st.columns(2)
@@ -197,9 +297,9 @@ def _render_signals_table(df: pd.DataFrame):
     with col_f1:
         signal_options = ["Todas"] + [s for s in ["STRONG", "MEDIUM", "WEAK"] if s in df["signal"].values]
         selected_signal = st.selectbox(
-            "Nivel de senal",
+            t("pro.filter_signal", "Nivel de senal"),
             signal_options,
-            help="Filtra por nivel de confianza del modelo.",
+            help=t("pro.filter_signal_help", "Filtra por nivel de confianza del modelo."),
         )
 
     with col_f2:
@@ -210,7 +310,7 @@ def _render_signals_table(df: pd.DataFrame):
         selected_chain = st.selectbox(
             "Blockchain",
             chain_options,
-            help="Filtra por blockchain.",
+            help=t("pro.filter_chain_help", "Filtra por blockchain."),
         )
 
     # Aplicar filtros
@@ -221,13 +321,28 @@ def _render_signals_table(df: pd.DataFrame):
         df_filtered = df_filtered[df_filtered["chain"] == selected_chain]
 
     if df_filtered.empty:
-        st.info("No hay señales con los filtros seleccionados.")
+        st.info(t("pro.no_filtered_signals", "No hay señales con los filtros seleccionados."))
         return
 
     # Ordenar por probabilidad descendente
     df_filtered = df_filtered.sort_values("probability", ascending=False).reset_index(drop=True)
 
-    # Preparar columnas para mostrar
+    if is_pro:
+        # --- Vista Pro: cards expandidas con indicadores de confianza ---
+        _render_pro_signal_cards(df_filtered)
+    else:
+        # --- Vista Free: tabla basica ---
+        _render_basic_signals_table(df_filtered)
+
+    st.caption(
+        t("pro.showing_count", "Mostrando {count} de {total} señales.").format(
+            count=len(df_filtered), total=len(df)
+        )
+    )
+
+
+def _render_basic_signals_table(df_filtered: pd.DataFrame):
+    """Tabla basica de señales para usuarios Free."""
     display_data = []
     for _, row in df_filtered.iterrows():
         name = row.get("name", "")
@@ -240,7 +355,6 @@ def _render_signals_table(df: pd.DataFrame):
         probability = row.get("probability", 0.0)
         signal = row.get("signal", "NONE")
 
-        # Link a DexScreener
         pool_addr = row.get("pool_address", "")
         if pool_addr and chain:
             link = _dexscreener_url(chain, pool_addr)
@@ -257,33 +371,32 @@ def _render_signals_table(df: pd.DataFrame):
 
     df_display = pd.DataFrame(display_data)
 
-    # Configuracion de columnas para st.dataframe
     column_config = {
         "Token": st.column_config.TextColumn(
             "Token",
-            help="Nombre y simbolo del token.",
+            help=t("pro.col_token_help", "Nombre y simbolo del token."),
             width="medium",
         ),
         "Chain": st.column_config.TextColumn(
             "Chain",
-            help="Blockchain donde opera el token.",
+            help=t("pro.col_chain_help", "Blockchain donde opera el token."),
             width="small",
         ),
         "Score": st.column_config.ProgressColumn(
             "Score",
-            help="Probabilidad de ser gem (0% - 100%). Mayor = mejor.",
+            help=t("pro.col_score_help", "Probabilidad de ser gem (0% - 100%). Mayor = mejor."),
             format="%.0f%%",
             min_value=0.0,
             max_value=1.0,
         ),
         "Senal": st.column_config.TextColumn(
-            "Senal",
+            t("pro.col_signal", "Senal"),
             help="STRONG (>80%), MEDIUM (>65%), WEAK (>50%).",
             width="small",
         ),
         "DexScreener": st.column_config.LinkColumn(
             "DexScreener",
-            help="Ver en DexScreener para mas información del token.",
+            help=t("pro.col_dex_help", "Ver en DexScreener para mas informacion del token."),
             display_text="Ver",
             width="small",
         ),
@@ -297,16 +410,126 @@ def _render_signals_table(df: pd.DataFrame):
         height=min(len(df_display) * 38 + 40, 600),
     )
 
-    st.caption(f"Mostrando {len(df_display)} de {len(df)} señales.")
+
+def _render_pro_signal_cards(df_filtered: pd.DataFrame):
+    """Vista Pro enriquecida: cada señal como card con indicadores de confianza."""
+
+    for idx, row in df_filtered.iterrows():
+        name = row.get("name", "")
+        symbol = row.get("symbol", "")
+        token_label = f"{name} ({symbol})" if name and symbol else (symbol or name or str(row.get("token_id", ""))[:12])
+
+        chain = row.get("chain", "")
+        probability = row.get("probability", 0.0)
+        signal = row.get("signal", "NONE")
+        pool_addr = row.get("pool_address", "")
+        first_seen = row.get("first_seen", None)
+
+        # Colores y badges
+        icon = _chain_icon(chain)
+        conf_badge = _confidence_badge(probability)
+        conf_color = _confidence_color(probability)
+        signal_color = SIGNAL_COLORS.get(signal, "#95a5a6")
+        time_str = _time_since_discovered(first_seen)
+
+        with st.container():
+            # Fila principal: Token + Chain icon + Signal + Confianza
+            col_name, col_score, col_conf, col_time, col_links = st.columns(
+                [3, 1.5, 1.5, 1, 2]
+            )
+
+            with col_name:
+                st.markdown(
+                    f"{icon} **{token_label}**"
+                    f" <span style='color:{signal_color}; font-weight:bold;'>"
+                    f"[{signal}]</span>",
+                    unsafe_allow_html=True,
+                )
+
+            with col_score:
+                st.progress(float(probability))
+                st.caption(f"Score: {probability:.0%}")
+
+            with col_conf:
+                st.markdown(
+                    f"<span style='background-color:{conf_color}; color:white; "
+                    f"padding:2px 10px; border-radius:12px; font-size:0.85em; "
+                    f"font-weight:bold;'>"
+                    f"{t('pro.confidence_label', 'Confianza')}: {conf_badge}</span>",
+                    unsafe_allow_html=True,
+                )
+
+            with col_time:
+                if time_str != "N/A":
+                    st.caption(
+                        f"{t('pro.discovered', 'Descubierto')}: {time_str}"
+                    )
+                else:
+                    st.caption("")
+
+            with col_links:
+                link_parts = []
+                if pool_addr and chain:
+                    dex_url = _dexscreener_url(chain, pool_addr)
+                    gecko_url = _geckoterminal_url(chain, pool_addr)
+                    link_parts.append(f"[DexScreener]({dex_url})")
+                    link_parts.append(f"[GeckoTerminal]({gecko_url})")
+                if link_parts:
+                    st.markdown(" | ".join(link_parts))
+
+            st.divider()
+
+
+def _render_export_csv(df: pd.DataFrame):
+    """Boton de exportar señales a CSV (solo Pro/Admin)."""
+    # Preparar datos para exportar
+    export_data = []
+    for _, row in df.iterrows():
+        name = row.get("name", "")
+        symbol = row.get("symbol", "")
+        chain = row.get("chain", "")
+        probability = row.get("probability", 0.0)
+        signal = row.get("signal", "NONE")
+        pool_addr = row.get("pool_address", "")
+        token_id = row.get("token_id", "")
+        scored_at = row.get("scored_at", "")
+
+        dex_url = ""
+        if pool_addr and chain:
+            dex_url = _dexscreener_url(chain, pool_addr)
+
+        export_data.append({
+            "Token": name,
+            "Simbolo": symbol,
+            "Chain": chain,
+            "Token ID": token_id,
+            "Score": f"{probability:.4f}",
+            "Senal": signal,
+            "Confianza": _confidence_badge(probability),
+            "DexScreener": dex_url,
+            "Fecha Score": str(scored_at)[:19] if scored_at else "",
+        })
+
+    df_export = pd.DataFrame(export_data)
+    csv_data = df_export.to_csv(index=False).encode("utf-8")
+
+    st.download_button(
+        label=t("pro.export_csv", "Exportar CSV"),
+        data=csv_data,
+        file_name="senales_memedetector.csv",
+        mime="text/csv",
+        help=t("pro.export_csv_help",
+               "Descarga las señales actuales como archivo CSV."),
+    )
 
 
 def _render_signal_distribution(df: pd.DataFrame):
-    """Donut chart con distribución de señales (STRONG/MEDIUM/WEAK)."""
+    """Donut chart con distribucion de señales (STRONG/MEDIUM/WEAK)."""
 
-    st.subheader("Distribución de señales")
+    st.subheader(t("pro.dist_title", "Distribucion de señales"))
 
     if "signal" not in df.columns:
-        st.info("Sin datos de señales.")
+        st.info(t("pro.no_signal_data", "Sin datos de señales."))
         return
 
     # Contar por tipo de senal
@@ -344,12 +567,12 @@ def _render_signal_distribution(df: pd.DataFrame):
 
 
 def _render_chain_distribution(df: pd.DataFrame):
-    """Bar chart horizontal con distribución por blockchain."""
+    """Bar chart horizontal con distribucion por blockchain."""
 
-    st.subheader("Señales por blockchain")
+    st.subheader(t("pro.chain_dist_title", "Señales por blockchain"))
 
     if "chain" not in df.columns:
-        st.info("Sin datos de cadena.")
+        st.info(t("pro.no_chain_data", "Sin datos de cadena."))
         return
 
     chain_counts = df["chain"].value_counts().reset_index()
@@ -376,7 +599,7 @@ def _render_chain_distribution(df: pd.DataFrame):
         showlegend=False,
         margin=dict(t=20, b=20, l=20, r=20),
         height=350,
-        xaxis_title="Número de señales",
+        xaxis_title=t("pro.chart_signals_count", "Numero de señales"),
         yaxis_title="",
     )
 
@@ -387,8 +610,9 @@ def _render_disclaimer():
     """Disclaimer legal al pie de la pagina."""
 
     st.warning(
-        ":warning: **Esto NO es consejo financiero.**\n\n"
-        "Los memecoins son extremadamente volatiles y la gran mayoria pierde todo su valor. "
-        "Las señales de este modelo son herramientas de análisis, no recomendaciones de inversion. "
-        "Haz tu propia investigacion (DYOR) y nunca inviertas mas de lo que puedas permitirte perder."
+        t("pro.disclaimer",
+          ":warning: **Esto NO es consejo financiero.**\n\n"
+          "Los memecoins son extremadamente volatiles y la gran mayoria pierde todo su valor. "
+          "Las señales de este modelo son herramientas de analisis, no recomendaciones de inversion. "
+          "Haz tu propia investigacion (DYOR) y nunca inviertas mas de lo que puedas permitirte perder.")
     )

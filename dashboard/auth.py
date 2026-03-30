@@ -317,11 +317,15 @@ def render_sidebar_user_info():
     """Muestra info del usuario en el sidebar + boton logout.
 
     Incluye email, badge del plan (Admin/Pro/Free),
-    y boton para cerrar sesión.
+    Pro member since + dias hasta renovacion,
+    y boton para cerrar sesion.
     """
     if is_authenticated():
         user = st.session_state.get("user", {})
         role = st.session_state.get("role", "free")
+        profile = st.session_state.get("profile", {}) or {}
+
+        plan = profile.get("subscription_plan", role)
 
         role_badges = {
             "admin": f"🔴 {t('roles.admin', 'Admin')}",
@@ -331,8 +335,68 @@ def render_sidebar_user_info():
         badge = role_badges.get(role, f"⚪ {t('roles.free', 'Free')}")
 
         st.sidebar.markdown(f"**{user.get('email', '')}**")
-        st.sidebar.markdown(f"{t('roles.plan_label', 'Plan')}: {badge}")
 
-        if st.sidebar.button(f"🔓 {t('app.logout', 'Cerrar sesión')}"):
+        # Pro/Admin: badge prominente con estilo
+        if role in ("pro", "admin"):
+            badge_color = "#2ecc71" if role == "pro" else "#e74c3c"
+            badge_text = t('roles.pro', 'Pro') if role == "pro" else t('roles.admin', 'Admin')
+            st.sidebar.markdown(
+                f"<div style='background-color:{badge_color}; color:white; "
+                f"padding:6px 12px; border-radius:8px; text-align:center; "
+                f"font-weight:bold; margin:4px 0 8px 0;'>"
+                f"{badge_text}</div>",
+                unsafe_allow_html=True,
+            )
+
+            # Pro member since (si hay created_at en el profile)
+            sub_start = profile.get("subscription_start") or profile.get("created_at")
+            if sub_start and role == "pro":
+                try:
+                    from datetime import datetime
+                    if isinstance(sub_start, str):
+                        sub_date = datetime.fromisoformat(
+                            sub_start.replace("Z", "+00:00")
+                        )
+                    else:
+                        sub_date = sub_start
+                    st.sidebar.caption(
+                        f"{t('pro.member_since', 'Miembro Pro desde')}: "
+                        f"{sub_date.strftime('%d/%m/%Y')}"
+                    )
+                except Exception:
+                    pass
+
+            # Dias hasta renovacion (si hay subscription_end)
+            sub_end = profile.get("subscription_end")
+            if sub_end and role == "pro":
+                try:
+                    from datetime import datetime, timezone
+                    if isinstance(sub_end, str):
+                        end_date = datetime.fromisoformat(
+                            sub_end.replace("Z", "+00:00")
+                        )
+                    else:
+                        end_date = sub_end
+                    now = datetime.now(timezone.utc)
+                    if not hasattr(end_date, "tzinfo") or end_date.tzinfo is None:
+                        from datetime import timezone as tz
+                        end_date = end_date.replace(tzinfo=tz.utc)
+                    days_left = (end_date - now).days
+                    if days_left > 0:
+                        st.sidebar.caption(
+                            f"{t('pro.renewal_in', 'Renovacion en')}: "
+                            f"{days_left} {t('pro.days', 'dias')}"
+                        )
+                    elif days_left == 0:
+                        st.sidebar.caption(
+                            t("pro.renews_today", "Se renueva hoy")
+                        )
+                except Exception:
+                    pass
+        else:
+            # Free: mostrar badge simple
+            st.sidebar.markdown(f"{t('roles.plan_label', 'Plan')}: {badge}")
+
+        if st.sidebar.button(f"🔓 {t('app.logout', 'Cerrar sesion')}"):
             logout()
             st.rerun()

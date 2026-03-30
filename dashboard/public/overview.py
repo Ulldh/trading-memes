@@ -2,6 +2,7 @@
 overview.py - Pagina de resumen general del dataset.
 
 Muestra estadisticas clave del proyecto:
+- Market Pulse: resumen del dia para todos los usuarios
 - Conteo de tokens, snapshots, OHLCV y labels
 - Distribución de tokens por cadena (pie chart)
 - Distribución de labels (pie chart)
@@ -11,9 +12,10 @@ Muestra estadisticas clave del proyecto:
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from datetime import datetime, timedelta
 
 from src.data.supabase_storage import get_storage as _get_storage
-from dashboard.constants import LABEL_COLORS, CHAIN_COLORS
+from dashboard.constants import LABEL_COLORS, CHAIN_COLORS, SIGNAL_COLORS
 
 
 @st.cache_resource
@@ -26,6 +28,9 @@ def render():
     """Renderiza la pagina de Overview."""
     st.title("Overview del Dataset")
 
+    # --- Welcome experience para nuevos usuarios Free ---
+    _render_welcome_message()
+
     st.info(
         "**¿Qué es esto?** Esta pagina muestra un resumen de todos los datos que hemos "
         "recopilado sobre memecoins. Piensa en ello como el \"inventario\" de nuestro "
@@ -34,6 +39,13 @@ def render():
     )
 
     storage = get_storage()
+
+    # ------------------------------------------------------------------
+    # 0. Market Pulse — resumen del dia (visible para todos)
+    # ------------------------------------------------------------------
+    _render_market_pulse(storage)
+
+    st.divider()
 
     # ------------------------------------------------------------------
     # 1. Metricas principales (KPIs)
@@ -245,3 +257,213 @@ def render():
             st.metric("Ultimo registro OHLCV", str(last_ohlcv)[:19])
         else:
             st.info("No hay datos OHLCV todavia.")
+
+
+# ======================================================================
+# Welcome message para nuevos usuarios Free
+# ======================================================================
+
+def _render_welcome_message():
+    """Muestra un mensaje de bienvenida la primera vez que un usuario Free visita el dashboard.
+
+    Usa session_state para mostrarlo solo una vez por sesion.
+    Solo se muestra a usuarios Free (no Pro ni Admin).
+    """
+    # No mostrar si ya fue visto en esta sesion
+    if st.session_state.get("welcome_shown", False):
+        return
+
+    # Solo para usuarios Free
+    role = st.session_state.get("role", "free")
+    plan = st.session_state.get("profile", {}).get("subscription_plan", "free")
+    if role == "admin" or plan in ("pro", "enterprise"):
+        return
+
+    # Obtener nombre del usuario para personalizar
+    user_email = st.session_state.get("user", {}).get("email", "")
+    user_name = user_email.split("@")[0] if user_email else "trader"
+
+    # Mostrar el mensaje de bienvenida como un container destacado
+    with st.container():
+        st.markdown(
+            f"""
+            <div style="padding: 20px; border-radius: 10px;
+                        border: 1px solid rgba(46, 204, 113, 0.3);
+                        background: linear-gradient(135deg, rgba(46, 204, 113, 0.05), rgba(52, 152, 219, 0.05));
+                        margin-bottom: 16px;">
+                <h3 style="margin-top: 0;">Bienvenido a Meme Detector, {user_name}!</h3>
+                <p>Tu cuenta <strong>Free</strong> incluye:</p>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 4px 12px;">&#9989; <strong>Overview</strong> — Resumen del mercado y Market Pulse</td>
+                        <td style="padding: 4px 12px;">&#9989; <strong>3 señales diarias</strong> — Top tokens detectados</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 4px 12px;">&#9989; <strong>Track Record</strong> — Historial del modelo</td>
+                        <td style="padding: 4px 12px;">&#9989; <strong>Watchlist</strong> — Hasta 3 tokens</td>
+                    </tr>
+                </table>
+                <p style="margin-top: 12px;">Con <strong>Pro ($29/mes)</strong> desbloqueas:</p>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 4px 12px;">&#128273; Todas las señales diarias (sin limite)</td>
+                        <td style="padding: 4px 12px;">&#128273; Busqueda de tokens ilimitada</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 4px 12px;">&#128273; Academia Pro (contenido avanzado)</td>
+                        <td style="padding: 4px 12px;">&#128273; Alertas Telegram en tiempo real</td>
+                    </tr>
+                </table>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # Boton para cerrar el mensaje de bienvenida
+    if st.button("Entendido, empezar a explorar", type="primary", key="dismiss_welcome"):
+        st.session_state.welcome_shown = True
+        st.rerun()
+
+    st.divider()
+
+
+# ======================================================================
+# Market Pulse — widget de resumen diario
+# ======================================================================
+
+@st.cache_data(ttl=300)
+def _load_market_pulse_data():
+    """Carga datos para el widget Market Pulse: tokens de hoy, nuevos, top señales."""
+    storage = get_storage()
+
+    # Total de tokens rastreados
+    try:
+        df_total = storage.query("SELECT COUNT(*) as total FROM tokens")
+        total_tokens = int(df_total["total"].iloc[0]) if not df_total.empty else 0
+    except Exception:
+        total_tokens = 0
+
+    # Tokens descubiertos en las ultimas 24h
+    try:
+        df_new = storage.query(
+            "SELECT COUNT(*) as nuevos FROM tokens "
+            "WHERE first_seen >= CURRENT_DATE - INTERVAL '1 day'"
+        )
+        new_tokens_24h = int(df_new["nuevos"].iloc[0]) if not df_new.empty else 0
+    except Exception:
+        new_tokens_24h = 0
+
+    # Top señales del dia (sin limite, necesitamos el total y top 3)
+    try:
+        df_signals = storage.get_scores(min_probability=0.0, scored_today=True)
+        if df_signals.empty:
+            # Fallback: traer las mas recientes
+            df_signals = storage.get_scores(min_probability=0.0)
+            if not df_signals.empty:
+                df_signals = df_signals.head(200)
+    except Exception:
+        df_signals = pd.DataFrame()
+
+    return total_tokens, new_tokens_24h, df_signals
+
+
+def _render_market_pulse(storage):
+    """Renderiza el widget Market Pulse en la parte superior del overview."""
+
+    st.subheader(":satellite: Market Pulse")
+    st.caption(
+        "Resumen rapido del estado del mercado hoy. "
+        "Datos actualizados diariamente a las 07:00 UTC."
+    )
+
+    total_tokens, new_tokens_24h, df_signals = _load_market_pulse_data()
+
+    total_signals = len(df_signals) if not df_signals.empty else 0
+
+    # --- KPI cards del Market Pulse ---
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Tokens rastreados",
+        f"{total_tokens:,}",
+        help="Número total de memecoins en nuestra base de datos.",
+    )
+    col2.metric(
+        "Nuevos (24h)",
+        f"{new_tokens_24h:,}",
+        help="Tokens descubiertos en las ultimas 24 horas.",
+    )
+    col3.metric(
+        "Señales activas",
+        f"{total_signals:,}",
+        help="Total de señales generadas por el modelo hoy.",
+    )
+
+    # --- Top 3 señales del dia (teaser para Free) ---
+    if not df_signals.empty and total_signals > 0:
+        st.markdown("---")
+        st.markdown("**Top señales del dia**")
+
+        role = st.session_state.get("role", "free")
+        plan = st.session_state.get("profile", {}).get("subscription_plan", "free")
+        is_premium = (role == "admin" or plan in ("pro", "enterprise"))
+
+        # Ordenar por probabilidad y tomar top 3
+        df_top3 = df_signals.sort_values("probability", ascending=False).head(3)
+
+        cols = st.columns(3)
+        for i, (_, row) in enumerate(df_top3.iterrows()):
+            signal = row.get("signal", "NONE")
+            signal_color = SIGNAL_COLORS.get(signal, "#95a5a6")
+
+            with cols[i]:
+                if is_premium:
+                    # Pro/Admin ve todo
+                    symbol = row.get("symbol", "???")
+                    prob = row.get("probability", 0.0)
+                    st.markdown(
+                        f"<div style='border-left: 4px solid {signal_color}; "
+                        f"padding: 8px 12px; border-radius: 4px; "
+                        f"background: rgba(255,255,255,0.03);'>"
+                        f"<strong>{symbol}</strong><br>"
+                        f"<span style='color: {signal_color}; font-weight: bold;'>"
+                        f"{signal}</span> — {prob:.0%}"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    # Free: muestra señal pero oculta probabilidad
+                    st.markdown(
+                        f"<div style='border-left: 4px solid {signal_color}; "
+                        f"padding: 8px 12px; border-radius: 4px; "
+                        f"background: rgba(255,255,255,0.03);'>"
+                        f"<strong style='filter: blur(5px);'>??????</strong><br>"
+                        f"<span style='color: {signal_color}; font-weight: bold;'>"
+                        f"{signal}</span> — "
+                        f"<span style='filter: blur(5px);'>??%</span>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+
+        # CTA para Free users
+        if not is_premium:
+            st.markdown("")
+            if total_signals > 3:
+                st.info(
+                    f":lock: Hay **{total_signals} señales** disponibles hoy. "
+                    f"Actualiza a **Pro** para ver todas las señales con datos completos."
+                )
+            # Boton de upgrade usando el paywall existente
+            try:
+                from dashboard.paywall import _get_checkout_url
+                checkout_url = _get_checkout_url("pro")
+                if checkout_url:
+                    st.link_button(":rocket: Actualizar a Pro", checkout_url, type="primary")
+                else:
+                    st.markdown(
+                        ":rocket: **[Ver planes y precios](/pricing)**"
+                    )
+            except ImportError:
+                st.markdown(
+                    ":rocket: **[Ver planes y precios](/pricing)**"
+                )
