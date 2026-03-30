@@ -1,6 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
-import Ticker from "@/components/Ticker";
+import { Ticker } from "@/components/Ticker";
 import Pipeline from "@/components/Pipeline";
 import Stats from "@/components/Stats";
 import Backtesting from "@/components/Backtesting";

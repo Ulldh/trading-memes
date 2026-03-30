@@ -1,25 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { z } from "zod";
 
-interface TickerSignal {
-  symbol: string;
-  chain: string;
-  probability: string;
-  signal: string;
-}
+// Zod schema para validar respuesta de /api/signals
+const TickerSignalSchema = z.object({
+  symbol: z.string().trim(),
+  chain: z.string().trim(),
+  probability: z.string().trim(),
+  signal: z.string().trim(),
+  priceChange: z.number().nullable(),
+});
+
+type TickerSignal = z.infer<typeof TickerSignalSchema>;
 
 // Fallback mientras carga o si falla la API
 const FALLBACK_SIGNALS: TickerSignal[] = [
-  { symbol: "KIN", chain: "SOL", probability: "2.6%", signal: "NONE" },
-  { symbol: "EUSX", chain: "SOL", probability: "2.1%", signal: "NONE" },
-  { symbol: "LIQ", chain: "SOL", probability: "1.6%", signal: "NONE" },
-  { symbol: "ZKP", chain: "SOL", probability: "1.5%", signal: "NONE" },
-  { symbol: "SKR", chain: "SOL", probability: "1.5%", signal: "NONE" },
-  { symbol: "HOWL", chain: "SOL", probability: "1.5%", signal: "NONE" },
-  { symbol: "KAMA", chain: "SOL", probability: "1.4%", signal: "NONE" },
-  { symbol: "A2Z", chain: "ETH", probability: "1.4%", signal: "NONE" },
+  { symbol: "KIN", chain: "SOL", probability: "2.6%", signal: "NONE", priceChange: 5.2 },
+  { symbol: "EUSX", chain: "SOL", probability: "2.1%", signal: "NONE", priceChange: -3.1 },
+  { symbol: "LIQ", chain: "SOL", probability: "1.6%", signal: "NONE", priceChange: 12.4 },
+  { symbol: "ZKP", chain: "SOL", probability: "1.5%", signal: "NONE", priceChange: -7.8 },
+  { symbol: "SKR", chain: "SOL", probability: "1.5%", signal: "NONE", priceChange: 1.9 },
+  { symbol: "HOWL", chain: "SOL", probability: "1.5%", signal: "NONE", priceChange: -0.5 },
+  { symbol: "KAMA", chain: "SOL", probability: "1.4%", signal: "NONE", priceChange: 8.3 },
+  { symbol: "A2Z", chain: "ETH", probability: "1.4%", signal: "NONE", priceChange: -2.6 },
 ];
 
 function signalColor(signal: string): string {
@@ -31,6 +36,22 @@ function signalColor(signal: string): string {
     default:
       return "text-gray-400";
   }
+}
+
+function priceChangeColor(change: number | null): string {
+  if (change == null || change === 0) return "text-gray-500";
+  return change > 0 ? "text-gem-green" : "text-gem-red";
+}
+
+function priceChangeText(change: number | null): string {
+  if (change == null) return "";
+  const sign = change > 0 ? "+" : "";
+  return `${sign}${change.toFixed(1)}%`;
+}
+
+function priceChangeArrow(change: number | null): string {
+  if (change == null || change === 0) return "";
+  return change > 0 ? "\u25B2" : "\u25BC";
 }
 
 function chainBadgeColor(chain: string): string {
@@ -46,13 +67,18 @@ function chainBadgeColor(chain: string): string {
   }
 }
 
-function SignalItem({ signal }: { signal: TickerSignal }) {
+function SignalItem({ signal }: { signal: TickerSignal }): React.JSX.Element {
   return (
-    <span className="inline-flex items-center mx-6 whitespace-nowrap">
+    <li className="inline-flex items-center mx-6 whitespace-nowrap list-none">
       <span className={`text-[9px] font-mono mr-1.5 ${chainBadgeColor(signal.chain)}`}>
         {signal.chain}
       </span>
       <span className="text-gray-400 font-semibold">{signal.symbol}</span>
+      {signal.priceChange != null && (
+        <span className={`ml-1.5 text-[10px] font-mono font-bold ${priceChangeColor(signal.priceChange)}`}>
+          {priceChangeArrow(signal.priceChange)} {priceChangeText(signal.priceChange)}
+        </span>
+      )}
       <span className={`ml-1.5 font-bold ${signalColor(signal.signal)}`}>
         {signal.probability}
       </span>
@@ -61,11 +87,11 @@ function SignalItem({ signal }: { signal: TickerSignal }) {
           {signal.signal}
         </span>
       )}
-    </span>
+    </li>
   );
 }
 
-export default function Ticker() {
+export function Ticker(): React.JSX.Element {
   const t = useTranslations("ticker");
   const [signals, setSignals] = useState<TickerSignal[]>(FALLBACK_SIGNALS);
   const [isLive, setIsLive] = useState(false);
@@ -73,10 +99,13 @@ export default function Ticker() {
   useEffect(() => {
     fetch("/api/signals")
       .then((r) => r.json())
-      .then((data: TickerSignal[]) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setSignals(data);
+      .then((raw: unknown) => {
+        const result = z.array(TickerSignalSchema).safeParse(raw);
+        if (result.success && result.data.length > 0) {
+          setSignals(result.data);
           setIsLive(true);
+        } else if (!result.success) {
+          console.warn("Zod validation failed for signals:", JSON.stringify(result.error.issues));
         }
       })
       .catch(() => {
@@ -89,7 +118,7 @@ export default function Ticker() {
   return (
     <div className="relative w-full bg-dark-800 border-b border-dark-600 overflow-hidden">
       {/* Status indicator */}
-      <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center bg-dark-800 pl-3 pr-4 border-r border-dark-600">
+      <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center bg-dark-800 pl-3 pr-4 border-r border-dark-600" aria-live="polite">
         <span
           className={`inline-block w-2 h-2 rounded-full mr-2 ${
             isLive ? "bg-primary animate-pulse" : "bg-gem-yellow"
@@ -106,7 +135,7 @@ export default function Ticker() {
 
       {/* Scrolling ticker */}
       <div className="py-2.5 pl-20">
-        <div className="animate-ticker inline-flex text-xs">
+        <ul className="animate-ticker inline-flex text-xs list-none m-0 p-0">
           {/* Duplicamos para loop infinito */}
           {signals.map((s, i) => (
             <SignalItem key={`a-${i}`} signal={s} />
@@ -114,7 +143,7 @@ export default function Ticker() {
           {signals.map((s, i) => (
             <SignalItem key={`b-${i}`} signal={s} />
           ))}
-        </div>
+        </ul>
       </div>
 
       {/* Fade edges */}
