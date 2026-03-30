@@ -942,22 +942,42 @@ class ModelTrainer:
         # --- Paso 4: Calibrar probabilidades de todos los modelos ---
         # IMPORTANTE: calibrar con X_test/y_test (datos NO vistos) para
         # que las probabilidades sean realistas, no optimistas.
-        for name in list(self.models.keys()):
-            try:
-                logger.info(f"Calibrando modelo: {name}")
-                calibrated = self.calibrate_model(self.models[name], X_test, y_test)
-                self.models[name] = calibrated
+        # SKIP si hay pocos positivos: CalibratedClassifierCV con <50 positivos
+        # comprime TODAS las probabilidades debajo de 0.50, destruyendo
+        # la frontera de decision y haciendo el threshold inutil.
+        n_positivos_test = int(y_test.sum())
+        MIN_POSITIVOS_CALIBRACION = 50
 
-                # Re-evaluar metricas con modelo calibrado
-                y_pred_cal = calibrated.predict(X_test)
-                cal_f1 = f1_score(y_test, y_pred_cal, average="binary", zero_division=0)
-                self.results[name]["calibrated"] = True
-                self.results[name]["val_f1_calibrated"] = float(cal_f1)
-                logger.info(f"  {name} calibrado: F1={cal_f1:.4f}")
-            except Exception as e:
-                logger.warning(f"Calibracion fallo para {name}: {e}")
+        if n_positivos_test < MIN_POSITIVOS_CALIBRACION:
+            logger.warning(
+                f"Calibracion saltada: solo {n_positivos_test} positivos en test "
+                f"(minimo {MIN_POSITIVOS_CALIBRACION} para calibracion fiable). "
+                f"Usando modelos sin calibrar."
+            )
+            for name in list(self.models.keys()):
                 if name in self.results and isinstance(self.results[name], dict):
                     self.results[name]["calibrated"] = False
+                    self.results[name]["calibration_skipped_reason"] = (
+                        f"solo {n_positivos_test} positivos en test "
+                        f"(minimo {MIN_POSITIVOS_CALIBRACION})"
+                    )
+        else:
+            for name in list(self.models.keys()):
+                try:
+                    logger.info(f"Calibrando modelo: {name}")
+                    calibrated = self.calibrate_model(self.models[name], X_test, y_test)
+                    self.models[name] = calibrated
+
+                    # Re-evaluar metricas con modelo calibrado
+                    y_pred_cal = calibrated.predict(X_test)
+                    cal_f1 = f1_score(y_test, y_pred_cal, average="binary", zero_division=0)
+                    self.results[name]["calibrated"] = True
+                    self.results[name]["val_f1_calibrated"] = float(cal_f1)
+                    logger.info(f"  {name} calibrado: F1={cal_f1:.4f}")
+                except Exception as e:
+                    logger.warning(f"Calibracion fallo para {name}: {e}")
+                    if name in self.results and isinstance(self.results[name], dict):
+                        self.results[name]["calibrated"] = False
 
         # --- Paso 4b: Calcular threshold optimo via CV en TRAIN ---
         # IMPORTANTE: usar out-of-fold predictions en train (no X_test)

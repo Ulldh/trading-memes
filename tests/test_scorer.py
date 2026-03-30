@@ -97,26 +97,26 @@ def test_prepare_features_fills_nan(mock_scorer):
 # ============================================================
 
 def test_signal_strong():
-    """prob >= 0.80 -> STRONG."""
-    signal = _determine_signal(0.85)
+    """prob >= 0.60 -> STRONG."""
+    signal = _determine_signal(0.65)
     assert signal == "STRONG"
 
 
 def test_signal_medium():
-    """prob >= 0.65 -> MEDIUM."""
-    signal = _determine_signal(0.70)
+    """prob >= 0.40 -> MEDIUM."""
+    signal = _determine_signal(0.45)
     assert signal == "MEDIUM"
 
 
 def test_signal_weak():
-    """prob >= 0.50 -> WEAK."""
-    signal = _determine_signal(0.55)
+    """prob >= 0.30 -> WEAK."""
+    signal = _determine_signal(0.35)
     assert signal == "WEAK"
 
 
 def test_signal_none():
-    """prob < 0.50 -> NONE."""
-    signal = _determine_signal(0.30)
+    """prob < 0.30 -> NONE."""
+    signal = _determine_signal(0.20)
     assert signal == "NONE"
 
 

@@ -48,10 +48,13 @@ except ImportError:
 logger = get_logger(__name__)
 
 # Umbrales de senal
+# Ajustados para modelos con pocos positivos (<200 gems):
+# Las probabilidades se distribuyen en rango bajo (0.10-0.50),
+# no llegan a 0.80+ porque el modelo es conservador.
 SIGNAL_THRESHOLDS = {
-    "STRONG": 0.80,    # >= 80% probabilidad de gem
-    "MEDIUM": 0.65,    # >= 65%
-    "WEAK": 0.50,      # >= 50%
+    "STRONG": 0.60,    # >= 60% probabilidad de gem
+    "MEDIUM": 0.40,    # >= 40%
+    "WEAK": 0.30,      # >= 30% (alineado con threshold por defecto)
 }
 
 
@@ -196,9 +199,13 @@ class GemScorer:
                     logger.info(f"Threshold optimo cargado: {threshold}")
                     return float(threshold)
 
-        # Fallback al threshold por defecto
-        logger.info("Usando threshold por defecto: 0.50")
-        return 0.50
+        # Fallback al threshold por defecto (0.30 para no perder gems reales).
+        # Con pocos datos de entrenamiento, los modelos producen probabilidades
+        # bajas incluso para gems verdaderos. Un threshold de 0.50 descarta
+        # practicamente todos los candidatos. 0.30 es mas conservador que el
+        # optimo teorico (0.20) para reducir falsos positivos en produccion.
+        logger.info("Usando threshold por defecto: 0.30")
+        return 0.30
 
     def _load_train_medians(self) -> dict:
         """Carga las medianas de training para imputacion consistente."""

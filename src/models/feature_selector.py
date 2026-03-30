@@ -53,7 +53,7 @@ class FeatureSelector:
         # O filtros individuales
         low_var = selector.filter_by_variance(min_variance=0.01)
         high_corr = selector.filter_by_correlation(threshold=0.95)
-        low_imp = selector.filter_by_importance(model, min_importance=0.01)
+        low_imp = selector.filter_by_importance(model, min_importance=0.005)
 
     Args:
         X_train: DataFrame con features de entrenamiento.
@@ -277,7 +277,7 @@ class FeatureSelector:
     def filter_by_importance(
         self,
         model,
-        min_importance: float = 0.01,
+        min_importance: float = 0.005,
     ) -> list[str]:
         """
         Identifica features con importancia menor al umbral.
@@ -289,10 +289,14 @@ class FeatureSelector:
         Nota: para modelos envueltos en ImbPipeline (SMOTE + clasificador),
         se accede al clasificador via model.named_steps['classifier'].
 
+        NOTA: Umbral reducido de 0.01 a 0.005 porque con ~140 gems el threshold
+        de 0.01 eliminaba ~5 features que eran estadisticamente significativas
+        en tests chi-cuadrado y Mann-Whitney (p < 0.05).
+
         Args:
             model: Modelo entrenado con atributo feature_importances_.
                    Puede ser un modelo directo (RF, XGB) o un ImbPipeline.
-            min_importance: Umbral minimo de importancia normalizada (default 0.01).
+            min_importance: Umbral minimo de importancia normalizada (default 0.005).
                             Features con importancia < min_importance se eliminan.
 
         Returns:
@@ -409,7 +413,7 @@ class FeatureSelector:
         skip_variance: bool = True,
         min_variance: float = 0.001,
         corr_threshold: float = 0.95,
-        min_importance: float = 0.01,
+        min_importance: float = 0.005,
     ) -> tuple[pd.DataFrame, list[str]]:
         """
         Pipeline de seleccion: [varianza] -> correlacion -> importancia.
@@ -421,9 +425,9 @@ class FeatureSelector:
 
         Args:
             model: Modelo entrenado (RF o XGB, puede ser ImbPipeline).
-            min_variance: Umbral de varianza minima (default 0.01).
+            min_variance: Umbral de varianza minima (default 0.001).
             corr_threshold: Umbral de correlacion para eliminar (default 0.95).
-            min_importance: Umbral de importancia minima (default 0.01).
+            min_importance: Umbral de importancia minima (default 0.005).
 
         Returns:
             Tupla de:
