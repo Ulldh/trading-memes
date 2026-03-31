@@ -51,6 +51,7 @@
     "section_title": "Como detectamos as gems",
     "section_badge": "A M\u00e1quina",
     "section_subtitle": "De dados brutos a sinais acion\u00e1veis",
+    "cta_text": "Receba os sinais de hoje",
     "steps": [
       {
         "title": "DADOS",
@@ -93,7 +94,7 @@
     ]
   },
   "backtesting": {
-    "section_title": "Simula\u00e7\u00e3o Estimada",
+    "section_title": "Simulador de Estrat\u00e9gia",
     "simulation_badge": "SIMULA\u00c7\u00c3O",
     "section_subtitle": "Baseado nas m\u00e9tricas do modelo (F1 Score: 0.67), n\u00e3o em dados hist\u00f3ricos reais.",
     "investment_label": "Investimento inicial",
@@ -120,7 +121,9 @@
     "chart_ref_label": "Investimento",
     "tooltip_day": "Dia",
     "transparency_note": "Esta simula\u00e7\u00e3o usa um modelo matem\u00e1tico baseado na taxa de acerto de 67% e retornos m\u00e9dios observados em valida\u00e7\u00e3o. N\u00e3o representa desempenho real passado.",
-    "disclaimer": "AVISO: Simula\u00e7\u00e3o estimada baseada nas m\u00e9tricas do modelo v12. Track record verific\u00e1vel com dados reais dispon\u00edvel em breve (estamos acumulando dados desde mar\u00e7o de 2026). Desempenho passado n\u00e3o garante resultados futuros.",
+    "track_record_note": "Track record real dispon\u00edvel no dashboard.",
+    "track_record_link": "Ver hist\u00f3rico \u2192",
+    "disclaimer": "AVISO: Simula\u00e7\u00e3o estimada baseada nas m\u00e9tricas do modelo v21. Track record verific\u00e1vel com dados reais dispon\u00edvel em breve (estamos acumulando dados desde mar\u00e7o de 2026). Desempenho passado n\u00e3o garante resultados futuros.",
     "start_label": "In\u00edcio"
   },
   "pricing": {
@@ -204,6 +207,19 @@
         "answer": "E-mail e Telegram ID (opcional para alertas). N\u00e3o vendemos dados a terceiros. Conformidade total com LGPD/RGPD. Voc\u00ea pode solicitar a exclus\u00e3o dos seus dados a qualquer momento. Veja nossa Pol\u00edtica de Privacidade."
       }
     ]
+  },
+  "social_proof": {
+    "stat_signals": "sinais emitidos",
+    "stat_gems": "gems detectados",
+    "stat_tokens": "tokens analisados",
+    "stat_since": "em produ\u00e7\u00e3o",
+    "stat_since_value": "Mar 2026",
+    "tagline": "Dados reais. Sem simula\u00e7\u00f5es."
+  },
+  "final_cta": {
+    "headline": "Quantas gems voc\u00ea vai continuar vendo de fora?",
+    "cta_button": "Criar conta gr\u00e1tis \u2192",
+    "subtext": "Sem cart\u00e3o de cr\u00e9dito. Cancele quando quiser."
   },
   "footer": {
     "disclaimer": "Meme Detector \u00e9 uma ferramenta de an\u00e1lise automatizada. N\u00e3o constitui assessoria financeira. Memecoins s\u00e3o ativos altamente especulativos e voc\u00ea pode perder a totalidade do seu investimento. DYOR.",

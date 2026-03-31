@@ -51,6 +51,7 @@
     "section_title": "Comment nous d\u00e9tectons les gems",
     "section_badge": "La Machine",
     "section_subtitle": "Des donn\u00e9es brutes aux signaux exploitables",
+    "cta_text": "Recevoir les signaux d'aujourd'hui",
     "steps": [
       {
         "title": "DONN\u00c9ES",
@@ -93,7 +94,7 @@
     ]
   },
   "backtesting": {
-    "section_title": "Simulation Estim\u00e9e",
+    "section_title": "Simulateur de Strat\u00e9gie",
     "simulation_badge": "SIMULATION",
     "section_subtitle": "Bas\u00e9e sur les m\u00e9triques du mod\u00e8le (F1 Score : 0.67), pas sur des donn\u00e9es historiques r\u00e9elles.",
     "investment_label": "Investissement initial",
@@ -120,7 +121,9 @@
     "chart_ref_label": "Investissement",
     "tooltip_day": "Jour",
     "transparency_note": "Cette simulation utilise un mod\u00e8le math\u00e9matique bas\u00e9 sur le taux de r\u00e9ussite de 67 % et les rendements moyens observ\u00e9s en validation. Elle ne repr\u00e9sente pas une performance r\u00e9elle pass\u00e9e.",
-    "disclaimer": "AVIS : Simulation estim\u00e9e bas\u00e9e sur les m\u00e9triques du mod\u00e8le v12. Track record v\u00e9rifiable avec donn\u00e9es r\u00e9elles disponible prochainement (nous accumulons des donn\u00e9es depuis mars 2026). Les performances pass\u00e9es ne garantissent pas les r\u00e9sultats futurs.",
+    "track_record_note": "Track record r\u00e9el disponible dans le tableau de bord.",
+    "track_record_link": "Voir l'historique \u2192",
+    "disclaimer": "AVIS : Simulation estim\u00e9e bas\u00e9e sur les m\u00e9triques du mod\u00e8le v21. Track record v\u00e9rifiable avec donn\u00e9es r\u00e9elles disponible prochainement (nous accumulons des donn\u00e9es depuis mars 2026). Les performances pass\u00e9es ne garantissent pas les r\u00e9sultats futurs.",
     "start_label": "D\u00e9but"
   },
   "pricing": {
@@ -204,6 +207,19 @@
         "answer": "Email et Telegram ID (optionnel pour les alertes). Nous ne vendons pas de donn\u00e9es \u00e0 des tiers. Conformit\u00e9 totale avec le RGPD. Vous pouvez demander la suppression de vos donn\u00e9es \u00e0 tout moment. Consultez notre Politique de Confidentialit\u00e9."
       }
     ]
+  },
+  "social_proof": {
+    "stat_signals": "signaux \u00e9mis",
+    "stat_gems": "gems d\u00e9tect\u00e9s",
+    "stat_tokens": "tokens analys\u00e9s",
+    "stat_since": "en production",
+    "stat_since_value": "Mar 2026",
+    "tagline": "Donn\u00e9es r\u00e9elles. Sans simulations."
+  },
+  "final_cta": {
+    "headline": "Combien de gems allez-vous encore regarder depuis les gradins\u00a0?",
+    "cta_button": "Cr\u00e9er un compte gratuit \u2192",
+    "subtext": "Sans carte bancaire. Annulez \u00e0 tout moment."
   },
   "footer": {
     "disclaimer": "Meme Detector est un outil d'analyse automatis\u00e9. Il ne constitue pas un conseil financier. Les memecoins sont des actifs hautement sp\u00e9culatifs et vous pouvez perdre la totalit\u00e9 de votre investissement. DYOR.",

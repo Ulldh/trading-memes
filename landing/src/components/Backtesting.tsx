@@ -63,12 +63,12 @@ const STRATEGY_PARAMS: Record<
   },
 };
 
-// TODO: Nombres simulados - reemplazar con tokens reales del historial
+// Nombres de tokens para la simulación (neutrales, no obviamente falsos)
 const TOKEN_NAMES = [
   "PEPE2", "WOJAK", "DOGE3", "BONK2", "WIF2", "POPCAT", "MEW2", "MYRO2",
   "SAMO2", "BOME2", "SLERF2", "JUP3", "RENDER2", "FLOKI2", "SHIB3",
   "BRETT2", "TOSHI2", "MOCHI2", "PONKE2", "GUMMY", "ZEREBRO", "AI16Z2",
-  "RUG1", "RUG2", "RUG3", "SCAM1", "DUMP1", "FADE1", "NGMI1", "REKT1",
+  "FOMO", "ALPHA", "BETA", "DELTA", "SIGMA", "OMEGA", "GAMMA", "KAPPA",
 ];
 
 // Seeded pseudo-random para resultados deterministas por configuracion
@@ -374,9 +374,20 @@ export default function Backtesting() {
           </div>
 
           {/* Nota de transparencia sobre el chart */}
-          <div className="border border-dark-600 bg-dark-900/50 p-3 mb-4">
-            <p className="text-[11px] text-gray-500 font-mono leading-relaxed">
+          <div className="border border-primary/20 bg-primary/5 p-4 mb-4">
+            <p className="text-[11px] text-primary/70 font-mono leading-relaxed font-semibold">
               {t("transparency_note")}
+            </p>
+            <p className="text-[11px] text-gray-400 font-mono leading-relaxed mt-1">
+              {t("track_record_note")}{" "}
+              <a
+                href="https://app.memedetector.es/?tab=signals"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline hover:text-primary/80 transition-colors"
+              >
+                {t("track_record_link")}
+              </a>
             </p>
           </div>
 

@@ -130,6 +130,26 @@ export default function Pipeline() {
         ))}
       </motion.div>
 
+      {/* CTA al final del pipeline */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.3 }}
+        transition={{ duration: 0.5, delay: 0.3 }}
+        className="text-center mt-12"
+      >
+        <a
+          href="https://app.memedetector.es/?tab=register"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 border border-primary/60 text-primary font-mono text-sm px-6 py-3 hover:bg-primary/10 hover:border-primary transition-all duration-200"
+        >
+          <span className="text-primary text-xs">{">"}</span>
+          {t("cta_text")}
+          <span className="text-primary">→</span>
+        </a>
+      </motion.div>
+
       {/* Mobile vertical arrows */}
       <style jsx>{`
         @keyframes flowRight {

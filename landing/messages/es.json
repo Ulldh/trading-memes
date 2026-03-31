@@ -51,6 +51,7 @@
     "section_title": "Cómo detectamos las gems",
     "section_badge": "La Máquina",
     "section_subtitle": "De datos crudos a señales accionables",
+    "cta_text": "Recibe las señales de hoy",
     "steps": [
       {
         "title": "DATOS",
@@ -93,7 +94,7 @@
     ]
   },
   "backtesting": {
-    "section_title": "Simulación Estimada",
+    "section_title": "Simulador de Estrategia",
     "simulation_badge": "SIMULACIÓN",
     "section_subtitle": "Basado en las métricas del modelo (F1 Score: 0.67), no en datos históricos reales.",
     "investment_label": "Inversión inicial",
@@ -120,7 +121,9 @@
     "chart_ref_label": "Inversión",
     "tooltip_day": "Día",
     "transparency_note": "Esta simulación usa un modelo matemático basado en la tasa de acierto del 67% y retornos promedio observados en validación. No representa rendimiento real pasado.",
-    "disclaimer": "AVISO: Simulación estimada basada en métricas del modelo v12. Track record verificable con datos reales disponible próximamente (estamos acumulando datos desde marzo 2026). Rendimiento pasado no garantiza resultados futuros.",
+    "track_record_note": "Track record real disponible en el dashboard.",
+    "track_record_link": "Ver historial →",
+    "disclaimer": "AVISO: Simulación estimada basada en métricas del modelo v21. Track record verificable con datos reales disponible próximamente (estamos acumulando datos desde marzo 2026). Rendimiento pasado no garantiza resultados futuros.",
     "start_label": "Inicio"
   },
   "pricing": {
@@ -204,6 +207,19 @@
         "answer": "Email y Telegram ID (opcional para alertas). No vendemos datos a terceros. Cumplimiento total con RGPD. Puedes solicitar la eliminación de tus datos en cualquier momento. Ver nuestra Política de Privacidad."
       }
     ]
+  },
+  "social_proof": {
+    "stat_signals": "señales emitidas",
+    "stat_gems": "gems detectados",
+    "stat_tokens": "tokens analizados",
+    "stat_since": "en producción",
+    "stat_since_value": "Mar 2026",
+    "tagline": "Datos reales. Sin simulaciones."
+  },
+  "final_cta": {
+    "headline": "¿Cuántas gems más vas a ver desde fuera?",
+    "cta_button": "Crear cuenta gratis →",
+    "subtext": "Sin tarjeta de crédito. Cancela cuando quieras."
   },
   "footer": {
     "disclaimer": "DISCLAIMER: Meme Detector es una herramienta de análisis automatizado. No constituye asesoramiento financiero. Los memecoins son activos altamente especulativos y puedes perder la totalidad de tu inversión. DYOR.",

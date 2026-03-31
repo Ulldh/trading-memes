@@ -51,6 +51,7 @@
     "section_title": "Wie wir Gems erkennen",
     "section_badge": "Die Maschine",
     "section_subtitle": "Von Rohdaten zu umsetzbaren Signalen",
+    "cta_text": "Heutige Signale erhalten",
     "steps": [
       {
         "title": "DATEN",
@@ -93,7 +94,7 @@
     ]
   },
   "backtesting": {
-    "section_title": "Gesch\u00e4tzte Simulation",
+    "section_title": "Strategie-Simulator",
     "simulation_badge": "SIMULATION",
     "section_subtitle": "Basierend auf den Modellmetriken (F1 Score: 0,67), nicht auf realen historischen Daten.",
     "investment_label": "Anfangsinvestition",
@@ -120,7 +121,9 @@
     "chart_ref_label": "Investition",
     "tooltip_day": "Tag",
     "transparency_note": "Diese Simulation verwendet ein mathematisches Modell, das auf der Trefferquote von 67% und den bei der Validierung beobachteten durchschnittlichen Renditen basiert. Sie stellt keine tats\u00e4chliche vergangene Performance dar.",
-    "disclaimer": "HINWEIS: Gesch\u00e4tzte Simulation basierend auf den Metriken des Modells v12. Nachweisbarer Track Record mit realen Daten demn\u00e4chst verf\u00fcgbar (wir sammeln Daten seit M\u00e4rz 2026). Vergangene Renditen garantieren keine zuk\u00fcnftigen Ergebnisse.",
+    "track_record_note": "Echter Track Record im Dashboard verf\u00fcgbar.",
+    "track_record_link": "Verlauf ansehen \u2192",
+    "disclaimer": "HINWEIS: Gesch\u00e4tzte Simulation basierend auf den Metriken des Modells v21. Nachweisbarer Track Record mit realen Daten demn\u00e4chst verf\u00fcgbar (wir sammeln Daten seit M\u00e4rz 2026). Vergangene Renditen garantieren keine zuk\u00fcnftigen Ergebnisse.",
     "start_label": "Start"
   },
   "pricing": {
@@ -204,6 +207,19 @@
         "answer": "E-Mail und Telegram-ID (optional f\u00fcr Benachrichtigungen). Wir verkaufen keine Daten an Dritte. Vollst\u00e4ndige DSGVO-Konformit\u00e4t. Sie k\u00f6nnen jederzeit die L\u00f6schung Ihrer Daten beantragen. Siehe unsere Datenschutzerkl\u00e4rung."
       }
     ]
+  },
+  "social_proof": {
+    "stat_signals": "Signale ausgegeben",
+    "stat_gems": "Gems erkannt",
+    "stat_tokens": "Tokens analysiert",
+    "stat_since": "in Produktion",
+    "stat_since_value": "M\u00e4rz 2026",
+    "tagline": "Echte Daten. Keine Simulationen."
+  },
+  "final_cta": {
+    "headline": "Wie viele Gems wollen Sie noch von der Seitenlinie aus beobachten?",
+    "cta_button": "Kostenloses Konto erstellen \u2192",
+    "subtext": "Keine Kreditkarte erforderlich. Jederzeit k\u00fcndbar."
   },
   "footer": {
     "disclaimer": "Meme Detector ist ein automatisiertes Analysetool. Es stellt keine Finanzberatung dar. Memecoins sind hochspekulative Verm\u00f6genswerte und Sie k\u00f6nnen Ihre gesamte Investition verlieren. DYOR.",
