@@ -315,17 +315,17 @@ def render():
     if telegram_chat_id:
         st.success(f"Telegram conectado (Chat ID: `{telegram_chat_id}`)")
         st.page_link(
-            "dashboard/public/alerts_config.py",
+            "alerts",
             label="Configurar alertas de Telegram",
             icon=":material/notifications:",
         )
     else:
         st.warning(
             "Telegram no conectado. Conecta tu cuenta de Telegram para "
-            "recibir señales y alertas directamente en tu movil."
+            "recibir señales y alertas directamente en tu móvil."
         )
         st.page_link(
-            "dashboard/public/alerts_config.py",
+            "alerts",
             label="Conectar Telegram",
             icon=":material/link:",
         )
