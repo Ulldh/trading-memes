@@ -29,18 +29,11 @@ def get_storage():
 
 
 def render():
-    """Renderiza la pagina de Overview."""
-    st.title("Overview del Dataset")
+    """Renderiza la pagina de Trading Dashboard."""
+    st.title("Trading Dashboard")
 
     # --- Welcome experience para nuevos usuarios Free ---
     _render_welcome_message()
-
-    st.info(
-        "**¿Qué es esto?** Esta pagina muestra un resumen de todos los datos que hemos "
-        "recopilado sobre memecoins. Piensa en ello como el \"inventario\" de nuestro "
-        "proyecto: cuantos tokens tenemos, de que blockchains vienen, y como estan "
-        "clasificados."
-    )
 
     storage = get_storage()
 
@@ -52,14 +45,9 @@ def render():
     st.divider()
 
     # ------------------------------------------------------------------
-    # 1. Metricas principales (KPIs)
+    # 1. Metricas trader (KPIs relevantes para el usuario)
     # ------------------------------------------------------------------
-    st.subheader("Métricas principales")
-
-    st.caption(
-        "Cada número representa cuantos registros tenemos en la base de datos. "
-        "Mas datos = modelos mas confiables."
-    )
+    st.subheader("Resumen del mercado")
 
     try:
         stats = storage.stats()
@@ -68,51 +56,84 @@ def render():
         st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
         return
 
-    # Mostrar conteos en columnas
+    # Señales activas por tipo
+    try:
+        df_signals = storage.get_scores(min_probability=0.0, scored_today=True)
+        if df_signals.empty:
+            df_signals = storage.get_scores(min_probability=0.0)
+            if not df_signals.empty:
+                df_signals = df_signals.head(200)
+    except Exception:
+        df_signals = pd.DataFrame()
+
+    strong_count = int((df_signals["signal"] == "STRONG").sum()) if not df_signals.empty and "signal" in df_signals.columns else 0
+    medium_count = int((df_signals["signal"] == "MEDIUM").sum()) if not df_signals.empty and "signal" in df_signals.columns else 0
+    weak_count   = int((df_signals["signal"] == "WEAK").sum())   if not df_signals.empty and "signal" in df_signals.columns else 0
+
+    # Tokens nuevos hoy y esta semana
+    try:
+        df_new_today = storage.query(
+            "SELECT COUNT(*) as n FROM tokens "
+            "WHERE first_seen >= CURRENT_DATE - INTERVAL '1 day'"
+        )
+        new_today = int(df_new_today["n"].iloc[0]) if not df_new_today.empty else 0
+    except Exception:
+        new_today = 0
+
+    try:
+        df_new_week = storage.query(
+            "SELECT COUNT(*) as n FROM tokens "
+            "WHERE first_seen >= CURRENT_DATE - INTERVAL '7 days'"
+        )
+        new_week = int(df_new_week["n"].iloc[0]) if not df_new_week.empty else 0
+    except Exception:
+        new_week = 0
+
+    # Gems encontrados total
+    try:
+        df_gems = storage.query(
+            "SELECT COUNT(*) as n FROM labels WHERE label_binary = 1"
+        )
+        gems_total = int(df_gems["n"].iloc[0]) if not df_gems.empty else 0
+    except Exception:
+        gems_total = 0
+
+    # Fila 1: metricas trader
     col1, col2, col3, col4 = st.columns(4)
     col1.metric(
-        "Tokens",
+        "Tokens monitoreados",
         f"{stats.get('tokens', 0):,}",
-        help="Número total de memecoins que estamos rastreando.",
+        help="Memecoins activos en seguimiento diario.",
     )
     col2.metric(
-        "Snapshots",
-        f"{stats.get('pool_snapshots', 0):,}",
-        help="Fotos del estado de cada token (precio, volumen, liquidez) tomadas en un momento dado.",
+        "Señales hoy",
+        f"STRONG: {strong_count}  |  MED: {medium_count}  |  WEAK: {weak_count}",
+        help="Señales activas generadas por el modelo en el ultimo ciclo.",
     )
     col3.metric(
-        "Registros OHLCV",
-        f"{stats.get('ohlcv', 0):,}",
-        help="Velas de precio (Open-High-Low-Close-Volume). Cada vela es un dia de datos de precio.",
+        "Nuevos esta semana",
+        f"{new_week:,}",
+        delta=f"+{new_today} hoy",
+        help="Tokens descubiertos en los ultimos 7 dias.",
     )
     col4.metric(
-        "Labels asignados",
-        f"{stats.get('labels', 0):,}",
-        help="Tokens que ya clasificamos como 'gem', 'failure', etc. Esto es lo que el modelo aprende.",
+        "Gems encontrados",
+        f"{gems_total:,}",
+        help="Tokens confirmados como gems (10x+) en datos historicos.",
     )
 
-    # Fila adicional
-    col5, col6, col7, col8 = st.columns(4)
-    col5.metric(
-        "Holders snapshots",
-        f"{stats.get('holder_snapshots', 0):,}",
-        help="Datos de quienes poseen cada token (los 'holders'). Requiere API key de Helius.",
-    )
-    col6.metric(
-        "Contratos analizados",
-        f"{stats.get('contract_info', 0):,}",
-        help="Tokens cuyo contrato inteligente verificamos (si es seguro, si puede crear mas tokens, etc.).",
-    )
-    col7.metric(
-        "Features calculados",
-        f"{stats.get('features', 0):,}",
-        help="Tokens para los que ya calculamos las 'features' (características numericas que el modelo usa para predecir).",
-    )
-    col8.metric(
-        "Tablas en la DB",
-        len(stats),
-        help="Número de tablas en la base de datos SQLite.",
-    )
+    # Datos tecnicos en expander (para quien quiera verlos)
+    with st.expander("Ver estadisticas tecnicas de la base de datos"):
+        st.caption("Metricas internas del pipeline de datos.")
+        tcol1, tcol2, tcol3, tcol4 = st.columns(4)
+        tcol1.metric("Snapshots", f"{stats.get('pool_snapshots', 0):,}",
+                     help="Fotos del estado de cada token (precio, volumen, liquidez).")
+        tcol2.metric("Registros OHLCV", f"{stats.get('ohlcv', 0):,}",
+                     help="Velas de precio históricas.")
+        tcol3.metric("Features calculados", f"{stats.get('features', 0):,}",
+                     help="Tokens con features ML calculadas.")
+        tcol4.metric("Labels asignados", f"{stats.get('labels', 0):,}",
+                     help="Tokens clasificados en el seed dataset.")
 
     st.divider()
 

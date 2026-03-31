@@ -161,6 +161,34 @@ def _time_since_discovered(first_seen) -> str:
         return "N/A"
 
 
+def _time_since_scored(scored_at) -> str:
+    """Devuelve cadena legible de tiempo transcurrido desde que se calculo el score.
+
+    Ejemplos: 'Hace 2h', 'Hace 18h', 'Hace 3d'
+    """
+    if not scored_at:
+        return ""
+    try:
+        if isinstance(scored_at, str):
+            scored_at = datetime.fromisoformat(scored_at.replace("Z", "+00:00"))
+        if not hasattr(scored_at, "tzinfo") or scored_at.tzinfo is None:
+            scored_at = scored_at.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        delta = now - scored_at
+        total_hours = int(delta.total_seconds() // 3600)
+        days = delta.days
+
+        if days >= 2:
+            return f"Hace {days}d"
+        elif total_hours >= 1:
+            return f"Hace {total_hours}h"
+        else:
+            minutes = int(delta.total_seconds() // 60)
+            return f"Hace {minutes}min" if minutes > 0 else "Ahora"
+    except Exception:
+        return ""
+
+
 def _is_pro_or_admin() -> bool:
     """Verifica si el usuario actual es Pro o Admin."""
     role = st.session_state.get("role", "free")
@@ -354,6 +382,20 @@ def _render_basic_signals_table(df_filtered: pd.DataFrame):
 
         probability = row.get("probability", 0.0)
         signal = row.get("signal", "NONE")
+        scored_at = row.get("scored_at", None)
+        scored_str = _time_since_scored(scored_at)
+        market_cap = row.get("market_cap", None)
+
+        # Formatear market cap
+        if market_cap and market_cap > 0:
+            if market_cap >= 1_000_000:
+                mc_str = f"${market_cap / 1_000_000:.1f}M"
+            elif market_cap >= 1_000:
+                mc_str = f"${market_cap / 1_000:.0f}K"
+            else:
+                mc_str = f"${market_cap:,.0f}"
+        else:
+            mc_str = "N/A"
 
         pool_addr = row.get("pool_address", "")
         if pool_addr and chain:
@@ -366,6 +408,8 @@ def _render_basic_signals_table(df_filtered: pd.DataFrame):
             "Chain": chain_label,
             "Score": probability,
             "Senal": signal,
+            "Market Cap": mc_str,
+            "Actualizado": scored_str,
             "DexScreener": link,
         })
 
@@ -392,6 +436,16 @@ def _render_basic_signals_table(df_filtered: pd.DataFrame):
         "Senal": st.column_config.TextColumn(
             t("pro.col_signal", "Senal"),
             help="STRONG (>80%), MEDIUM (>65%), WEAK (>50%).",
+            width="small",
+        ),
+        "Market Cap": st.column_config.TextColumn(
+            "Market Cap",
+            help="Capitalizacion de mercado del token (ultimo snapshot).",
+            width="small",
+        ),
+        "Actualizado": st.column_config.TextColumn(
+            "Actualizado",
+            help="Tiempo transcurrido desde que se calculo el score.",
             width="small",
         ),
         "DexScreener": st.column_config.LinkColumn(
@@ -424,6 +478,9 @@ def _render_pro_signal_cards(df_filtered: pd.DataFrame):
         signal = row.get("signal", "NONE")
         pool_addr = row.get("pool_address", "")
         first_seen = row.get("first_seen", None)
+        scored_at = row.get("scored_at", None)
+        market_cap = row.get("market_cap", None)
+        fdv = row.get("fdv", None)
 
         # Colores y badges
         icon = _chain_icon(chain)
@@ -431,6 +488,7 @@ def _render_pro_signal_cards(df_filtered: pd.DataFrame):
         conf_color = _confidence_color(probability)
         signal_color = SIGNAL_COLORS.get(signal, "#95a5a6")
         time_str = _time_since_discovered(first_seen)
+        scored_str = _time_since_scored(scored_at)
 
         with st.container():
             # Fila principal: Token + Chain icon + Signal + Confianza
@@ -446,6 +504,17 @@ def _render_pro_signal_cards(df_filtered: pd.DataFrame):
                     f"[{signal}]</span>",
                     unsafe_allow_html=True,
                 )
+                # Market cap badge (si disponible)
+                if market_cap and market_cap > 0:
+                    if market_cap >= 1_000_000:
+                        mc_str = f"MC: ${market_cap / 1_000_000:.1f}M"
+                    elif market_cap >= 1_000:
+                        mc_str = f"MC: ${market_cap / 1_000:.0f}K"
+                    else:
+                        mc_str = f"MC: ${market_cap:,.0f}"
+                    st.caption(mc_str + (f"  •  Actualizado {scored_str}" if scored_str else ""))
+                elif scored_str:
+                    st.caption(f"Actualizado {scored_str}")
 
             with col_score:
                 st.progress(float(probability))

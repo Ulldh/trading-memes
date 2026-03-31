@@ -634,11 +634,23 @@ class SupabaseStorage:
     # ============================================================
 
     def add_to_watchlist(self, token_id: str, chain: str,
-                         notes: str = "", user_id: str = None):
-        """Agrega un token a la watchlist de un usuario."""
+                         notes: str = "", user_id: str = None,
+                         added_price: float = None):
+        """Agrega un token a la watchlist de un usuario.
+
+        Args:
+            token_id: Identificador unico del token.
+            chain: Blockchain del token (solana, ethereum, base).
+            notes: Notas opcionales del usuario.
+            user_id: UUID del usuario autenticado.
+            added_price: Precio en USD en el momento de agregar el token.
+                         Se usa para calcular el % de cambio desde que se agrego.
+        """
         row = {"token_id": token_id, "chain": chain, "notes": notes}
         if user_id:
             row["user_id"] = user_id
+        if added_price is not None:
+            row["added_price"] = float(added_price)
         self._client.table("watchlist").upsert(
             row,
             on_conflict="token_id,user_id",
@@ -661,7 +673,7 @@ class SupabaseStorage:
             user_filter = f"WHERE w.user_id = {safe_uid}"
 
         sql = f"""
-            SELECT w.token_id, w.chain, w.added_at, w.notes,
+            SELECT w.token_id, w.chain, w.added_at, w.notes, w.added_price,
                    t.name, t.symbol,
                    ps.price_usd, ps.volume_24h, ps.liquidity_usd,
                    l.label_multi, l.label_binary
@@ -808,9 +820,17 @@ class SupabaseStorage:
             prob = 0.0
 
         sql = """
-            SELECT s.*, t.name, t.symbol, t.chain, t.pool_address
+            SELECT s.*, t.name, t.symbol, t.chain, t.pool_address,
+                   ps.market_cap, ps.fdv, ps.price_usd
             FROM scores s
             JOIN tokens t ON s.token_id = t.token_id
+            LEFT JOIN LATERAL (
+                SELECT market_cap, fdv, price_usd
+                FROM pool_snapshots
+                WHERE token_id = s.token_id
+                ORDER BY snapshot_time DESC
+                LIMIT 1
+            ) ps ON true
             WHERE s.probability >= ?
         """
 

@@ -629,7 +629,7 @@ def _render_pending_predictions(df_pending: pd.DataFrame):
 def _render_model_highlight_stats():
     """Muestra estadisticas clave del modelo como prueba social.
 
-    Estos datos provienen del analisis del modelo v16 (XGBoost):
+    Estos datos provienen del analisis del modelo v21 (Random Forest):
     - Precision en señales: basado en validacion cruzada
     - Mejora vs aleatorio: basado en lift del modelo
     - AUC-ROC: metrica de discriminación del modelo
@@ -640,7 +640,7 @@ def _render_model_highlight_stats():
 
     st.subheader(":trophy: Rendimiento del modelo")
     st.caption(
-        "Estadisticas verificadas del modelo ML v16 (XGBoost). "
+        "Estadisticas verificadas del modelo ML v21 (Random Forest). "
         "Estos numeros se calculan usando validacion cruzada sobre datos reales."
     )
 
@@ -651,14 +651,14 @@ def _render_model_highlight_stats():
             "<div style='text-align: center; padding: 16px; "
             "border: 1px solid rgba(46, 204, 113, 0.3); border-radius: 8px; "
             "background: rgba(46, 204, 113, 0.05);'>"
-            "<div style='font-size: 2.2em; font-weight: bold; color: #2ecc71;'>83.9%</div>"
-            "<div style='font-size: 0.9em; color: #aaa;'>F1-Score (validacion)</div>"
+            "<div style='font-size: 2.2em; font-weight: bold; color: #2ecc71;'>44.9%</div>"
+            "<div style='font-size: 0.9em; color: #aaa;'>F1-Score (RF)</div>"
             "</div>",
             unsafe_allow_html=True,
         )
         st.caption(
-            "El F1-Score combina precision y cobertura. "
-            "83.9% indica que el modelo es muy fiable detectando gems."
+            "F1-Score del modelo Random Forest v21. "
+            "Medido con validacion cruzada sobre datos reales sin data leakage."
         )
 
     with col2:
@@ -696,12 +696,45 @@ def _render_model_highlight_stats():
             "<div style='text-align: center; padding: 16px; "
             "border: 1px solid rgba(243, 156, 18, 0.3); border-radius: 8px; "
             "background: rgba(243, 156, 18, 0.05);'>"
-            "<div style='font-size: 2.2em; font-weight: bold; color: #f39c12;'>75.4%</div>"
-            "<div style='font-size: 0.9em; color: #aaa;'>Precision (RF)</div>"
+            "<div style='font-size: 2.2em; font-weight: bold; color: #f39c12;'>40%</div>"
+            "<div style='font-size: 0.9em; color: #aaa;'>Precision Top-20</div>"
             "</div>",
             unsafe_allow_html=True,
         )
         st.caption(
-            "El modelo Random Forest alcanza 75.4% de precision: "
-            "3 de cada 4 señales resultan en tokens que suben significativamente."
+            "El modelo detecta gems en 40% de las Top-20 señales: "
+            "2 de cada 5 tokens en el top resultan gems verificados."
+        )
+
+    # Segunda fila: Recall y Features
+    col5, col6, _, _ = st.columns(4)
+
+    with col5:
+        st.markdown(
+            "<div style='text-align: center; padding: 16px; "
+            "border: 1px solid rgba(231, 76, 60, 0.3); border-radius: 8px; "
+            "background: rgba(231, 76, 60, 0.05);'>"
+            "<div style='font-size: 2.2em; font-weight: bold; color: #e74c3c;'>69%</div>"
+            "<div style='font-size: 0.9em; color: #aaa;'>Recall (cobertura)</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        st.caption(
+            "El modelo detecta 69 de cada 100 gems reales. "
+            "Alta cobertura = pocas oportunidades perdidas."
+        )
+
+    with col6:
+        st.markdown(
+            "<div style='text-align: center; padding: 16px; "
+            "border: 1px solid rgba(26, 188, 156, 0.3); border-radius: 8px; "
+            "background: rgba(26, 188, 156, 0.05);'>"
+            "<div style='font-size: 2.2em; font-weight: bold; color: #1abc9c;'>22</div>"
+            "<div style='font-size: 0.9em; color: #aaa;'>Features seleccionadas</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        st.caption(
+            "El modelo usa 22 caracteristicas clave del token "
+            "(liquidez, volumen, holders, momentum, contexto de mercado)."
         )

@@ -560,7 +560,22 @@ def render():
                 if _role != "admin" and len(_current_wl) >= _max_wl:
                     st.error(f"Has alcanzado el limite de {_max_wl} tokens en tu Watchlist. Actualiza a Pro para mas.")
                 else:
-                    storage.add_to_watchlist(contract_address, selected_chain, user_id=_user_id)
+                    # Capturar precio actual para calcular % de cambio despues
+                    _added_price = None
+                    try:
+                        _snap_price = storage.query(
+                            "SELECT price_usd FROM pool_snapshots "
+                            "WHERE token_id = ? ORDER BY snapshot_time DESC LIMIT 1",
+                            (contract_address,),
+                        )
+                        if not _snap_price.empty:
+                            _added_price = _snap_price["price_usd"].iloc[0]
+                    except Exception:
+                        pass
+                    storage.add_to_watchlist(
+                        contract_address, selected_chain,
+                        user_id=_user_id, added_price=_added_price,
+                    )
                     st.toast("Token agregado a tu Watchlist")
                     st.rerun()
 

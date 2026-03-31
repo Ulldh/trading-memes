@@ -120,11 +120,9 @@ def render():
           "**{count} tokens** en tu watchlist").format(count=len(watchlist_df))
     )
 
-    # Cargar scores si es Pro (para mostrar probabilidad del modelo)
-    scores_map = {}
-    if is_pro:
-        token_ids = tuple(watchlist_df["token_id"].tolist())
-        scores_map = _load_scores_for_tokens(token_ids)
+    # Cargar scores para todos los usuarios (Free ve badge de señal, Pro ve probabilidad)
+    token_ids = tuple(watchlist_df["token_id"].tolist())
+    scores_map = _load_scores_for_tokens(token_ids)
 
     # ------------------------------------------------------------------
     # Tabla de watchlist
@@ -138,6 +136,12 @@ def render():
         price = row.get("price_usd")
         volume = row.get("volume_24h")
         liquidity = row.get("liquidity_usd")
+        added_price = row.get("added_price")
+
+        # Calcular % de cambio desde que se agrego a la watchlist
+        pct_change = None
+        if added_price and price and added_price > 0:
+            pct_change = ((price - added_price) / added_price) * 100
 
         # Sanitizar variables antes de interpolar en HTML
         safe_name = escape(str(name))
@@ -164,24 +168,41 @@ def render():
                 col_model = None
 
             with col1:
+                # Badge de señal activa (todos los usuarios ven si hay señal)
+                signal_badge_html = ""
+                score_data = scores_map.get(token_id)
+                if score_data:
+                    sig = score_data.get("signal", "NONE")
+                    if sig in ("STRONG", "MEDIUM", "WEAK"):
+                        from dashboard.constants import SIGNAL_COLORS
+                        sig_color = SIGNAL_COLORS.get(sig, "#95a5a6")
+                        sig_icon = {"STRONG": "🔥", "MEDIUM": "⚡", "WEAK": "📊"}.get(sig, "")
+                        signal_badge_html = (
+                            f" <span style='background:{sig_color}; color:white; "
+                            f"padding:1px 7px; border-radius:10px; font-size:0.78em; "
+                            f"font-weight:bold;' role='status' aria-label='Señal activa: {sig}'>"
+                            f"{sig_icon} {sig}</span>"
+                        )
                 st.markdown(
-                    f"**{safe_name}** ({safe_symbol}){label_html} - {chain.title()}",
+                    f"**{safe_name}** ({safe_symbol}){label_html}{signal_badge_html}"
+                    f" - {chain.title()}",
                     unsafe_allow_html=True,
                 )
                 st.caption(truncate_address(token_id, chars=8))
 
             with col2:
                 if price is not None:
-                    if price < 0.01:
-                        st.metric(
-                            t("pro.wl_price", "Precio"),
-                            f"${price:.8f}",
-                        )
+                    price_str = f"${price:.8f}" if price < 0.01 else f"${price:,.4f}"
+                    if pct_change is not None:
+                        delta_str = f"{pct_change:+.1f}% desde entrada"
                     else:
-                        st.metric(
-                            t("pro.wl_price", "Precio"),
-                            f"${price:,.4f}",
-                        )
+                        delta_str = None
+                    st.metric(
+                        t("pro.wl_price", "Precio"),
+                        price_str,
+                        delta=delta_str,
+                        help="Precio actual. El delta muestra el % de cambio desde que agregaste el token.",
+                    )
                 else:
                     st.metric(t("pro.wl_price", "Precio"), "N/A")
 
@@ -203,7 +224,6 @@ def render():
             # Pro: columna de score del modelo
             if is_pro and col_model is not None:
                 with col_model:
-                    score_data = scores_map.get(token_id)
                     if score_data:
                         prob = score_data.get("probability", 0.0)
                         signal = score_data.get("signal", "NONE")

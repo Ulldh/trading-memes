@@ -125,10 +125,10 @@ def render():
             """
 - Resumen del mercado
 - 3 señales diarias
+- Track Record completo
 - Watchlist basica (3 tokens)
 - ~~Busqueda de tokens~~
 - ~~Alertas Telegram~~
-- ~~Track Record completo~~
             """
         )
         st.markdown("**Gratis**")
