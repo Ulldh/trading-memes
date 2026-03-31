@@ -18,5 +18,11 @@ services:
         value: "true"
       - key: SUPABASE_ANON_KEY
         sync: false
-      - key: DASHBOARD_PASSWORD
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PRICE_ID_PRO
+        sync: false
+      - key: STRIPE_PRICE_ID_ENTERPRISE
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
         sync: false

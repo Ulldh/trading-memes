@@ -8,6 +8,7 @@ Muestra:
 - Estadísticas de espacio en disco
 - Estado de servicios launchd
 """
+import logging
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -18,6 +19,8 @@ import json
 import os
 import platform
 import subprocess
+
+logger = logging.getLogger(__name__)
 
 from src.data.supabase_storage import get_storage as _get_storage
 
@@ -318,8 +321,9 @@ def render_services_logs():
                 last_lines = lines[-50:]  # Ultimas 50 lineas
                 log_text = "".join(last_lines)
                 st.code(log_text, language="log")
-        except Exception as e:
-            st.error(f"Error leyendo log: {e}")
+        except Exception:
+            logger.exception("Error leyendo log %s", log_path)
+            st.error("Error interno. Revisa los logs.")
     else:
         st.info(f"El archivo de log no existe todavia: {log_path}")
 
@@ -365,8 +369,9 @@ def render_disk_space():
         else:
             st.warning("No se pudo parsear el output de df")
 
-    except Exception as e:
-        st.error(f"Error obteniendo espacio en disco: {e}")
+    except Exception:
+        logger.exception("Error obteniendo espacio en disco")
+        st.error("Error interno. Revisa los logs.")
 
     st.divider()
 
@@ -552,8 +557,9 @@ def execute_script(script_name: str, script_path: str):
         st.error(f"⏱️ **{script_name}** excedió el tiempo límite de 10 minutos")
     except FileNotFoundError:
         st.error(f"❌ Script no encontrado: {script_path}")
-    except Exception as e:
-        st.error(f"❌ Error ejecutando {script_name}: {e}")
+    except Exception:
+        logger.exception("Error ejecutando script %s", script_name)
+        st.error("Error interno. Revisa los logs.")
 
 
 # ============================================================

@@ -151,7 +151,7 @@ export default function Stats() {
           <h2 className="text-3xl md:text-5xl font-bold text-white font-mono">
             {t("section_title")}
           </h2>
-          <p className="text-gray-600 text-sm mt-4 font-mono">
+          <p className="text-gray-400 text-sm mt-4 font-mono">
             {t("section_subtitle")}
           </p>
         </motion.div>

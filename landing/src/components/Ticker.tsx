@@ -144,7 +144,7 @@ export function Ticker(): React.JSX.Element {
       </button>
 
       {/* Scrolling ticker */}
-      <div className="py-2.5 pl-28" role="marquee">
+      <div className="py-2.5 pl-28" role="region" aria-label={t("live_label")}>
         <ul className="animate-ticker inline-flex text-xs list-none m-0 p-0" style={{ animationPlayState: paused ? 'paused' : 'running' }}>
           {/* Señales originales */}
           {signals.map((s, i) => (

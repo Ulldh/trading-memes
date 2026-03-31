@@ -89,7 +89,7 @@ export default function Pipeline() {
                 </ul>
 
                 {/* Detail */}
-                <p className="text-xs text-gray-600 font-mono leading-relaxed border-t border-dark-600 pt-3 mt-auto">
+                <p className="text-xs text-gray-400 font-mono leading-relaxed border-t border-dark-600 pt-3 mt-auto">
                   {step.detail}
                 </p>
               </div>

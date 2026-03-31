@@ -8,6 +8,7 @@ Muestra:
 - Reporte de clasificacion completo
 """
 import json
+import logging
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -15,6 +16,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from config import MODELS_DIR
+
+logger = logging.getLogger(__name__)
 
 # Colores para cada modelo
 MODEL_COLORS = {
@@ -32,8 +35,9 @@ def load_evaluation_results():
     try:
         with open(results_path, "r") as f:
             return json.load(f)
-    except Exception as e:
-        st.error(f"Error al cargar resultados: {e}")
+    except Exception:
+        logger.exception("Error al cargar resultados de evaluacion")
+        st.error("Error interno. Revisa los logs.")
         return None
 
 

@@ -10,6 +10,7 @@ Muestra estadisticas clave del proyecto:
 - Frescura de los datos (ultima actualización)
 """
 import logging
+from html import escape
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -291,7 +292,7 @@ def _render_welcome_message():
 
     # Obtener nombre del usuario para personalizar
     user_email = st.session_state.get("user", {}).get("email", "")
-    user_name = user_email.split("@")[0] if user_email else "trader"
+    user_name = escape(user_email.split("@")[0]) if user_email else "trader"
 
     # Mostrar el mensaje de bienvenida como un container destacado
     with st.container():

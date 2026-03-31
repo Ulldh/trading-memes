@@ -239,7 +239,7 @@ def render():
 
             with col5:
                 if st.button(
-                    "X",
+                    f"Eliminar {safe_symbol}",
                     key=f"remove_{token_id}",
                     help=t("pro.wl_remove", "Eliminar de watchlist"),
                 ):

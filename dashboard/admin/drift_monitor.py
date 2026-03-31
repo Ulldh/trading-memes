@@ -11,10 +11,13 @@ Muestra:
 Los reportes se generan automáticamente los lunes a las 08:00 UTC
 via GitHub Actions (check-retrain.yml).
 """
+import logging
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================
@@ -33,8 +36,9 @@ def _load_drift_reports(limit: int = 50) -> pd.DataFrame:
         from src.data.supabase_storage import get_storage
         storage = get_storage()
         return storage.get_drift_reports(limit=limit)
-    except Exception as e:
-        st.error(f"Error al conectar con Supabase: {e}")
+    except Exception:
+        logger.exception("Error al conectar con Supabase en drift_monitor")
+        st.error("Error interno. Revisa los logs.")
         return pd.DataFrame()
 
 

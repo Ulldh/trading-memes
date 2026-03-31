@@ -326,13 +326,13 @@ export default function Backtesting() {
           {/* Key metrics */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-8">
             <div>
-              <p className="text-xs text-gray-600 font-mono uppercase">{t("investment_metric")}</p>
+              <p className="text-xs text-gray-400 font-mono uppercase">{t("investment_metric")}</p>
               <p className="text-lg text-gray-300 font-mono font-bold">
                 ${investment.toLocaleString("es-ES")}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-600 font-mono uppercase">{t("final_value_metric")}</p>
+              <p className="text-xs text-gray-400 font-mono uppercase">{t("final_value_metric")}</p>
               <p
                 className={`text-lg font-mono font-bold ${
                   result.returnPct >= 0 ? "text-primary glow-green" : "text-gem-red glow-red"
@@ -346,27 +346,27 @@ export default function Backtesting() {
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-600 font-mono uppercase">{t("win_rate_metric")}</p>
+              <p className="text-xs text-gray-400 font-mono uppercase">{t("win_rate_metric")}</p>
               <p className="text-lg text-gray-300 font-mono font-bold">
                 {result.winRate}%
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-600 font-mono uppercase">{t("best_trade_metric")}</p>
+              <p className="text-xs text-gray-400 font-mono uppercase">{t("best_trade_metric")}</p>
               <p className="text-sm text-primary font-mono">
                 +{result.bestTrade.pct}%{" "}
-                <span className="text-gray-600">({result.bestTrade.name})</span>
+                <span className="text-gray-400">({result.bestTrade.name})</span>
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-600 font-mono uppercase">{t("worst_trade_metric")}</p>
+              <p className="text-xs text-gray-400 font-mono uppercase">{t("worst_trade_metric")}</p>
               <p className="text-sm text-gem-red font-mono">
                 {result.worstTrade.pct}%{" "}
-                <span className="text-gray-600">({result.worstTrade.name})</span>
+                <span className="text-gray-400">({result.worstTrade.name})</span>
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-600 font-mono uppercase">{t("total_trades_metric")}</p>
+              <p className="text-xs text-gray-400 font-mono uppercase">{t("total_trades_metric")}</p>
               <p className="text-lg text-gray-300 font-mono font-bold">
                 {result.totalTrades}
               </p>

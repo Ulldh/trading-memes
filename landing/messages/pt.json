@@ -166,7 +166,8 @@
         ],
         "cta": "Come\u00e7ar \u2192"
       }
-    ]
+    ],
+    "email_note": "Use o mesmo email da sua conta Meme Detector"
   },
   "faq": {
     "terminal_prompt": "$ man meme-detector",

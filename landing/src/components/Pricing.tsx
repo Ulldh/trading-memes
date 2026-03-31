@@ -125,7 +125,7 @@ export default function Pricing() {
               {/* Nota para planes de pago: usar mismo email */}
               {index > 0 && (
                 <p className="text-xs text-gray-500 text-center mt-3">
-                  Usa el mismo email de tu cuenta Meme Detector
+                  {t("plans.email_note")}
                 </p>
               )}
             </motion.div>

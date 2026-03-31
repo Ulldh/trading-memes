@@ -133,7 +133,7 @@ def render():
         )
         st.markdown("**Gratis**")
         if st.button("Crear cuenta gratuita", key="cta_free", use_container_width=True):
-            st.switch_page("dashboard/public/login.py")
+            st.rerun()
 
     # --- Pro (recomendado) ---------------------------------------------------
     with tier_pro:
@@ -174,7 +174,7 @@ def render():
             else:
                 # No logueado — redirigir a registro
                 if st.button("Empezar con Pro", key="cta_pro", type="primary", use_container_width=True):
-                    st.switch_page("dashboard/public/login.py")
+                    st.rerun()
 
     # --- Enterprise ----------------------------------------------------------
     with tier_enterprise:
@@ -209,7 +209,7 @@ def render():
             )
         else:
             if st.button("Contactar ventas", key="cta_enterprise", use_container_width=True):
-                st.switch_page("dashboard/public/login.py")
+                st.rerun()
 
     st.divider()
 

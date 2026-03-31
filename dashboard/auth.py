@@ -270,7 +270,7 @@ def require_pro():
     require_auth()
     if not is_pro():
         st.warning(t("paywall.requires_pro_generic", "Esta función requiere suscripción Pro."))
-        st.markdown(f"[{t('paywall.subscribe_link', 'Suscribirse →')}](#)")  # TODO: Link a Stripe
+        st.info(t('paywall.subscribe_link', 'Visita la seccion Planes para suscribirte.'))
         st.stop()
 
 

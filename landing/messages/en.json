@@ -166,7 +166,8 @@
         ],
         "cta": "Get started →"
       }
-    ]
+    ],
+    "email_note": "Use the same email as your Meme Detector account"
   },
   "faq": {
     "terminal_prompt": "$ man meme-detector",
