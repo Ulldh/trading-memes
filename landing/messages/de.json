@@ -27,19 +27,19 @@
     "title_line2": "vor allen anderen",
     "subtitle_prefix": "Machine Learning analysiert",
     "subtitle_suffix": "Memecoins t\u00e4glich auf Solana, Ethereum und Base",
-    "stat_features": "Features",
-    "stat_blockchains": "Blockchains",
-    "stat_signals": "UTC t\u00e4gliche Signale",
+    "stat_gems": "Gems erkannt",
+    "stat_hit_rate": "Hit Rate Top-20",
+    "stat_vs_random": "vs. Zufall",
     "cta_signup": "Kostenloses Konto erstellen \u2192",
     "cta_login": "Anmelden",
     "status_label": "STATUS:",
     "status_value": "ONLINE",
     "model_label": "MODELL:",
-    "model_value": "v12",
-    "f1_label": "F1:",
-    "f1_value": "0.726",
-    "precision_label": "PRECISION:",
-    "precision_value": "72.6%",
+    "model_value": "v21",
+    "f1_label": "AUC:",
+    "f1_value": "0.914",
+    "precision_label": "RECALL:",
+    "precision_value": "69%",
     "disclaimer_text": "Datenanalyse-Tool. Keine Finanzberatung.",
     "disclaimer_link": "Vollst\u00e4ndigen Haftungsausschluss lesen"
   },
@@ -48,7 +48,8 @@
     "live_label": "LIVE"
   },
   "pipeline": {
-    "section_title": "Die Maschine",
+    "section_title": "Wie wir Gems erkennen",
+    "section_badge": "Die Maschine",
     "section_subtitle": "Von Rohdaten zu umsetzbaren Signalen",
     "steps": [
       {
@@ -79,7 +80,7 @@
   },
   "stats": {
     "section_title": "Zahlen, die sprechen",
-    "section_subtitle": "Aktualisierte Daten der Pipeline v12",
+    "section_subtitle": "Aktualisierte Daten der Pipeline v21",
     "items": [
       { "label": "analysierte Tokens" },
       { "label": "OHLCV-Kerzen" },
@@ -167,7 +168,8 @@
         "cta": "Jetzt starten \u2192"
       }
     ],
-    "email_note": "Verwenden Sie dieselbe E-Mail wie Ihr Meme Detector Konto"
+    "email_note": "Verwenden Sie dieselbe E-Mail wie Ihr Meme Detector Konto",
+    "pro_anchor": "Weniger als eine schlechte Trade-Geb\u00fchr"
   },
   "faq": {
     "terminal_prompt": "$ man meme-detector",
@@ -178,24 +180,24 @@
         "answer": "Ein Token, der 10x oder mehr gegen\u00fcber seinem Anfangspreis steigt. Unser Modell klassifiziert Tokens in 5 Kategorien: Rug (Totalverlust), Loss (>50% R\u00fcckgang), Neutral, Winner (2-10x) und Gem (10x+)."
       },
       {
+        "question": "Warum ist es nicht kostenlos?",
+        "answer": "Kostenlose Telegram-Bots nutzen volumen- oder erw\u00e4hnungsbasierte Signale. Unser Modell analysiert 22 Variablen pro Token, darunter Holder-Konzentration, Liquidit\u00e4tstiefe und Momentum. Genau das ist der Grund, warum 40% unserer STRONG-Signale echte Gems sind."
+      },
+      {
         "question": "Wie funktioniert das ML-Modell?",
-        "answer": "Ensemble aus Random Forest + XGBoost + LightGBM. Trainiert mit 94 Features, extrahiert aus \u00fcber 5.000 Tokens. Aktuelle Metriken: F1 Score 0,667, Precision 0,726. Das Modell analysiert Tokenomics, Liquidit\u00e4t, Price Action, Holder-Konzentration und Marktkontext."
+        "answer": "Ensemble aus Random Forest + XGBoost. Trainiert mit 22 Features, extrahiert aus \u00fcber 7.900 Tokens. Aktuelle Metriken: AUC 0,914, Recall 69%. Das Modell analysiert Tokenomics, Liquidit\u00e4t, Price Action, Holder-Konzentration und Marktkontext."
       },
       {
         "question": "Welche Blockchains werden unterst\u00fctzt?",
         "answer": "Solana, Ethereum und Base. Daten werden von GeckoTerminal (Preis/Volumen), DexScreener (K\u00e4ufer/Verk\u00e4ufer), Helius RPC (Solana-Holder), Etherscan (Vertragsverifizierung) und Birdeye (erg\u00e4nzende Daten) erfasst."
       },
       {
-        "question": "Wie h\u00e4ufig werden die Signale aktualisiert?",
-        "answer": "T\u00e4gliche Datenerfassung um 06:00 UTC. Scoring um 07:30 UTC. Das Modell wird w\u00f6chentlich mit automatischer Drift-Erkennung neu trainiert \u2014 wenn sich die Datenverteilung signifikant \u00e4ndert, wird ein vorzeitiges Retraining ausgel\u00f6st."
+        "question": "Kann ich jederzeit k\u00fcndigen?",
+        "answer": "Ja. Keine Mindestlaufzeit und keine Verpflichtung. K\u00fcndigen Sie \u00fcber Ihr Profil oder direkt \u00fcber das Stripe-Portal. Ihr Zugang bleibt bis zum Ende des abgerechneten Zeitraums bestehen."
       },
       {
         "question": "Kann ich Geld verlieren?",
-        "answer": "Ja. Memecoins sind extrem volatil. Unser Modell liegt in ca. 67% der F\u00e4lle richtig. Die restlichen 33% sind Verluste. Dies ist KEINE Finanzberatung. DYOR (Do Your Own Research). Investieren Sie niemals mehr, als Sie sich leisten k\u00f6nnen zu verlieren."
-      },
-      {
-        "question": "Kann ich jederzeit k\u00fcndigen?",
-        "answer": "Ja. Keine Mindestlaufzeit und keine Verpflichtung. K\u00fcndigen Sie \u00fcber Ihr Profil oder direkt \u00fcber das Stripe-Portal. Ihr Zugang bleibt bis zum Ende des abgerechneten Zeitraums bestehen."
+        "answer": "Ja. Memecoins sind extrem volatil. Unser Modell hat einen Recall von 69% \u2014 es erkennt die meisten echten Gems, aber nicht jedes Signal wird zum Gem. Dies ist KEINE Finanzberatung. DYOR (Do Your Own Research). Investieren Sie niemals mehr, als Sie sich leisten k\u00f6nnen zu verlieren."
       },
       {
         "question": "Welche Daten erfassen Sie?",

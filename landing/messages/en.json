@@ -27,19 +27,19 @@
     "title_line2": "before anyone else",
     "subtitle_prefix": "Machine Learning scans",
     "subtitle_suffix": "memecoins daily across Solana, Ethereum, and Base",
-    "stat_features": "features",
-    "stat_blockchains": "blockchains",
-    "stat_signals": "UTC daily signals",
+    "stat_gems": "gems detected",
+    "stat_hit_rate": "hit rate Top-20",
+    "stat_vs_random": "vs random",
     "cta_signup": "Create free account →",
     "cta_login": "Log in",
     "status_label": "STATUS:",
     "status_value": "ONLINE",
     "model_label": "MODEL:",
-    "model_value": "v12",
-    "f1_label": "F1:",
-    "f1_value": "0.726",
-    "precision_label": "PRECISION:",
-    "precision_value": "72.6%",
+    "model_value": "v21",
+    "f1_label": "AUC:",
+    "f1_value": "0.914",
+    "precision_label": "RECALL:",
+    "precision_value": "69%",
     "disclaimer_text": "Data analysis tool. Not financial advice.",
     "disclaimer_link": "Read full disclaimer"
   },
@@ -48,7 +48,8 @@
     "live_label": "LIVE"
   },
   "pipeline": {
-    "section_title": "The Machine",
+    "section_title": "How we detect gems",
+    "section_badge": "The Machine",
     "section_subtitle": "From raw data to actionable signals",
     "steps": [
       {
@@ -79,7 +80,7 @@
   },
   "stats": {
     "section_title": "Numbers that speak",
-    "section_subtitle": "Up-to-date data from pipeline v12",
+    "section_subtitle": "Up-to-date data from pipeline v21",
     "items": [
       { "label": "tokens analyzed" },
       { "label": "OHLCV candles" },
@@ -167,7 +168,8 @@
         "cta": "Get started →"
       }
     ],
-    "email_note": "Use the same email as your Meme Detector account"
+    "email_note": "Use the same email as your Meme Detector account",
+    "pro_anchor": "Less than one bad trade commission"
   },
   "faq": {
     "terminal_prompt": "$ man meme-detector",
@@ -178,24 +180,24 @@
         "answer": "A token that rises 10x or more from its initial price. Our model classifies tokens into 5 categories: rug (total loss), loss (>50% drop), neutral, winner (2-10x), and gem (10x+)."
       },
       {
+        "question": "Why isn't it free?",
+        "answer": "Free Telegram bots use volume or mentions-based alerts. Our model analyzes 22 variables per token including holder concentration, liquidity depth, and momentum. That difference is why 40% of our STRONG signals are real gems."
+      },
+      {
         "question": "How does the ML model work?",
-        "answer": "An ensemble of Random Forest + XGBoost + LightGBM. Trained on 94 features extracted from 5,000+ tokens. Current metrics: F1 Score 0.667, Precision 0.726. The model analyzes tokenomics, liquidity, price action, holder concentration, and market context."
+        "answer": "An ensemble of Random Forest + XGBoost. Trained on 22 features extracted from 7,900+ tokens. Current metrics: AUC 0.914, Recall 69%. The model analyzes tokenomics, liquidity, price action, holder concentration, and market context."
       },
       {
         "question": "Which blockchains do you support?",
         "answer": "Solana, Ethereum, and Base. Data collected from GeckoTerminal (price/volume), DexScreener (buyers/sellers), Helius RPC (Solana holders), Etherscan (contract verification), and Birdeye (supplementary data)."
       },
       {
-        "question": "How often are signals updated?",
-        "answer": "Daily data collection at 06:00 UTC. Scoring at 07:30 UTC. The model retrains weekly with automatic drift detection — if the data distribution changes significantly, an early retrain is triggered."
+        "question": "Can I cancel anytime?",
+        "answer": "Yes. No lock-in or commitment. Cancel from your profile or directly through the Stripe portal. Your access continues until the end of the billing period."
       },
       {
         "question": "Can I lose money?",
-        "answer": "Yes. Memecoins are extremely volatile. Our model is right about 67% of the time. The remaining 33% are losses. This is NOT financial advice. DYOR (Do Your Own Research). Never invest more than you can afford to lose."
-      },
-      {
-        "question": "Can I cancel anytime?",
-        "answer": "Yes. No lock-in or commitment. Cancel from your profile or directly through the Stripe portal. Your access continues until the end of the billing period."
+        "answer": "Yes. Memecoins are extremely volatile. Our model has a Recall of 69% — it catches most real gems, but not every signal becomes a gem. This is NOT financial advice. DYOR (Do Your Own Research). Never invest more than you can afford to lose."
       },
       {
         "question": "What data do you collect?",

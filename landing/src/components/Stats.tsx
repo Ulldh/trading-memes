@@ -91,12 +91,12 @@ function StatCard({ item, index }: { item: StatItem; index: number }) {
   );
 }
 
-// Valores por defecto (actualizados 2026-03-29)
+// Valores por defecto (actualizados 2026-03-31)
 const DEFAULT_STATS: StatsData = {
-  tokens: 5748,
-  ohlcv: 134900,
-  scores: 1389,
-  gems: 140,
+  tokens: 7931,
+  ohlcv: 135000,
+  scores: 3121,
+  gems: 174,
 };
 
 export default function Stats() {
@@ -119,8 +119,8 @@ export default function Stats() {
   const statsData: StatItem[] = [
     { value: stats.tokens, label: t("items.0.label") },
     { value: stats.ohlcv, label: t("items.1.label") },
-    { value: 94, label: t("items.2.label") },
-    { value: 67, suffix: "%", label: t("items.3.label") },
+    { value: 22, label: t("items.2.label") },
+    { value: 40, suffix: "%", label: t("items.3.label") },
     { value: 3, label: t("items.4.label") },
     { value: 7.3, label: t("items.5.label"), decimals: 1 },
     { value: 15, prefix: "<", suffix: "s", label: t("items.6.label") },

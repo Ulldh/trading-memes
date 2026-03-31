@@ -16,7 +16,6 @@ export default function Navbar() {
     { label: t("pricing"), href: "/#pricing" },
     { label: t("faq"), href: "/#faq" },
     { label: t("academy"), href: "/academia" },
-    { label: t("disclaimer"), href: "/disclaimer" },
   ];
 
   useEffect(() => {

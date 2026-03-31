@@ -27,19 +27,19 @@
     "title_line2": "antes de todo mundo",
     "subtitle_prefix": "Machine Learning analisa",
     "subtitle_suffix": "memecoins diariamente em Solana, Ethereum e Base",
-    "stat_features": "features",
-    "stat_blockchains": "blockchains",
-    "stat_signals": "UTC sinais di\u00e1rios",
+    "stat_gems": "gems detectados",
+    "stat_hit_rate": "hit rate Top-20",
+    "stat_vs_random": "vs aleat\u00f3rio",
     "cta_signup": "Criar conta gr\u00e1tis \u2192",
     "cta_login": "Entrar",
     "status_label": "STATUS:",
     "status_value": "ONLINE",
     "model_label": "MODELO:",
-    "model_value": "v12",
-    "f1_label": "F1:",
-    "f1_value": "0.726",
-    "precision_label": "PRECIS\u00c3O:",
-    "precision_value": "72.6%",
+    "model_value": "v21",
+    "f1_label": "AUC:",
+    "f1_value": "0.914",
+    "precision_label": "RECALL:",
+    "precision_value": "69%",
     "disclaimer_text": "Ferramenta de an\u00e1lise de dados. N\u00e3o \u00e9 assessoria financeira.",
     "disclaimer_link": "Ver aviso legal completo"
   },
@@ -48,7 +48,8 @@
     "live_label": "LIVE"
   },
   "pipeline": {
-    "section_title": "A M\u00e1quina",
+    "section_title": "Como detectamos as gems",
+    "section_badge": "A M\u00e1quina",
     "section_subtitle": "De dados brutos a sinais acion\u00e1veis",
     "steps": [
       {
@@ -79,7 +80,7 @@
   },
   "stats": {
     "section_title": "N\u00fameros que falam",
-    "section_subtitle": "Dados atualizados do pipeline v12",
+    "section_subtitle": "Dados atualizados do pipeline v21",
     "items": [
       { "label": "tokens analisados" },
       { "label": "candles OHLCV" },
@@ -167,7 +168,8 @@
         "cta": "Come\u00e7ar \u2192"
       }
     ],
-    "email_note": "Use o mesmo email da sua conta Meme Detector"
+    "email_note": "Use o mesmo email da sua conta Meme Detector",
+    "pro_anchor": "Menos que uma comiss\u00e3o de um trade ruim"
   },
   "faq": {
     "terminal_prompt": "$ man meme-detector",
@@ -178,24 +180,24 @@
         "answer": "Um token que sobe 10x ou mais desde o pre\u00e7o inicial. Nosso modelo classifica tokens em 5 categorias: rug (perda total), loss (>50% de queda), neutral, winner (2-10x) e gem (10x+)."
       },
       {
+        "question": "Por que n\u00e3o \u00e9 gr\u00e1tis?",
+        "answer": "Bots de Telegram gratuitos usam alertas baseados em volume ou men\u00e7\u00f5es. Nosso modelo analisa 22 vari\u00e1veis por token, incluindo concentra\u00e7\u00e3o de holders, profundidade de liquidez e momentum. Essa diferen\u00e7a \u00e9 a raz\u00e3o pela qual 40% dos nossos sinais STRONG s\u00e3o gems reais."
+      },
+      {
         "question": "Como funciona o modelo de ML?",
-        "answer": "Ensemble de Random Forest + XGBoost + LightGBM. Treinado com 94 features extra\u00eddas de mais de 5.000 tokens. M\u00e9tricas atuais: F1 Score 0,667, Precision 0,726. O modelo analisa tokenomics, liquidez, price action, concentra\u00e7\u00e3o de holders e contexto de mercado."
+        "answer": "Ensemble de Random Forest + XGBoost. Treinado com 22 features extra\u00eddas de mais de 7.900 tokens. M\u00e9tricas atuais: AUC 0,914, Recall 69%. O modelo analisa tokenomics, liquidez, price action, concentra\u00e7\u00e3o de holders e contexto de mercado."
       },
       {
         "question": "Quais blockchains s\u00e3o suportadas?",
         "answer": "Solana, Ethereum e Base. Dados coletados do GeckoTerminal (pre\u00e7o/volume), DexScreener (buyers/sellers), Helius RPC (holders Solana), Etherscan (verifica\u00e7\u00e3o de contratos) e Birdeye (dados complementares)."
       },
       {
-        "question": "Com que frequ\u00eancia os sinais s\u00e3o atualizados?",
-        "answer": "Coleta di\u00e1ria \u00e0s 06:00 UTC. Scoring \u00e0s 07:30 UTC. O modelo \u00e9 retreinado semanalmente com detec\u00e7\u00e3o autom\u00e1tica de drift \u2014 se a distribui\u00e7\u00e3o dos dados muda significativamente, um retrain antecipado \u00e9 acionado."
+        "question": "Posso cancelar a qualquer momento?",
+        "answer": "Sim. Sem perman\u00eancia nem compromisso. Cancele pelo seu perfil ou diretamente pelo portal do Stripe. Seu acesso continua at\u00e9 o final do per\u00edodo faturado."
       },
       {
         "question": "Posso perder dinheiro?",
-        "answer": "Sim. Memecoins s\u00e3o extremamente vol\u00e1teis. Nosso modelo acerta ~67% das vezes. Os 33% restantes s\u00e3o perdas. Isto N\u00c3O \u00e9 conselho financeiro. DYOR (Do Your Own Research). Nunca invista mais do que pode se dar ao luxo de perder."
-      },
-      {
-        "question": "Posso cancelar a qualquer momento?",
-        "answer": "Sim. Sem perman\u00eancia nem compromisso. Cancele pelo seu perfil ou diretamente pelo portal do Stripe. Seu acesso continua at\u00e9 o final do per\u00edodo faturado."
+        "answer": "Sim. Memecoins s\u00e3o extremamente vol\u00e1teis. Nosso modelo tem um Recall de 69% \u2014 detecta a maioria das gems reais, mas nem todo sinal vira uma gem. Isto N\u00c3O \u00e9 conselho financeiro. DYOR (Do Your Own Research). Nunca invista mais do que pode se dar ao luxo de perder."
       },
       {
         "question": "Quais dados voc\u00eas coletam?",

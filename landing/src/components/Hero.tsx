@@ -92,16 +92,16 @@ export default function Hero() {
           className="flex flex-wrap justify-center gap-8 mb-12 text-sm"
         >
           <div className="border border-dark-600 px-5 py-3">
-            <span className="text-primary font-bold text-lg">94</span>
-            <span className="text-gray-500 ml-2">{t("stat_features")}</span>
+            <span className="text-primary font-bold text-lg">174</span>
+            <span className="text-gray-500 ml-2">{t("stat_gems")}</span>
           </div>
           <div className="border border-dark-600 px-5 py-3">
-            <span className="text-primary font-bold text-lg">3</span>
-            <span className="text-gray-500 ml-2">{t("stat_blockchains")}</span>
+            <span className="text-primary font-bold text-lg">40%</span>
+            <span className="text-gray-500 ml-2">{t("stat_hit_rate")}</span>
           </div>
           <div className="border border-dark-600 px-5 py-3">
-            <span className="text-primary font-bold text-lg">07:30</span>
-            <span className="text-gray-500 ml-2">{t("stat_signals")}</span>
+            <span className="text-primary font-bold text-lg">7.3x</span>
+            <span className="text-gray-500 ml-2">{t("stat_vs_random")}</span>
           </div>
         </motion.div>
 

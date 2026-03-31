@@ -86,6 +86,11 @@ export default function Pricing() {
                   {plan.price}
                 </span>
                 <span className="text-gray-500 text-sm">{plan.period}</span>
+                {plan.highlighted && (
+                  <p className="text-xs text-primary/70 mt-2 font-mono">
+                    {t("pro_anchor")}
+                  </p>
+                )}
               </div>
 
               {/* Features */}

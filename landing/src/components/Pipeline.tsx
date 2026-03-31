@@ -43,7 +43,10 @@ export default function Pipeline() {
         transition={{ duration: 0.5 }}
         className="text-center mb-16"
       >
-        <h2 className="text-3xl md:text-5xl font-bold text-primary glow-green font-mono">
+        <p className="text-xs text-primary font-mono tracking-widest uppercase mb-3">
+          {t("section_badge")}
+        </p>
+        <h2 className="text-3xl md:text-5xl font-bold text-white font-mono">
           {t("section_title")}
           <span className="inline-block w-[2px] h-[1em] bg-primary ml-2 animate-pulse align-middle" />
         </h2>

@@ -27,19 +27,19 @@
     "title_line2": "avant tout le monde",
     "subtitle_prefix": "Le Machine Learning analyse",
     "subtitle_suffix": "memecoins quotidiennement sur Solana, Ethereum et Base",
-    "stat_features": "features",
-    "stat_blockchains": "blockchains",
-    "stat_signals": "UTC signaux quotidiens",
+    "stat_gems": "gems d\u00e9tect\u00e9s",
+    "stat_hit_rate": "hit rate Top-20",
+    "stat_vs_random": "vs al\u00e9atoire",
     "cta_signup": "Cr\u00e9er un compte gratuit \u2192",
     "cta_login": "Se connecter",
     "status_label": "STATUS:",
     "status_value": "ONLINE",
     "model_label": "MOD\u00c8LE:",
-    "model_value": "v12",
-    "f1_label": "F1:",
-    "f1_value": "0.726",
-    "precision_label": "PR\u00c9CISION:",
-    "precision_value": "72.6%",
+    "model_value": "v21",
+    "f1_label": "AUC:",
+    "f1_value": "0.914",
+    "precision_label": "RECALL:",
+    "precision_value": "69%",
     "disclaimer_text": "Outil d'analyse de donn\u00e9es. Il ne s'agit pas de conseils financiers.",
     "disclaimer_link": "Voir l'avertissement complet"
   },
@@ -48,7 +48,8 @@
     "live_label": "LIVE"
   },
   "pipeline": {
-    "section_title": "La Machine",
+    "section_title": "Comment nous d\u00e9tectons les gems",
+    "section_badge": "La Machine",
     "section_subtitle": "Des donn\u00e9es brutes aux signaux exploitables",
     "steps": [
       {
@@ -79,7 +80,7 @@
   },
   "stats": {
     "section_title": "Des chiffres qui parlent",
-    "section_subtitle": "Donn\u00e9es actualis\u00e9es du pipeline v12",
+    "section_subtitle": "Donn\u00e9es actualis\u00e9es du pipeline v21",
     "items": [
       { "label": "tokens analys\u00e9s" },
       { "label": "candles OHLCV" },
@@ -167,7 +168,8 @@
         "cta": "Commencer \u2192"
       }
     ],
-    "email_note": "Utilisez le m\u00eame email que votre compte Meme Detector"
+    "email_note": "Utilisez le m\u00eame email que votre compte Meme Detector",
+    "pro_anchor": "Moins qu'une commission d'un mauvais trade"
   },
   "faq": {
     "terminal_prompt": "$ man meme-detector",
@@ -178,24 +180,24 @@
         "answer": "Un token qui monte de 10x ou plus par rapport \u00e0 son prix initial. Notre mod\u00e8le classe les tokens en 5 cat\u00e9gories : rug (perte totale), loss (baisse de >50 %), neutral, winner (2-10x) et gem (10x+)."
       },
       {
+        "question": "Pourquoi ce n'est pas gratuit ?",
+        "answer": "Les bots Telegram gratuits utilisent des alertes bas\u00e9es sur le volume ou les mentions. Notre mod\u00e8le analyse 22 variables par token, dont la concentration des holders, la profondeur de liquidit\u00e9 et le momentum. C'est cette diff\u00e9rence qui explique pourquoi 40 % de nos signaux STRONG sont de vraies gems."
+      },
+      {
         "question": "Comment fonctionne le mod\u00e8le ML ?",
-        "answer": "Ensemble de Random Forest + XGBoost + LightGBM. Entra\u00een\u00e9 avec 94 features extraites de plus de 5 000 tokens. M\u00e9triques actuelles : F1 Score 0.667, Precision 0.726. Le mod\u00e8le analyse la tokenomics, la liquidit\u00e9, le price action, la concentration des holders et le contexte du march\u00e9."
+        "answer": "Ensemble de Random Forest + XGBoost. Entra\u00een\u00e9 avec 22 features extraites de plus de 7 900 tokens. M\u00e9triques actuelles : AUC 0.914, Recall 69 %. Le mod\u00e8le analyse la tokenomics, la liquidit\u00e9, le price action, la concentration des holders et le contexte du march\u00e9."
       },
       {
         "question": "Quelles blockchains sont prises en charge ?",
         "answer": "Solana, Ethereum et Base. Les donn\u00e9es sont collect\u00e9es via GeckoTerminal (prix/volume), DexScreener (acheteurs/vendeurs), Helius RPC (holders Solana), Etherscan (v\u00e9rification de contrats) et Birdeye (donn\u00e9es compl\u00e9mentaires)."
       },
       {
-        "question": "\u00c0 quelle fr\u00e9quence les signaux sont-ils mis \u00e0 jour ?",
-        "answer": "Collecte quotidienne \u00e0 06:00 UTC. Scoring \u00e0 07:30 UTC. Le mod\u00e8le est r\u00e9-entra\u00een\u00e9 chaque semaine avec d\u00e9tection automatique de drift \u2014 si la distribution des donn\u00e9es change significativement, un r\u00e9-entra\u00eenement anticip\u00e9 est d\u00e9clench\u00e9."
+        "question": "Puis-je annuler \u00e0 tout moment ?",
+        "answer": "Oui. Sans engagement ni dur\u00e9e minimale. Annulez depuis votre profil ou directement via le portail Stripe. Votre acc\u00e8s continue jusqu'\u00e0 la fin de la p\u00e9riode factur\u00e9e."
       },
       {
         "question": "Puis-je perdre de l'argent ?",
-        "answer": "Oui. Les memecoins sont extr\u00eamement volatils. Notre mod\u00e8le a un taux de r\u00e9ussite d'environ 67 %. Les 33 % restants sont des pertes. Ceci n'est PAS un conseil financier. DYOR (Do Your Own Research). N'investissez jamais plus que ce que vous pouvez vous permettre de perdre."
-      },
-      {
-        "question": "Puis-je annuler \u00e0 tout moment ?",
-        "answer": "Oui. Sans engagement ni dur\u00e9e minimale. Annulez depuis votre profil ou directement via le portail Stripe. Votre acc\u00e8s continue jusqu'\u00e0 la fin de la p\u00e9riode factur\u00e9e."
+        "answer": "Oui. Les memecoins sont extr\u00eamement volatils. Notre mod\u00e8le a un Recall de 69 % \u2014 il d\u00e9tecte la plupart des vraies gems, mais tous les signaux ne deviennent pas des gems. Ceci n'est PAS un conseil financier. DYOR (Do Your Own Research). N'investissez jamais plus que ce que vous pouvez vous permettre de perdre."
       },
       {
         "question": "Quelles donn\u00e9es collectez-vous ?",
