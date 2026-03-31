@@ -77,12 +77,12 @@ export default function Footer() {
             </a>
             <span className="text-gray-500">&middot;</span>
             <a
-              href="https://t.me/Ull_trading_bot"
+              href="https://t.me/memedetector_es"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-primary transition-colors duration-200"
             >
-              {t("telegram_label")}
+              Telegram
             </a>
           </div>
         </motion.div>

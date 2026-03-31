@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
 
@@ -21,6 +22,43 @@ const sections = [
 ];
 
 export default function AcademiaPage() {
+  const [activeSection, setActiveSection] = useState<string>("");
+
+  /* IntersectionObserver: detecta la seccion visible al hacer scroll */
+  useEffect(() => {
+    const observers: IntersectionObserver[] = [];
+    const visibleSections = new Map<string, number>();
+
+    sections.forEach((s) => {
+      const el = document.getElementById(s.id);
+      if (!el) return;
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              visibleSections.set(s.id, entry.intersectionRatio);
+            } else {
+              visibleSections.delete(s.id);
+            }
+
+            /* De las secciones visibles, activar la que aparece primero en el DOM */
+            if (visibleSections.size > 0) {
+              const first = sections.find((sec) => visibleSections.has(sec.id));
+              if (first) setActiveSection(first.id);
+            }
+          });
+        },
+        { rootMargin: "-120px 0px -40% 0px", threshold: [0, 0.1, 0.3] }
+      );
+
+      observer.observe(el);
+      observers.push(observer);
+    });
+
+    return () => observers.forEach((o) => o.disconnect());
+  }, []);
+
   return (
     <main className="min-h-screen bg-dark-900">
       {/* Header fijo */}
@@ -44,7 +82,11 @@ export default function AcademiaPage() {
                 <a
                   key={s.id}
                   href={`#${s.id}`}
-                  className="text-xs text-gray-400 hover:text-primary transition-colors uppercase tracking-wider border border-dark-600 px-2 py-1 hover:border-primary/50"
+                  className={`text-xs uppercase tracking-wider border px-2 py-1 transition-all duration-300 ${
+                    activeSection === s.id
+                      ? "text-primary border-primary/60 bg-primary/10 shadow-[0_0_8px_rgba(0,212,170,0.3),0_0_16px_rgba(0,212,170,0.15)]"
+                      : "text-gray-400 border-dark-600 hover:text-primary hover:border-primary/50"
+                  }`}
                 >
                   {s.label}
                 </a>
@@ -87,9 +129,9 @@ export default function AcademiaPage() {
               <div className="border border-dark-600 bg-dark-800/50 p-5">
                 <h3 className="text-white font-semibold text-base mb-3">Blockchain = Libro contable público</h3>
                 <p>
-                  La <strong className="text-primary">blockchain</strong> es la tecnología detras de las criptomonedas.
+                  La <strong className="text-primary">blockchain</strong> es la tecnología detrás de las criptomonedas.
                   Piensa en ella como un <strong>libro contable gigante</strong> donde se registran todas las
-                  transacciones, y ese libro esta copiado en miles de ordenadores al mismo tiempo.
+                  transacciones, y ese libro está copiado en miles de ordenadores al mismo tiempo.
                 </p>
                 <p className="mt-3">
                   Cada &quot;página&quot; del libro se llama <strong>bloque</strong>, y cada bloque está
@@ -230,11 +272,11 @@ export default function AcademiaPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="border border-dark-600 p-3">
                     <p className="text-primary font-semibold mb-1">CEX (Exchange Centralizado)</p>
-                    <p>Plataformas como Binance, Coinbase o Kraken. Tu depositas tu dinero y ellos lo custodian. Facil de usar, pero tienes que confiar en la empresa.</p>
+                    <p>Plataformas como Binance, Coinbase o Kraken. Tú depositas tu dinero y ellos lo custodian. Fácil de usar, pero tienes que confiar en la empresa.</p>
                   </div>
                   <div className="border border-dark-600 p-3">
                     <p className="text-primary font-semibold mb-1">DEX (Exchange Descentralizado)</p>
-                    <p>Plataformas como Jupiter (Solana) o Uniswap (Ethereum). Conectas tu wallet directamente. Tu controlas tus fondos siempre. Aqui se compran los memecoins.</p>
+                    <p>Plataformas como Jupiter (Solana) o Uniswap (Ethereum). Conectas tu wallet directamente. Tú controlas tus fondos siempre. Aquí se compran los memecoins.</p>
                   </div>
                 </div>
               </div>
@@ -334,7 +376,7 @@ export default function AcademiaPage() {
                   </div>
                   <div className="border border-primary/30 p-4 text-center">
                     <p className="text-primary text-4xl font-bold">1%</p>
-                    <p className="text-gray-400 mt-2">puede hacer 10x, 100x o mas</p>
+                    <p className="text-gray-400 mt-2">puede hacer 10x, 100x o más</p>
                   </div>
                 </div>
               </div>
@@ -352,11 +394,11 @@ export default function AcademiaPage() {
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-primary font-mono shrink-0">[3]</span>
-                    <span><strong className="text-white">Diversifica.</strong> Es mejor tener 20 posiciones pequenas que 1 posicion grande. Si 19 van a cero y 1 hace 100x, sales ganando.</span>
+                    <span><strong className="text-white">Diversifica.</strong> Es mejor tener 20 posiciones pequeñas que 1 posición grande. Si 19 van a cero y 1 hace 100x, sales ganando.</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-primary font-mono shrink-0">[4]</span>
-                    <span><strong className="text-gem-yellow">Si suena demasiado bien para ser verdad, probablemente lo es.</strong> Desconfia de &quot;ganancias garantizadas&quot;, grupos VIP de señales, y promesas de rentabilidad fija.</span>
+                    <span><strong className="text-gem-yellow">Si suena demasiado bien para ser verdad, probablemente lo es.</strong> Desconfía de &quot;ganancias garantizadas&quot;, grupos VIP de señales, y promesas de rentabilidad fija.</span>
                   </li>
                 </ul>
               </div>
@@ -408,7 +450,7 @@ export default function AcademiaPage() {
                   <p>
                     Desde el exchange, retira tus SOL/ETH a la dirección de tu wallet personal.
                     Copia la dirección de tu wallet con cuidado (verifica los primeros y últimos caracteres).
-                    La primera vez, envia una cantidad pequena de prueba.
+                    La primera vez, envía una cantidad pequeña de prueba.
                   </p>
                 </div>
               </div>
@@ -446,8 +488,8 @@ export default function AcademiaPage() {
                   <h3 className="text-white font-semibold text-base mb-2">Ajustar slippage</h3>
                   <p>
                     El <strong>slippage</strong> es la diferencia máxima de precio que aceptas entre cuando
-                    envias la transacción y cuando se ejecuta. Para memecoins con baja liquidez,
-                    puede ser necesario subir el slippage al 1-5%. Si es mucho mayor, desconfia.
+                    envías la transacción y cuando se ejecuta. Para memecoins con baja liquidez,
+                    puede ser necesario subir el slippage al 1-5%. Si es mucho mayor, desconfía.
                   </p>
                 </div>
               </div>
@@ -484,9 +526,9 @@ export default function AcademiaPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="border border-gem-red/30 bg-gem-red/5 p-4">
-                  <p className="text-gem-red font-semibold mb-2">Equipo anonimo sin historial</p>
+                  <p className="text-gem-red font-semibold mb-2">Equipo anónimo sin historial</p>
                   <p className="text-gray-400 text-xs">
-                    Si no puedes verificar quien esta detras del proyecto, no hay responsabilidad.
+                    Si no puedes verificar quién está detrás del proyecto, no hay responsabilidad.
                     Los mejores proyectos tienen fundadores públicos con reputación.
                   </p>
                 </div>
@@ -510,7 +552,7 @@ export default function AcademiaPage() {
                 <div className="border border-gem-red/30 bg-gem-red/5 p-4">
                   <p className="text-gem-red font-semibold mb-2">Contrato no verificado</p>
                   <p className="text-gray-400 text-xs">
-                    Un contrato no verificado significa que no puedes ver el código. Podria
+                    Un contrato no verificado significa que no puedes ver el código. Podría
                     contener funciones maliciosas (impuestos ocultos, honeypot, mint infinito).
                   </p>
                 </div>
@@ -587,7 +629,7 @@ export default function AcademiaPage() {
                       <span className="text-white font-semibold">Consolidación</span>
                     </div>
                     <p className="text-gray-400">
-                      El precio corrige un 30-60% desde el máximo. Los &quot;manos debiles&quot; venden en panico.
+                      El precio corrige un 30-60% desde el máximo. Los &quot;manos débiles&quot; venden en pánico.
                       Pero los holders comprometidos mantienen. El volumen baja pero se estabiliza. Se forma un{" "}
                       <strong className="text-primary">soporte claro</strong>. Es una segunda ventana de entrada más segura que la Fase 2.
                     </p>
@@ -621,7 +663,7 @@ export default function AcademiaPage() {
                       Las ballenas y los primeros inversores venden gradualmente mientras los compradores tardios entran
                       por FOMO. El volumen de venta supera al de compra. Las redes sociales están en máxima euforia
                       (irónicamente, la señal más peligrosa). <strong>Si entras aquí, probablemente estás comprando
-                      la bolsa de alguien mas.</strong>
+                      la bolsa de alguien más.</strong>
                     </p>
                     <p className="text-gray-500 text-xs mt-2">
                       Señales: Precio estancado con volumen alto, grandes ventas on-chain, &quot;compra ahora o nunca&quot; en redes,
@@ -635,10 +677,10 @@ export default function AcademiaPage() {
                 <h3 className="text-white font-semibold text-base mb-3">Patrones de precio típicos en memecoins</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="border border-dark-600 p-4">
-                    <p className="text-primary font-semibold mb-2">V-Shape (recuperacion en V)</p>
+                    <p className="text-primary font-semibold mb-2">V-Shape (recuperación en V)</p>
                     <p className="text-gray-400 text-xs">
-                      Caida fuerte seguida de recuperacion igual de fuerte. Ocurre cuando una venta de panico es
-                      absorbida rápidamente por compradores. Tipico en memecoins con comunidad solida.
+                      Caída fuerte seguida de recuperación igual de fuerte. Ocurre cuando una venta de pánico es
+                      absorbida rápidamente por compradores. Típico en memecoins con comunidad sólida.
                     </p>
                   </div>
                   <div className="border border-dark-600 p-4">
@@ -651,15 +693,15 @@ export default function AcademiaPage() {
                   <div className="border border-dark-600 p-4">
                     <p className="text-gem-red font-semibold mb-2">Pump &amp; Dump</p>
                     <p className="text-gray-400 text-xs">
-                      Subida vertical sin consolidacion seguida de caida total. El precio nunca se recupera.
+                      Subida vertical sin consolidación seguida de caída total. El precio nunca se recupera.
                       Es el patrón de las estafas y tokens sin comunidad real. Sube un 1000%, cae un 99%.
                     </p>
                   </div>
                   <div className="border border-dark-600 p-4">
                     <p className="text-gem-yellow font-semibold mb-2">Slow Bleed (sangrado lento)</p>
                     <p className="text-gray-400 text-xs">
-                      Caida gradual durante días o semanas. El volumen desaparece, los holders se cansan y venden.
-                      No hay un crash dramático, sino una muerte lenta. La mayoría de memecoins terminan asi.
+                      Caída gradual durante días o semanas. El volumen desaparece, los holders se cansan y venden.
+                      No hay un crash dramático, sino una muerte lenta. La mayoría de memecoins terminan así.
                     </p>
                   </div>
                 </div>
@@ -686,7 +728,7 @@ export default function AcademiaPage() {
                     anterior, puede ser un token con longevidad. Si no, empieza el declive.
                   </li>
                   <li>
-                    <strong className="text-gem-yellow">Despues de 72 horas:</strong> Si no ha habido segundo pump,
+                    <strong className="text-gem-yellow">Después de 72 horas:</strong> Si no ha habido segundo pump,
                     la probabilidad de que ocurra cae drásticamente. Los memecoins tienen una vida media muy corta.
                   </li>
                 </ul>
@@ -720,9 +762,9 @@ export default function AcademiaPage() {
                   <p className="text-primary font-bold text-lg mb-1">Dog Tokens</p>
                   <p className="text-gray-500 text-xs mb-3">DOGE, SHIB, BONK, WIF, FLOKI</p>
                   <p>
-                    La narrativa original de los memecoins. Tokens con tematica de perros. Tienen
+                    La narrativa original de los memecoins. Tokens con temática de perros. Tienen
                     las <strong className="text-white">comunidades más grandes y leales</strong> del espacio.
-                    DOGE fue el primero, SHIB demostro que podia replicarse el éxito, y cada blockchain
+                    DOGE fue el primero, SHIB demostró que podía replicarse el éxito, y cada blockchain
                     busca su propio &quot;dog token&quot; insignia.
                   </p>
                   <p className="text-gray-500 text-xs mt-2">
@@ -875,13 +917,13 @@ export default function AcademiaPage() {
                       <tr className="border-b border-dark-600">
                         <td className="py-2 px-3 text-white font-semibold">Solana</td>
                         <td className="py-2 px-3">Fees &lt;$0.01, transacciones en 1-2s, ecosistema de memecoins más activo</td>
-                        <td className="py-2 px-3">Menor descentralizacion, caidas de red ocasionales</td>
+                        <td className="py-2 px-3">Menor descentralización, caídas de red ocasionales</td>
                         <td className="py-2 px-3">Jupiter, Raydium, Pump.fun</td>
                       </tr>
                       <tr className="border-b border-dark-600">
                         <td className="py-2 px-3 text-white font-semibold">Ethereum</td>
                         <td className="py-2 px-3">Mayor liquidez, red más segura y descentralizada, los OG memecoins (PEPE, SHIB)</td>
-                        <td className="py-2 px-3">Gas fees $5-50+ por transacción, hace inviable operar con cantidades pequenas</td>
+                        <td className="py-2 px-3">Gas fees $5-50+ por transacción, hace inviable operar con cantidades pequeñas</td>
                         <td className="py-2 px-3">Uniswap, SushiSwap</td>
                       </tr>
                       <tr>
@@ -975,7 +1017,7 @@ export default function AcademiaPage() {
                 <p className="mt-3">
                   <strong className="text-white">&quot;Dumb money&quot;</strong> se refiere al dinero que entra por
                   FOMO, sin análisis, normalmente tarde en el ciclo. Es el comprador que ve que un token
-                  ya subió un 500% y piensa &quot;todavia puede subir mas&quot;.
+                  ya subió un 500% y piensa &quot;todavía puede subir más&quot;.
                 </p>
               </div>
 
@@ -992,7 +1034,7 @@ export default function AcademiaPage() {
                   <div className="border border-dark-600 p-4">
                     <p className="text-primary font-semibold mb-1">Nansen</p>
                     <p className="text-gray-400 text-xs">
-                      Analisis on-chain avanzado. Clasifica wallets por su historial de rentabilidad
+                      Análisis on-chain avanzado. Clasifica wallets por su historial de rentabilidad
                       (&quot;Smart Money&quot; label). Permite crear alertas cuando wallets inteligentes mueven fondos.
                     </p>
                   </div>
@@ -1103,7 +1145,7 @@ export default function AcademiaPage() {
                     <p className="text-gray-400 text-xs">
                       El coste de procesar tu transacción en la blockchain. En Ethereum puede ser $5-50+ por transacción.
                       En Solana es &lt;$0.01 normalmente, pero en momentos de alta congestión puede subir.
-                      Si operas con cantidades pequenas en Ethereum, el gas puede ser mayor que tu ganancia.
+                      Si operas con cantidades pequeñas en Ethereum, el gas puede ser mayor que tu ganancia.
                     </p>
                   </div>
                   <div className="border border-dark-600 p-4">
@@ -1194,9 +1236,9 @@ export default function AcademiaPage() {
               <div className="border border-dark-600 bg-dark-800/50 p-5">
                 <h3 className="text-white font-semibold text-base mb-3">Las emociones son tu peor enemigo</h3>
                 <p>
-                  El mercado de memecoins esta diseñado para explotar tus emociones. La volatilidad extrema,
-                  las ganancias rapidas de otros, los gráficos verdes en redes sociales... todo esta pensado
-                  para que <strong className="text-gem-red">actues impulsivamente</strong>.
+                  El mercado de memecoins está diseñado para explotar tus emociones. La volatilidad extrema,
+                  las ganancias rápidas de otros, los gráficos verdes en redes sociales... todo está pensado
+                  para que <strong className="text-gem-red">actúes impulsivamente</strong>.
                   Los traders profesionales no son los que mejor predicen el mercado, sino los que mejor
                   controlan sus emociones.
                 </p>
@@ -1220,7 +1262,7 @@ export default function AcademiaPage() {
                   <p className="text-gem-red font-bold text-base mb-2">FUD</p>
                   <p className="text-gray-400 text-xs mb-2">Fear, Uncertainty, Doubt (Miedo, Incertidumbre, Duda)</p>
                   <p className="text-gray-300 text-xs">
-                    &quot;Esto va a caer, vendo todo antes de perder mas.&quot; El FUD te hace vender en el peor momento:
+                    &quot;Esto va a caer, vendo todo antes de perder más.&quot; El FUD te hace vender en el peor momento:
                     justo antes de que el precio se recupere. Las ballenas generan FUD intencionalmente para
                     comprar tus tokens más baratos.
                   </p>
@@ -1247,12 +1289,12 @@ export default function AcademiaPage() {
                   <p className="text-gem-yellow font-bold text-base mb-2">Revenge Trading</p>
                   <p className="text-gray-400 text-xs mb-2">Intentar recuperar pérdidas con trades impulsivos</p>
                   <p className="text-gray-300 text-xs">
-                    &quot;Perdi $200, voy a meter $400 en este otro token para recuperar rápido.&quot;
+                    &quot;Perdí $200, voy a meter $400 en este otro token para recuperar rápido.&quot;
                     El revenge trading es la espiral descendente más común en memecoins.
-                    Cada trade impulsivo pierde mas, lo que genera más frustración y más trades impulsivos.
+                    Cada trade impulsivo pierde más, lo que genera más frustración y más trades impulsivos.
                   </p>
                   <p className="text-primary text-xs mt-2">
-                    Antidoto: tras una pérdida significativa, NO operes durante 24 horas. Las decisiones emocionales son las más costosas.
+                    Antídoto: tras una pérdida significativa, NO operes durante 24 horas. Las decisiones emocionales son las más costosas.
                   </p>
                 </div>
               </div>
@@ -1290,15 +1332,15 @@ export default function AcademiaPage() {
                   Por cada operación, registra:
                 </p>
                 <ul className="list-disc list-inside space-y-2 ml-2 mt-3 text-gray-400">
-                  <li><strong className="text-white">Fecha y token:</strong> Que compraste y cuando.</li>
-                  <li><strong className="text-white">Razon de entrada:</strong> Por que compraste. Debe ser una razon analitica, no &quot;porque todos lo compraban&quot;.</li>
-                  <li><strong className="text-white">Emocion al entrar:</strong> Estabas tranquilo y confiado? O ansioso y con FOMO? Esto es clave.</li>
+                  <li><strong className="text-white">Fecha y token:</strong> Qué compraste y cuándo.</li>
+                  <li><strong className="text-white">Razón de entrada:</strong> Por qué compraste. Debe ser una razón analítica, no &quot;porque todos lo compraban&quot;.</li>
+                  <li><strong className="text-white">Emoción al entrar:</strong> ¿Estabas tranquilo y confiado? ¿O ansioso y con FOMO? Esto es clave.</li>
                   <li><strong className="text-white">Plan (entry/target/stop/size):</strong> Lo que definiste antes de entrar.</li>
-                  <li><strong className="text-white">Resultado:</strong> Ganancia o pérdida. Seguiste el plan?</li>
-                  <li><strong className="text-white">Lección aprendida:</strong> Que harias diferente la próxima vez.</li>
+                  <li><strong className="text-white">Resultado:</strong> Ganancia o pérdida. ¿Seguiste el plan?</li>
+                  <li><strong className="text-white">Lección aprendida:</strong> Qué harías diferente la próxima vez.</li>
                 </ul>
                 <p className="mt-3 text-gray-500">
-                  Despues de 20-30 trades registrados, empezaras a ver patrones en tu comportamiento.
+                  Después de 20-30 trades registrados, empezarás a ver patrones en tu comportamiento.
                   Esos patrones son la clave para mejorar como trader.
                 </p>
               </div>
@@ -1480,12 +1522,12 @@ export default function AcademiaPage() {
                   </div>
                   <div className="border border-gem-red/30 p-3">
                     <p className="text-gem-red font-bold text-lg">&lt;1.0</p>
-                    <p className="text-gray-400">Mas vendedores que compradores. Presion bajista. Cuidado.</p>
+                    <p className="text-gray-400">Más vendedores que compradores. Presión bajista. Cuidado.</p>
                   </div>
                 </div>
                 <p className="mt-3 text-gray-500 text-xs">
                   Atención: mira también el VOLUMEN de compra vs venta, no solo el número de transacciones.
-                  100 compras pequenas vs 1 venta enorme = bajista a pesar de que el ratio diga lo contrario.
+                  100 compras pequeñas vs 1 venta enorme = bajista a pesar de que el ratio diga lo contrario.
                 </p>
               </div>
 
@@ -1502,7 +1544,7 @@ export default function AcademiaPage() {
             </h2>
             <p className="text-gray-400 text-sm max-w-xl mx-auto mb-8">
               Contenido avanzado: análisis de blockchains, narrativas de mercado, gestión de riesgo profesional,
-              herramientas del trader y como interpretar las señales de nuestra IA.
+              herramientas del trader y cómo interpretar las señales de nuestra IA.
             </p>
             <a
               href="https://app.memedetector.es"
