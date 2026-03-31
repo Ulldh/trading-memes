@@ -12,9 +12,8 @@ Secciones:
   5. Métricas de rendimiento (mejor/peor trade, win rate)
 
 Datos:
-  - Posiciones almacenadas en st.session_state (por sesión)
+  - Posiciones almacenadas en Supabase (tabla user_portfolio) — persistentes
   - Precios actuales obtenidos de OHLCV/pool_snapshots en Supabase
-  - Futuro: tabla user_portfolio en Supabase
 """
 
 from datetime import date, datetime
@@ -36,6 +35,11 @@ from src.data.supabase_storage import get_storage as _get_storage
 def get_storage():
     """Instancia de Storage cacheada (evita reconexion por cada render)."""
     return _get_storage()
+
+
+def _get_user_id() -> Optional[str]:
+    """Obtiene el user_id del usuario autenticado desde session_state."""
+    return st.session_state.get("user", {}).get("id")
 
 
 @st.cache_data(ttl=300)
@@ -151,10 +155,25 @@ def _pnl_color(value: float) -> str:
     return "#95a5a6"      # Gris (sin cambio)
 
 
-def _init_portfolio():
-    """Inicializa el portfolio en session_state si no existe."""
-    if "portfolio" not in st.session_state:
-        st.session_state.portfolio = []
+def _load_positions(user_id: str) -> list[dict]:
+    """
+    Carga las posiciones abiertas del usuario desde Supabase.
+
+    Args:
+        user_id: UUID del usuario autenticado.
+
+    Returns:
+        Lista de dicts con las posiciones abiertas.
+    """
+    storage = get_storage()
+    try:
+        df = storage.get_portfolio(user_id)
+        if df.empty:
+            return []
+        return df.to_dict("records")
+    except Exception as e:
+        st.error(f"Error al cargar portfolio: {e}")
+        return []
 
 
 # ============================================================
@@ -169,15 +188,22 @@ def render():
         "Registra tus compras y monitorea tu rendimiento en tiempo real."
     )
 
-    _init_portfolio()
+    # Verificar usuario autenticado
+    user_id = _get_user_id()
+    if not user_id:
+        st.warning("Debes iniciar sesion para acceder a tu portfolio.")
+        return
 
     # ======================================================
     # 1. FORMULARIO PARA ANADIR POSICIONES
     # ======================================================
-    _render_add_position_form()
+    _render_add_position_form(user_id)
+
+    # Cargar posiciones desde Supabase
+    positions_raw = _load_positions(user_id)
 
     # --- Estado vacio: mensaje amigable ---
-    if not st.session_state.portfolio:
+    if not positions_raw:
         st.info(
             ":inbox_tray: **Aun no has anadido posiciones.**\n\n"
             "Usa el formulario de arriba para registrar tu primera compra "
@@ -187,7 +213,7 @@ def render():
         return
 
     # Calcular datos actualizados para todas las posiciones
-    positions_data = _compute_positions_data()
+    positions_data = _compute_positions_data(positions_raw)
 
     # ======================================================
     # 2. KPI CARDS
@@ -199,7 +225,7 @@ def render():
     # ======================================================
     # 3. TABLA DE POSICIONES
     # ======================================================
-    _render_positions_table(positions_data)
+    _render_positions_table(positions_data, user_id)
 
     st.divider()
 
@@ -226,7 +252,7 @@ def render():
 # Secciones individuales
 # ============================================================
 
-def _render_add_position_form():
+def _render_add_position_form(user_id: str):
     """Formulario expandible para anadir una nueva posicion."""
 
     with st.expander(":heavy_plus_sign: Anadir nueva posicion", expanded=False):
@@ -283,59 +309,88 @@ def _render_add_position_form():
             # Calcular tokens comprados
             tokens_bought = amount_invested / buy_price
 
-            # Crear posicion
-            position = {
-                "id": len(st.session_state.portfolio),
-                "token_address": token_address.strip(),
-                "chain": chain.lower(),
-                "buy_price": buy_price,
-                "amount_invested": amount_invested,
-                "tokens_bought": tokens_bought,
-                "buy_date": buy_date.isoformat(),
-                "name": token_info["name"],
-                "symbol": token_info["symbol"],
-                "active": True,
-            }
+            # Guardar en Supabase
+            storage = get_storage()
+            try:
+                storage.add_portfolio_position(
+                    user_id=user_id,
+                    token_id=token_address.strip(),
+                    symbol=token_info["symbol"],
+                    name=token_info["name"],
+                    chain=chain.lower(),
+                    entry_price=buy_price,
+                    quantity=tokens_bought,
+                    notes=buy_date.isoformat(),
+                )
+                st.success(
+                    f"Posicion anadida: "
+                    f"{token_info['symbol'] or token_address[:12]}... "
+                    f"— {_format_usd(amount_invested)} invertidos. "
+                    f"Posiciones guardadas en la nube. Accesibles desde cualquier dispositivo."
+                )
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error al guardar la posicion: {e}")
 
-            st.session_state.portfolio.append(position)
-            st.success(
-                f"Posicion anadida: "
-                f"{token_info['symbol'] or token_address[:12]}... "
-                f"— {_format_usd(amount_invested)} invertidos."
-            )
-            st.rerun()
 
-
-def _compute_positions_data() -> list[dict]:
+def _compute_positions_data(positions_raw: list[dict]) -> list[dict]:
     """
     Calcula datos actualizados (precio actual, P&L) para cada posicion.
 
+    Los datos del portfolio en Supabase usan los campos:
+      token_id, token_symbol, token_name, chain, entry_price, quantity, id.
+    Para compatibilidad con el resto de la pagina, se mapean a los campos
+    usados anteriormente (token_address, buy_price, tokens_bought, etc.).
+
+    Args:
+        positions_raw: Lista de dicts tal como vienen de Supabase.
+
     Returns:
-        Lista de dicts con toda la info de cada posicion incluyendo
-        precio actual y calculo de ganancia/perdida.
+        Lista de dicts enriquecidos con precio actual y P&L.
     """
     positions = []
 
-    for pos in st.session_state.portfolio:
-        if not pos.get("active", True):
-            continue
+    for pos in positions_raw:
+        token_address = pos.get("token_id", "")
+        chain = pos.get("chain", "")
+        entry_price = float(pos.get("entry_price") or 0)
+        quantity = float(pos.get("quantity") or 0)
+        amount_invested = entry_price * quantity if entry_price and quantity else 0
 
-        current_price = _fetch_current_price(pos["token_address"], pos["chain"])
+        current_price = _fetch_current_price(token_address, chain)
 
         # Calcular P&L
-        if current_price is not None:
-            current_value = pos["tokens_bought"] * current_price
-            pnl_usd = current_value - pos["amount_invested"]
-            pnl_pct = ((current_price / pos["buy_price"]) - 1) * 100
+        if current_price is not None and entry_price > 0:
+            current_value = quantity * current_price
+            pnl_usd = current_value - amount_invested
+            pnl_pct = ((current_price / entry_price) - 1) * 100
             price_available = True
         else:
-            current_value = pos["amount_invested"]  # Asumir sin cambio
+            current_value = amount_invested  # Asumir sin cambio
             pnl_usd = 0.0
             pnl_pct = 0.0
             price_available = False
 
         positions.append({
-            **pos,
+            # Campos de Supabase (originales)
+            "id": pos.get("id"),
+            "token_id": token_address,
+            "chain": chain,
+            "token_symbol": pos.get("token_symbol", ""),
+            "token_name": pos.get("token_name", ""),
+            "entry_price": entry_price,
+            "quantity": quantity,
+            "notes": pos.get("notes", ""),
+            "created_at": pos.get("created_at", ""),
+            # Campos calculados / compatibilidad
+            "token_address": token_address,
+            "buy_price": entry_price,
+            "tokens_bought": quantity,
+            "amount_invested": amount_invested,
+            "buy_date": pos.get("notes", "")[:10] if pos.get("notes", "")[:10].count("-") == 2 else "",
+            "name": pos.get("token_name", ""),
+            "symbol": pos.get("token_symbol", ""),
+            # P&L
             "current_price": current_price,
             "current_value": current_value,
             "pnl_usd": pnl_usd,
@@ -386,7 +441,7 @@ def _render_kpis(positions: list[dict]):
     )
 
 
-def _render_positions_table(positions: list[dict]):
+def _render_positions_table(positions: list[dict], user_id: str):
     """Tabla principal de posiciones con P&L y acciones."""
 
     st.subheader("Tus posiciones")
@@ -446,6 +501,7 @@ def _render_positions_table(positions: list[dict]):
     # Botones para cerrar posiciones
     st.caption("Cerrar posiciones:")
     cols = st.columns(min(len(positions), 4))
+    storage = get_storage()
     for idx, pos in enumerate(positions):
         col_idx = idx % min(len(positions), 4)
         name = pos.get("symbol") or pos["token_address"][:12]
@@ -455,13 +511,18 @@ def _render_positions_table(positions: list[dict]):
                 key=f"close_{pos['id']}",
                 help=f"Cerrar posicion de {name}",
             ):
-                # Marcar como inactiva
-                for p in st.session_state.portfolio:
-                    if p["id"] == pos["id"]:
-                        p["active"] = False
-                        break
-                st.success(f"Posicion de {name} cerrada.")
-                st.rerun()
+                # Usar precio actual como precio de cierre (o 0 si no disponible)
+                closed_price = pos["current_price"] if pos["price_available"] else 0.0
+                try:
+                    storage.close_portfolio_position(
+                        position_id=pos["id"],
+                        user_id=user_id,
+                        closed_price=closed_price,
+                    )
+                    st.success(f"Posicion de {name} cerrada.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al cerrar posicion: {e}")
 
 
 def _render_portfolio_chart(positions: list[dict]):
@@ -603,7 +664,6 @@ def _render_disclaimer():
         ":warning: **Esto NO es consejo financiero.**\n\n"
         "Los datos de precio se obtienen de nuestra base de datos y pueden "
         "no reflejar el precio exacto de mercado en tiempo real. "
-        "Las posiciones se guardan solo durante tu sesión actual. "
         "Haz tu propia investigacion (DYOR) y nunca inviertas mas de lo "
         "que puedas permitirte perder."
     )

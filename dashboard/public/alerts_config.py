@@ -187,22 +187,122 @@ def _build_test_message() -> str:
 
 
 # ============================================================
-# PREFERENCIAS (session_state)
+# PREFERENCIAS (Supabase + session_state como cache)
 # ============================================================
 
-def _init_preferences():
-    """Inicializa las preferencias de alerta en session_state si no existen."""
-    defaults = {
-        "alert_senales_diarias": True,
-        "alert_score_minimo": 0.65,
-        "alert_chains": CHAINS_DISPONIBLES.copy(),
-        "alert_nivel_minimo": "MEDIUM+",
-        "alert_health_monitor": True,
-        "alert_drift_alerts": False,
+_DEFAULTS = {
+    "alert_senales_diarias": True,
+    "alert_score_minimo": 0.65,
+    "alert_chains": CHAINS_DISPONIBLES.copy(),
+    "alert_nivel_minimo": "MEDIUM+",
+    "alert_health_monitor": True,
+    "alert_drift_alerts": False,
+}
+
+# Mapeo entre las claves internas de session_state y las columnas de la tabla
+_NIVEL_TO_MIN_SIGNAL = {
+    "STRONG only": "STRONG",
+    "MEDIUM+": "MEDIUM",
+    "ALL": "WEAK",
+}
+_MIN_SIGNAL_TO_NIVEL = {v: k for k, v in _NIVEL_TO_MIN_SIGNAL.items()}
+
+# Mapeo de cadenas: UI usa capitalizadas, BD usa minusculas
+_CHAINS_TO_DB = {c: c.lower() for c in CHAINS_DISPONIBLES}
+_CHAINS_FROM_DB = {c.lower(): c for c in CHAINS_DISPONIBLES}
+
+
+def _load_preferences_from_db(user_id: str) -> dict:
+    """
+    Carga las preferencias desde Supabase y las convierte al formato
+    interno de session_state.
+
+    Returns:
+        Dict con las claves de _DEFAULTS, con valores de DB o defaults.
+    """
+    prefs = _DEFAULTS.copy()
+    if not user_id:
+        return prefs
+
+    try:
+        storage = get_storage()
+        row = storage.get_alert_preferences(user_id)
+        if row:
+            # min_signal -> nivel_minimo
+            min_signal = row.get("min_signal")
+            if min_signal and min_signal in _MIN_SIGNAL_TO_NIVEL:
+                prefs["alert_nivel_minimo"] = _MIN_SIGNAL_TO_NIVEL[min_signal]
+
+            # chains (jsonb list de strings minusculas) -> lista capitalizadas
+            chains_db = row.get("chains")
+            if chains_db and isinstance(chains_db, list) and len(chains_db) > 0:
+                prefs["alert_chains"] = [
+                    _CHAINS_FROM_DB.get(c, c.capitalize()) for c in chains_db
+                ]
+
+            # min_probability -> score_minimo
+            prob = row.get("min_probability")
+            if prob is not None:
+                prefs["alert_score_minimo"] = float(prob)
+
+            # enabled -> senales_diarias (interpretamos enabled como el toggle principal)
+            enabled = row.get("enabled")
+            if enabled is not None:
+                prefs["alert_senales_diarias"] = bool(enabled)
+    except Exception:
+        logger.exception("Error cargando preferencias desde Supabase")
+
+    return prefs
+
+
+def _init_preferences(user_id: str = ""):
+    """
+    Inicializa las preferencias en session_state.
+
+    Si ya estan cargadas para este usuario, no vuelve a consultar Supabase.
+    Si cambia el usuario o es la primera carga, consulta Supabase.
+    """
+    loaded_for = st.session_state.get("_alert_prefs_loaded_for")
+    if loaded_for == user_id and "alert_senales_diarias" in st.session_state:
+        return  # Ya cargadas para este usuario
+
+    prefs = _load_preferences_from_db(user_id)
+    for key, value in prefs.items():
+        st.session_state[key] = value
+    st.session_state["_alert_prefs_loaded_for"] = user_id
+
+
+def _save_preferences_to_db(user_id: str, prefs: dict) -> bool:
+    """
+    Persiste las preferencias en Supabase y actualiza session_state.
+
+    Args:
+        user_id: UUID del usuario.
+        prefs: Dict con claves de _DEFAULTS (valores de formulario).
+
+    Returns:
+        True si se guardo correctamente.
+    """
+    if not user_id:
+        return False
+
+    # Convertir formato UI a formato DB
+    nivel = prefs.get("alert_nivel_minimo", "MEDIUM+")
+    chains_ui = prefs.get("alert_chains", CHAINS_DISPONIBLES)
+
+    db_prefs = {
+        "min_signal": _NIVEL_TO_MIN_SIGNAL.get(nivel, "MEDIUM"),
+        "chains": [_CHAINS_TO_DB.get(c, c.lower()) for c in chains_ui],
+        "min_probability": prefs.get("alert_score_minimo", 0.65),
+        "enabled": prefs.get("alert_senales_diarias", True),
     }
-    for key, default in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = default
+
+    try:
+        storage = get_storage()
+        return storage.upsert_alert_preferences(user_id, db_prefs)
+    except Exception:
+        logger.exception("Error guardando preferencias en Supabase")
+        return False
 
 
 # ============================================================
@@ -224,8 +324,9 @@ def render():
     st.header("🔔 Alertas Telegram")
     st.caption("Configura que señales quieres recibir en tu Telegram personal.")
 
-    # Inicializar preferencias
-    _init_preferences()
+    # Obtener user_id e inicializar preferencias (carga desde Supabase si necesario)
+    user_id = st.session_state.get("user", {}).get("id", "")
+    _init_preferences(user_id)
 
     # Cargar perfil del usuario
     profile = _load_user_profile()
@@ -391,7 +492,7 @@ def render():
         if not chains_seleccionadas:
             st.error("Selecciona al menos una cadena.")
         else:
-            # Guardar en session_state
+            # Actualizar session_state (cache local)
             st.session_state["alert_senales_diarias"] = senales_diarias
             st.session_state["alert_score_minimo"] = score_minimo
             st.session_state["alert_chains"] = chains_seleccionadas
@@ -399,10 +500,20 @@ def render():
             st.session_state["alert_health_monitor"] = health_monitor
             st.session_state["alert_drift_alerts"] = drift_alerts
 
-            st.success("Preferencias guardadas correctamente.")
-
-            # TODO: Persistir en Supabase cuando se cree la tabla alert_preferences
-            # o columna JSONB en profiles
+            # Persistir en Supabase
+            saved = _save_preferences_to_db(user_id, {
+                "alert_senales_diarias": senales_diarias,
+                "alert_score_minimo": score_minimo,
+                "alert_chains": chains_seleccionadas,
+                "alert_nivel_minimo": nivel_minimo,
+            })
+            if saved:
+                st.success("Preferencias guardadas correctamente.")
+            else:
+                st.warning(
+                    "Preferencias aplicadas en esta sesion, pero no se pudieron "
+                    "guardar en la nube. Intentalo de nuevo."
+                )
 
     st.divider()
 
@@ -466,12 +577,11 @@ def render():
 
 def _show_alert_history_placeholder():
     """
-    Muestra placeholder del historial de alertas.
+    Muestra el historial de alertas del usuario.
 
-    Cuando se implemente la tabla alert_log en Supabase,
-    esta función se reemplazara por una consulta real.
+    Consulta la tabla alert_log en Supabase. Si la tabla no existe
+    todavia o no hay alertas, muestra un mensaje informativo.
     """
-    # Intentar cargar historial real de Supabase (futuro)
     try:
         storage = get_storage()
         df = storage.query(
@@ -489,39 +599,10 @@ def _show_alert_history_placeholder():
             st.dataframe(df, use_container_width=True, hide_index=True)
             return
     except Exception:
-        pass  # Tabla no existe todavia — mostrar placeholder
+        pass  # Tabla alert_log no existe todavia
 
-    # Placeholder con datos de ejemplo para que el usuario vea el formato
     st.info(
         "No hay alertas registradas todavia. Cuando el sistema de alertas "
-        "diarias este activo, aqui veras un historial de los mensajes enviados."
+        "diarias este activo, aqui veras un historial de los mensajes enviados "
+        "a tu Telegram."
     )
-
-    # Tabla de ejemplo (datos ficticios para mostrar formato)
-    import pandas as pd
-
-    ejemplo = pd.DataFrame({
-        "Fecha": ["2026-03-27 08:00", "2026-03-26 08:00", "2026-03-25 08:00"],
-        "Tipo": ["Senal diaria", "Health Monitor", "Senal diaria"],
-        "Mensaje": [
-            "STRONG: TOKEN_A/SOL — Score 0.89...",
-            "Sistema OK: 11 APIs activas, 4028 tok...",
-            "MEDIUM: TOKEN_B/ETH — Score 0.72...",
-        ],
-        "Estado": ["Enviado", "Enviado", "Enviado"],
-    })
-
-    st.dataframe(
-        ejemplo,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Estado": st.column_config.TextColumn(
-                width="small",
-            ),
-            "Tipo": st.column_config.TextColumn(
-                width="medium",
-            ),
-        },
-    )
-    st.caption("_Datos de ejemplo — se reemplazaran con alertas reales._")

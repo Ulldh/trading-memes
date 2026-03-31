@@ -928,6 +928,177 @@ class SupabaseStorage:
         return pd.DataFrame(data) if data else pd.DataFrame()
 
     # ============================================================
+    # ALERT PREFERENCES
+    # ============================================================
+
+    def get_alert_preferences(self, user_id: str) -> Optional[dict]:
+        """
+        Obtiene las preferencias de alerta de un usuario.
+
+        Args:
+            user_id: UUID del usuario en auth.users.
+
+        Returns:
+            Dict con las preferencias o None si no existen.
+        """
+        try:
+            resp = (
+                self._client.table("alert_preferences")
+                .select("*")
+                .eq("user_id", user_id)
+                .limit(1)
+                .execute()
+            )
+            data = resp.data or []
+            return data[0] if data else None
+        except Exception as e:
+            logger.error(f"Error obteniendo alert_preferences para {user_id}: {e}")
+            return None
+
+    def upsert_alert_preferences(self, user_id: str, preferences: dict) -> bool:
+        """
+        Crea o actualiza las preferencias de alerta de un usuario.
+
+        Args:
+            user_id: UUID del usuario en auth.users.
+            preferences: Dict con claves opcionales:
+                - telegram_chat_id (str)
+                - min_signal (str): 'STRONG', 'MEDIUM' o 'WEAK'
+                - chains (list): lista de cadenas, e.g. ["solana", "ethereum"]
+                - min_probability (float): threshold de score, e.g. 0.6
+                - enabled (bool): si las alertas estan activas
+                - quiet_hours_start (int): hora de inicio de silencio (0-23)
+                - quiet_hours_end (int): hora de fin de silencio (0-23)
+
+        Returns:
+            True si se guardo correctamente, False en caso de error.
+        """
+        try:
+            row = {"user_id": user_id, "updated_at": "now()"}
+
+            allowed_keys = {
+                "telegram_chat_id", "min_signal", "chains",
+                "min_probability", "enabled",
+                "quiet_hours_start", "quiet_hours_end",
+            }
+            for key in allowed_keys:
+                if key in preferences:
+                    val = preferences[key]
+                    # Serializar listas a JSON para columna jsonb
+                    if key == "chains" and isinstance(val, list):
+                        import json as _json
+                        val = _json.dumps([c.lower() for c in val])
+                    row[key] = val
+
+            self._client.table("alert_preferences").upsert(
+                row, on_conflict="user_id"
+            ).execute()
+            logger.info(f"alert_preferences guardadas para user {user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error guardando alert_preferences para {user_id}: {e}")
+            return False
+
+    # ============================================================
+    # PORTFOLIO DE USUARIO
+    # ============================================================
+
+    def get_portfolio(self, user_id: str) -> pd.DataFrame:
+        """
+        Devuelve todas las posiciones abiertas del portfolio de un usuario.
+
+        Args:
+            user_id: UUID del usuario autenticado.
+
+        Returns:
+            DataFrame con las posiciones abiertas ordenadas por fecha de creacion.
+        """
+        resp = (
+            self._client.table("user_portfolio")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("status", "open")
+            .order("created_at", desc=False)
+            .execute()
+        )
+        data = resp.data or []
+        return pd.DataFrame(data) if data else pd.DataFrame()
+
+    def add_portfolio_position(
+        self,
+        user_id: str,
+        token_id: str,
+        symbol: str,
+        name: str,
+        chain: str,
+        entry_price: float,
+        quantity: float,
+        notes: str = "",
+    ) -> dict:
+        """
+        Agrega una nueva posicion al portfolio del usuario.
+
+        Args:
+            user_id: UUID del usuario autenticado.
+            token_id: Direccion del contrato del token.
+            symbol: Simbolo del token (ej: SOL).
+            name: Nombre del token.
+            chain: Blockchain (solana, ethereum, base).
+            entry_price: Precio de entrada en USD.
+            quantity: Cantidad de tokens comprados.
+            notes: Notas opcionales del usuario.
+
+        Returns:
+            Dict con la posicion creada (incluye id generado).
+        """
+        row = {
+            "user_id": user_id,
+            "token_id": token_id,
+            "token_symbol": symbol or "",
+            "token_name": name or "",
+            "chain": chain or "",
+            "entry_price": float(entry_price),
+            "quantity": float(quantity),
+            "notes": notes or "",
+            "status": "open",
+        }
+        resp = self._client.table("user_portfolio").insert(row).execute()
+        return resp.data[0] if resp.data else {}
+
+    def close_portfolio_position(
+        self,
+        position_id: str,
+        user_id: str,
+        closed_price: float,
+    ):
+        """
+        Cierra una posicion del portfolio (status -> 'closed').
+
+        Args:
+            position_id: UUID de la posicion a cerrar.
+            user_id: UUID del usuario (para verificar propiedad).
+            closed_price: Precio de cierre en USD.
+        """
+        self._client.table("user_portfolio").update({
+            "status": "closed",
+            "closed_price": float(closed_price),
+            "closed_at": "now()",
+            "updated_at": "now()",
+        }).eq("id", position_id).eq("user_id", user_id).execute()
+
+    def delete_portfolio_position(self, position_id: str, user_id: str):
+        """
+        Elimina permanentemente una posicion del portfolio.
+
+        Args:
+            position_id: UUID de la posicion a eliminar.
+            user_id: UUID del usuario (para verificar propiedad).
+        """
+        self._client.table("user_portfolio").delete().eq(
+            "id", position_id
+        ).eq("user_id", user_id).execute()
+
+    # ============================================================
     # ESTADISTICAS
     # ============================================================
 
