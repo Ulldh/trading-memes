@@ -1,13 +1,11 @@
-# Recopilacion de datos 4x/dia - Ejecuta el collector contra Supabase
-# Los memecoins lanzan, pumpean y mueren en horas → necesitamos alta frecuencia
+# Recopilacion de datos 2x/dia - Reducido de 4x para conservar Birdeye CUs
+# Birdeye Lite: 1.5M CU/mes. A 2x/dia caben ~25K CU/run
 name: Daily Collect
 
 on:
   schedule:
-    # Cada 6 horas: 00:00, 06:00, 12:00, 18:00 UTC
-    - cron: "0 0 * * *"
+    # Cada 12 horas: 06:00 y 18:00 UTC
     - cron: "0 6 * * *"
-    - cron: "0 12 * * *"
     - cron: "0 18 * * *"
   workflow_dispatch:
     inputs:
