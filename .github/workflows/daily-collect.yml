@@ -12,9 +12,9 @@ on:
   workflow_dispatch:
     inputs:
       max_tokens_ohlcv:
-        description: "Maximo de tokens para OHLCV (default 500)"
+        description: "Maximo de tokens para OHLCV (default 300)"
         required: false
-        default: "500"
+        default: "300"
 
 concurrency:
   group: database-writes
@@ -40,8 +40,8 @@ jobs:
       BIRDEYE_API_KEY: ${{ secrets.BIRDEYE_API_KEY }}
       JUPITER_API_KEY: ${{ secrets.JUPITER_API_KEY }}
       X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
-      # Limite de tokens para OHLCV update (default 500 para cron, configurable en manual)
-      MAX_TOKENS_OHLCV: ${{ inputs.max_tokens_ohlcv || '500' }}
+      # Limite de tokens para OHLCV update (default 300 para cron, configurable en manual)
+      MAX_TOKENS_OHLCV: ${{ inputs.max_tokens_ohlcv || '300' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -116,8 +116,8 @@ jobs:
           "
         timeout-minutes: 45
 
-      # Etiquetar tokens que no tienen labels
-      # label_all_tokens() clasifica todos y guarda via upsert_label()
+      # Etiquetar tokens INCREMENTALMENTE: solo los que no tienen label
+      # Batch de 500 por run para evitar timeouts (antes procesaba ~6800)
       - name: Label tokens without labels
         run: |
           python -c "
@@ -127,23 +127,52 @@ jobs:
           from src.models.labeler import Labeler
           storage = get_storage()
           labeler = Labeler(storage)
-          labels_df = labeler.label_all_tokens()
-          total = len(labels_df) if not labels_df.empty else 0
-          print(f'Labels totales: {total}')
-          if not labels_df.empty:
-              print(f'Distribucion: {labels_df[\"label_multi\"].value_counts().to_dict()}')
-              gems = int(labels_df[\"label_binary\"].sum()) if \"label_binary\" in labels_df.columns else 0
-              print(f'Gems: {gems}')
+
+          # Solo tokens que NO tienen labels todavia
+          existing_labels = set()
+          try:
+              labels_df = storage.query('SELECT DISTINCT token_id FROM labels')
+              if not labels_df.empty:
+                  existing_labels = set(labels_df['token_id'].tolist())
+          except Exception:
+              pass
+
+          all_tokens = storage.query('SELECT token_id FROM tokens')['token_id'].tolist()
+          missing = [t for t in all_tokens if t not in existing_labels]
+          print(f'Tokens sin labels: {len(missing)} de {len(all_tokens)} ({len(existing_labels)} ya etiquetados)')
+
+          if not missing:
+              print('Todos los tokens ya tienen labels, nada que hacer')
+          else:
+              # Batch de 500 por run (como features step)
+              batch = missing[:500]
+              print(f'Procesando batch de {len(batch)} tokens...')
+              exitos = 0
+              fallos = 0
+              for i, token_id in enumerate(batch):
+                  try:
+                      resultado = labeler.label_token(token_id)
+                      if resultado is not None:
+                          exitos += 1
+                      else:
+                          fallos += 1
+                  except Exception as e:
+                      print(f'  Error en {token_id[:12]}...: {e}')
+                      fallos += 1
+                  if (i + 1) % 100 == 0:
+                      print(f'  Progreso: {i + 1}/{len(batch)} ({exitos} exitos, {fallos} sin datos)')
+              print(f'Labeling completado: {exitos} nuevos labels, {fallos} sin datos suficientes')
+              print(f'Pendientes para proximo run: {len(missing) - len(batch)}')
           "
-        timeout-minutes: 10
+        timeout-minutes: 20
 
       # Birdeye backfill: tokens con <7 velas diarias no pueden ser etiquetados
       # por el labeler (necesita return_7d). Birdeye rellena el historial.
       # Procesa tokens de TODAS las cadenas con OHLCV insuficiente via Birdeye API.
-      # max-tokens=500 para no exceder el timeout de 30 min.
+      # max-tokens=200 para ahorrar CU Birdeye (antes 500, excedia presupuesto).
       # BIRDEYE_API_KEY ya esta en env del job (linea 40).
       - name: Birdeye OHLCV backfill for tokens with few candles
-        run: python scripts/backfill_ohlcv.py --max-tokens 500 --min-ohlcv 7 --chain all
+        run: python scripts/backfill_ohlcv.py --max-tokens 200 --min-ohlcv 7 --chain all
         timeout-minutes: 30
 
       # Scoring de tokens con modelos ML

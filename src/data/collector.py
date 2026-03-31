@@ -1390,10 +1390,19 @@ class DataCollector:
                 logger.warning(f"Error consultando tokens sin created_at: {e}")
                 return
         else:
-            # Filtrar tokens sin created_at de la lista pasada
+            # Filtrar tokens sin created_at consultando la DB (el dict local
+            # puede no tener created_at aunque la DB si lo tenga)
+            try:
+                has_dates_df = self.storage.query("""
+                    SELECT token_id FROM tokens
+                    WHERE created_at IS NOT NULL
+                """)
+                has_dates = set(has_dates_df["token_id"].tolist()) if not has_dates_df.empty else set()
+            except Exception:
+                has_dates = set()
             tokens_to_process = [
                 t for t in tokens
-                if t.get("token_id") and not t.get("created_at")
+                if t.get("token_id") and t["token_id"] not in has_dates
             ]
 
         if not tokens_to_process:
@@ -1473,15 +1482,35 @@ class DataCollector:
             logger.info("No hay tokens para trade data, saltando paso 5D")
             return
 
+        # Saltar tokens que ya tienen snapshot birdeye-trade hoy
+        try:
+            existing_trade_df = self.storage.query("""
+                SELECT DISTINCT token_id FROM pool_snapshots
+                WHERE source = 'birdeye-trade'
+                  AND snapshot_time::date = CURRENT_DATE
+            """)
+            existing_trade = set(existing_trade_df["token_id"].tolist()) if not existing_trade_df.empty else set()
+        except Exception:
+            existing_trade = set()
+
+        tokens_to_process = [t for t in tokens if t.get("token_id") and t["token_id"] not in existing_trade]
+        skipped = len(tokens) - len(tokens_to_process)
+        if skipped:
+            logger.info(f"5D: Saltando {skipped} tokens que ya tienen trade data hoy")
+
+        if not tokens_to_process:
+            logger.info("Todos los tokens ya tienen trade data hoy, saltando paso 5D")
+            return
+
         logger.info(
-            f"Procesando trade data Birdeye para {len(tokens)} tokens"
+            f"Procesando trade data Birdeye para {len(tokens_to_process)} tokens"
         )
 
         snapshot_time = datetime.now(timezone.utc).isoformat()
         exitos = 0
         errores = 0
 
-        for token in tqdm(tokens, desc="Trade data", unit="token"):
+        for token in tqdm(tokens_to_process, desc="Trade data", unit="token"):
             try:
                 token_id = token.get("token_id", "")
                 chain = token.get("chain", "")
@@ -1565,15 +1594,35 @@ class DataCollector:
             logger.info("No hay tokens para overview, saltando paso 5E")
             return
 
+        # Saltar tokens que ya tienen snapshot birdeye-overview hoy
+        try:
+            existing_overview_df = self.storage.query("""
+                SELECT DISTINCT token_id FROM pool_snapshots
+                WHERE source = 'birdeye-overview'
+                  AND snapshot_time::date = CURRENT_DATE
+            """)
+            existing_overview = set(existing_overview_df["token_id"].tolist()) if not existing_overview_df.empty else set()
+        except Exception:
+            existing_overview = set()
+
+        tokens_to_process = [t for t in tokens if t.get("token_id") and t["token_id"] not in existing_overview]
+        skipped = len(tokens) - len(tokens_to_process)
+        if skipped:
+            logger.info(f"5E: Saltando {skipped} tokens que ya tienen overview hoy")
+
+        if not tokens_to_process:
+            logger.info("Todos los tokens ya tienen overview hoy, saltando paso 5E")
+            return
+
         logger.info(
-            f"Procesando token overview Birdeye para {len(tokens)} tokens"
+            f"Procesando token overview Birdeye para {len(tokens_to_process)} tokens"
         )
 
         snapshot_time = datetime.now(timezone.utc).isoformat()
         exitos = 0
         errores = 0
 
-        for token in tqdm(tokens, desc="Token overview", unit="token"):
+        for token in tqdm(tokens_to_process, desc="Token overview", unit="token"):
             try:
                 token_id = token.get("token_id", "")
                 chain = token.get("chain", "")
@@ -1642,7 +1691,7 @@ class DataCollector:
     # PASO 5F: BIRDEYE ENRICHMENT PARA TOKENS EXISTENTES SIN DATOS
     # ================================================================
 
-    def enrich_existing_tokens_birdeye(self, max_tokens: int = 3000) -> dict:
+    def enrich_existing_tokens_birdeye(self, max_tokens: int = 200) -> dict:
         """
         Enriquece tokens existentes en la DB que no tienen holder data
         o contract_info, usando Birdeye.
@@ -1947,9 +1996,9 @@ class DataCollector:
         ohlcv_update_stats = self.update_existing_ohlcv(max_tokens=max_tokens_ohlcv)
 
         # --- Paso 7: Enriquecer tokens existentes sin datos via Birdeye ---
-        # max_tokens=3000 por tipo (holders, security, dates) = hasta ~9000 calls
-        # Con 900 calls/min, esto toma ~10 min. Bien dentro del presupuesto diario.
-        birdeye_enrich_stats = self.enrich_existing_tokens_birdeye(max_tokens=3000)
+        # max_tokens=200 por tipo (holders, security, dates) = hasta ~600 calls
+        # Reducido de 3000 para ahorrar CU Birdeye (~50K/dia presupuesto).
+        birdeye_enrich_stats = self.enrich_existing_tokens_birdeye(max_tokens=200)
 
         # Calcular duracion total
         duracion = time.time() - inicio
@@ -2402,7 +2451,7 @@ class DataCollector:
 
     def update_existing_ohlcv(
         self,
-        max_tokens: int = 500,
+        max_tokens: int = 300,
         timeframe: str = "day",
         limit: int = 14,
     ) -> dict:
@@ -2729,7 +2778,7 @@ if __name__ == "__main__":
     logger.info("Iniciando recopilacion diaria desde linea de comandos...")
 
     # Leer limite de tokens OHLCV desde variable de entorno (GitHub Actions lo pasa)
-    max_ohlcv = int(_os.getenv("MAX_TOKENS_OHLCV", "500"))
+    max_ohlcv = int(_os.getenv("MAX_TOKENS_OHLCV", "300"))
     logger.info(f"MAX_TOKENS_OHLCV = {max_ohlcv}")
 
     # Crear el collector con configuracion por defecto
