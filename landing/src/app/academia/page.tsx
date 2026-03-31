@@ -111,7 +111,7 @@ export default function AcademiaPage() {
             <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
               Qué son las criptomonedas
             </h2>
-            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed text-justify">
 
               <div className="border border-dark-600 bg-dark-800/50 p-5">
                 <h3 className="text-white font-semibold text-base mb-3">Moneda digital descentralizada</h3>
@@ -182,7 +182,7 @@ export default function AcademiaPage() {
             <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
               Qué es un memecoin
             </h2>
-            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed text-justify">
 
               <div className="border border-dark-600 bg-dark-800/50 p-5">
                 <h3 className="text-white font-semibold text-base mb-3">Tokens inspirados en memes</h3>
@@ -245,7 +245,7 @@ export default function AcademiaPage() {
             <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
               Conceptos básicos
             </h2>
-            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed text-justify">
 
               {/* Wallet */}
               <div className="border border-dark-600 bg-dark-800/50 p-5">
@@ -355,7 +355,7 @@ export default function AcademiaPage() {
             <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
               Riesgo / Recompensa en memecoins
             </h2>
-            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed text-justify">
 
               {/* Aviso destacado */}
               <div className="border-2 border-gem-red bg-gem-red/5 p-5">
@@ -413,7 +413,7 @@ export default function AcademiaPage() {
             <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
               Cómo comprar un memecoin (paso a paso)
             </h2>
-            <div className="space-y-4 text-gray-300 text-sm leading-relaxed">
+            <div className="space-y-4 text-gray-300 text-sm leading-relaxed text-justify">
 
               {/* Paso 1 */}
               <div className="border border-dark-600 bg-dark-800/50 p-5 flex items-start gap-4">
@@ -517,7 +517,7 @@ export default function AcademiaPage() {
             <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
               Señales de alerta (Red Flags)
             </h2>
-            <div className="space-y-4 text-gray-300 text-sm leading-relaxed">
+            <div className="space-y-4 text-gray-300 text-sm leading-relaxed text-justify">
 
               <p className="text-gray-400 mb-4">
                 Si un token presenta una o más de estas señales, <strong className="text-gem-red">aumenta
@@ -584,7 +584,7 @@ export default function AcademiaPage() {
             <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
               Anatomía de un pump
             </h2>
-            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed text-justify">
 
               <div className="border border-dark-600 bg-dark-800/50 p-5">
                 <h3 className="text-white font-semibold text-base mb-3">Las 5 fases de un pump</h3>
@@ -744,7 +744,7 @@ export default function AcademiaPage() {
             <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
               Tipos de memecoins por narrativa
             </h2>
-            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed text-justify">
 
               <div className="border border-dark-600 bg-dark-800/50 p-5">
                 <h3 className="text-white font-semibold text-base mb-3">Las narrativas mueven el mercado</h3>
@@ -875,7 +875,7 @@ export default function AcademiaPage() {
             <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
               Dónde nacen los memecoins
             </h2>
-            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed text-justify">
 
               <div className="border border-dark-600 bg-dark-800/50 p-5">
                 <h3 className="text-white font-semibold text-base mb-3">Pump.fun (Solana)</h3>
@@ -1003,7 +1003,7 @@ export default function AcademiaPage() {
             <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
               Smart Money vs Dumb Money
             </h2>
-            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed text-justify">
 
               <div className="border border-dark-600 bg-dark-800/50 p-5">
                 <h3 className="text-white font-semibold text-base mb-3">Qué es el &quot;Smart Money&quot;</h3>
@@ -1111,7 +1111,7 @@ export default function AcademiaPage() {
             <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
               El juego de suma negativa
             </h2>
-            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed text-justify">
 
               <div className="border-2 border-gem-red bg-gem-red/5 p-5">
                 <p className="text-gem-red font-bold text-base mb-2">LA VERDAD INCOMODA</p>
@@ -1231,7 +1231,7 @@ export default function AcademiaPage() {
             <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
               Gestión emocional del trader
             </h2>
-            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed text-justify">
 
               <div className="border border-dark-600 bg-dark-800/50 p-5">
                 <h3 className="text-white font-semibold text-base mb-3">Las emociones son tu peor enemigo</h3>
@@ -1355,7 +1355,7 @@ export default function AcademiaPage() {
             <h2 className="text-xl md:text-2xl font-bold text-primary mb-8 border-b border-dark-600 pb-3 uppercase tracking-wider">
               Métricas clave que debes conocer
             </h2>
-            <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+            <div className="space-y-6 text-gray-300 text-sm leading-relaxed text-justify">
 
               <div className="border border-dark-600 bg-dark-800/50 p-5">
                 <h3 className="text-white font-semibold text-base mb-3">Entiende los números antes de invertir</h3>

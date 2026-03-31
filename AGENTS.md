@@ -1,5 +1,13 @@
 # Coding Standards — Gentleman Programming Protocol
 
+## 0. Review Scope (CRITICAL — read first)
+
+- **Only flag violations in NEW or MODIFIED code.** Pre-existing code is out of scope.
+- If a file was partially modified, only review the changed/added lines and their immediate context.
+- Do NOT flag violations in unchanged lines, even if they break rules below.
+- Next.js App Router pages (`app/**/page.tsx`, `app/**/layout.tsx`) REQUIRE `export default` — this is a framework constraint, not a violation.
+- Next.js pages may mix logic and UI in a single file — this is acceptable for page-level components.
+
 ## 1. Architecture (Scope Rule — absolute, no exceptions)
 
 ### Scope Rule
@@ -30,7 +38,7 @@
 ## 3. React
 
 - React 19+: Do NOT use `useMemo`, `useCallback`, or `React.memo` (React Compiler handles memoization)
-- Named exports only — no `export default`
+- Named exports only — no `export default` (EXCEPTION: Next.js pages/layouts require `export default`)
 - Props interface naming: `[ComponentName]Props`
 - One component per file
 - Custom hooks: always use `use` prefix (`useTaskStore`, `useAuth`)
