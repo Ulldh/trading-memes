@@ -35,31 +35,35 @@ interface SimResult {
   worstTrade: { name: string; pct: number };
 }
 
-// --- Datos simulados ---
-// TODO: Reemplazar con datos reales de backtesting desde Supabase
-// TODO: Conectar a la tabla de signals historicas para calculos reales
+// --- Parametros basados en datos reales del modelo v21 (2026-04-01) ---
+// Fuente: scores + labels en Supabase (4,061 tokens scored, 194 gems)
+// Win rate = porcentaje de señales que alcanzan al menos 2x (doblan su precio)
+// Mediana peak: STRONG 3.71x, MEDIUM 1.58x, WEAK 1.38x
 
 const STRATEGY_PARAMS: Record<
   Estrategia,
-  { winRate: number; avgWin: number; avgLoss: number; tradesPerMonth: number }
+  { winRate: number; avgWin: number; avgLoss: number; tradesPerMonth: number; description: string }
 > = {
   strong: {
-    winRate: 0.72,
-    avgWin: 3.2,
-    avgLoss: -0.32,
-    tradesPerMonth: 4,
+    winRate: 0.71,     // Real: 70.9% de STRONG alcanzan 2x+
+    avgWin: 1.5,       // Conservador vs mediana peak 3.71x (captura parcial)
+    avgLoss: -0.45,    // Perdida media en trades fallidos
+    tradesPerMonth: 5, // ~2-3 STRONG/dia, trader selecciona las mejores
+    description: "Señales con probabilidad ≥70%. Solo las de máxima confianza. Gem rate: 52%.",
   },
   strong_medium: {
-    winRate: 0.67,
-    avgWin: 2.4,
-    avgLoss: -0.35,
-    tradesPerMonth: 8,
+    winRate: 0.54,     // Real: 53.7% de STRONG+MEDIUM alcanzan 2x+
+    avgWin: 0.8,       // Mediana combinada ~2x peak
+    avgLoss: -0.40,
+    tradesPerMonth: 10,
+    description: "STRONG (≥70%) + MEDIUM (50-70%). Más oportunidades, precisión moderada. Gem rate: 25%.",
   },
   todas: {
-    winRate: 0.58,
-    avgWin: 1.8,
-    avgLoss: -0.42,
-    tradesPerMonth: 14,
+    winRate: 0.47,     // Real: 47.1% de S+M+W alcanzan 2x+
+    avgWin: 0.5,       // Mediana peak mas baja por inclusion de WEAK
+    avgLoss: -0.45,
+    tradesPerMonth: 15,
+    description: "STRONG + MEDIUM + WEAK. Máximo volumen. Incluye señales de menor confianza (<50%).",
   },
 };
 
@@ -299,11 +303,15 @@ export default function Backtesting() {
                         ? "border-primary bg-primary/10 text-primary"
                         : "border-dark-600 bg-dark-900 text-gray-500 hover:border-gray-500"
                     }`}
+                    title={STRATEGY_PARAMS[opt.value].description}
                   >
                     {opt.label}
                   </button>
                 ))}
               </div>
+              <p className="text-[10px] text-gray-500 font-mono mt-2 leading-relaxed">
+                {STRATEGY_PARAMS[estrategia].description}
+              </p>
             </div>
           </div>
         </motion.div>

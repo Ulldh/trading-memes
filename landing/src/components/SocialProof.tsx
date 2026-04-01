@@ -51,21 +51,21 @@ export default function SocialProof(): React.JSX.Element {
 
   const stats = [
     {
-      value: 347,
+      value: 606,
       suffix: "",
       label: t("stat_signals"),
       icon: ">>",
       color: "text-primary",
     },
     {
-      value: 174,
+      value: 194,
       suffix: "",
       label: t("stat_gems"),
       icon: "◆",
       color: "text-gem-yellow",
     },
     {
-      value: 7931,
+      value: 8385,
       suffix: "",
       label: t("stat_tokens"),
       icon: "{ }",

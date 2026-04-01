@@ -68,7 +68,7 @@
       {
         "title": "MODEL",
         "icon": "ML",
-        "stats": ["RF + XGB + LGB", "ML Ensemble", "F1 Score: 0.67"],
+        "stats": ["RF + XGB + LGB", "ML Ensemble", "STRONG hit rate: 52%"],
         "detail": "Three algorithms vote together. Only signals with consensus pass the filter."
       },
       {
@@ -96,7 +96,7 @@
   "backtesting": {
     "section_title": "Strategy Simulator",
     "simulation_badge": "SIMULATION",
-    "section_subtitle": "Based on model metrics (F1 Score: 0.67), not on actual historical data.",
+    "section_subtitle": "Based on real v21 model data: STRONG gem rate 52%, win rate 71% (2x+). Not actual past performance.",
     "investment_label": "Initial investment",
     "period_label": "Period",
     "strategy_label": "Strategy",
@@ -120,7 +120,7 @@
     "chart_x_label": "Day",
     "chart_ref_label": "Investment",
     "tooltip_day": "Day",
-    "transparency_note": "This simulation uses a mathematical model based on a 67% hit rate and average returns observed during validation. It does not represent actual past performance.",
+    "transparency_note": "This simulation uses real v21 model data: STRONG 52% gem rate (median 3.71x), STRONG+MEDIUM 25% gem rate, win rates based on tokens reaching 2x+. Not actual past performance.",
     "track_record_note": "Real track record available in the dashboard.",
     "track_record_link": "View history →",
     "disclaimer": "WARNING: Estimated simulation based on model v21 metrics. Verifiable track record with real data coming soon (we have been collecting data since March 2026). Past performance does not guarantee future results.",

@@ -92,11 +92,12 @@ function StatCard({ item, index }: { item: StatItem; index: number }) {
 }
 
 // Valores por defecto (actualizados 2026-03-31)
+// Actualizados 2026-04-01 con datos reales de Supabase
 const DEFAULT_STATS: StatsData = {
-  tokens: 7931,
-  ohlcv: 135000,
-  scores: 3121,
-  gems: 174,
+  tokens: 8385,
+  ohlcv: 163492,
+  scores: 4061,
+  gems: 194,
 };
 
 export default function Stats() {
@@ -120,7 +121,7 @@ export default function Stats() {
     { value: stats.tokens, label: t("items.0.label") },
     { value: stats.ohlcv, label: t("items.1.label") },
     { value: 22, label: t("items.2.label") },
-    { value: 40, suffix: "%", label: t("items.3.label") },
+    { value: 52, suffix: "%", label: t("items.3.label") },
     { value: 3, label: t("items.4.label") },
     { value: 7.3, label: t("items.5.label"), decimals: 1 },
     { value: 15, prefix: "<", suffix: "s", label: t("items.6.label") },

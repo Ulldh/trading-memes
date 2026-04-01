@@ -68,7 +68,7 @@
       {
         "title": "MODELO",
         "icon": "ML",
-        "stats": ["RF + XGB + LGB", "Ensemble ML", "F1 Score: 0.67"],
+        "stats": ["RF + XGB + LGB", "Ensemble ML", "STRONG hit rate: 52%"],
         "detail": "Tres algoritmos votan en conjunto. Solo las señales con consenso pasan el filtro."
       },
       {
@@ -96,7 +96,7 @@
   "backtesting": {
     "section_title": "Simulador de Estrategia",
     "simulation_badge": "SIMULACIÓN",
-    "section_subtitle": "Basado en las métricas del modelo (F1 Score: 0.67), no en datos históricos reales.",
+    "section_subtitle": "Basado en datos reales del modelo v21: STRONG gem rate 52%, win rate 71% (2x+). No es rendimiento pasado real.",
     "investment_label": "Inversión inicial",
     "period_label": "Período",
     "strategy_label": "Estrategia",
@@ -120,7 +120,7 @@
     "chart_x_label": "Día",
     "chart_ref_label": "Inversión",
     "tooltip_day": "Día",
-    "transparency_note": "Esta simulación usa un modelo matemático basado en la tasa de acierto del 67% y retornos promedio observados en validación. No representa rendimiento real pasado.",
+    "transparency_note": "Esta simulación usa datos reales del modelo v21: STRONG 52% gem rate (mediana 3.71x), STRONG+MEDIUM 25% gem rate, win rates basados en tokens que alcanzan 2x+. No representa rendimiento real pasado.",
     "track_record_note": "Track record real disponible en el dashboard.",
     "track_record_link": "Ver historial →",
     "disclaimer": "AVISO: Simulación estimada basada en métricas del modelo v21. Track record verificable con datos reales disponible próximamente (estamos acumulando datos desde marzo 2026). Rendimiento pasado no garantiza resultados futuros.",
