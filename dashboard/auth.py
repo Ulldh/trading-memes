@@ -153,6 +153,7 @@ def logout():
     st.session_state.profile = None
     st.session_state.access_token = None
     st.session_state.login_time = 0
+    st.session_state.pop("pending_plan", None)
 
 
 def _load_profile(client: Client, user_id: str):
@@ -232,10 +233,34 @@ def require_auth():
         from auth import require_auth
         require_auth()
         # ... resto de la pagina
+
+    Si el usuario ya esta autenticado y tiene un plan pendiente
+    (viene de la landing con ?plan=pro|enterprise), redirige a Stripe.
     """
     init_session_state()
     if is_authenticated():
         _check_session_freshness()
+        # Si el usuario ya logueado llega con ?plan=pro|enterprise desde la landing,
+        # guardar el plan en session_state para que _maybe_redirect_to_stripe lo procese.
+        qp = st.query_params
+        plan_from_url = qp.get("plan", "")
+        if plan_from_url in ("pro", "enterprise"):
+            st.session_state["pending_plan"] = plan_from_url
+        # Mostrar mensaje de retorno de Stripe si aplica
+        payment_status = qp.get("payment", "")
+        if payment_status == "success":
+            st.success(t(
+                "auth.payment_success",
+                "¡Pago completado! Tu plan se activará en breves instantes."
+            ))
+        elif payment_status == "cancelled":
+            st.info(t(
+                "auth.payment_cancelled",
+                "El pago fue cancelado. Puedes reintentar desde tu perfil "
+                "o seleccionando un plan de nuevo."
+            ))
+        # Comprobar si hay plan pendiente para redirigir a Stripe
+        _maybe_redirect_to_stripe()
         return
     render_login_page()
     st.stop()
@@ -295,23 +320,98 @@ def reset_password(email: str) -> bool:
         return False
 
 
+def _handle_payment_query_params():
+    """Procesa query params de retorno de Stripe (?payment=success|cancelled).
+
+    Se llama al inicio de render_login_page para mostrar mensajes
+    de confirmacion o reintento antes del formulario de login.
+    """
+    qp = st.query_params
+    payment_status = qp.get("payment", "")
+
+    if payment_status == "success":
+        st.success(t(
+            "auth.payment_success",
+            "¡Pago completado! Tu plan se activará en breves instantes. "
+            "Inicia sesión para continuar."
+        ))
+    elif payment_status == "cancelled":
+        st.info(t(
+            "auth.payment_cancelled",
+            "El pago fue cancelado. Puedes reintentar desde tu perfil "
+            "o seleccionando un plan de nuevo."
+        ))
+
+
+def _maybe_redirect_to_stripe():
+    """Redirige a Stripe Checkout si el usuario tiene un plan pendiente.
+
+    Comprueba si el usuario acaba de hacer login con un plan de pago
+    pendiente (pro/enterprise) y su rol actual es free. Si Stripe
+    esta configurado, crea una sesion de checkout y redirige.
+    """
+    plan_requested = st.session_state.get("pending_plan", "")
+    role = st.session_state.get("role", "free")
+
+    if plan_requested in ("pro", "enterprise") and role == "free":
+        try:
+            from src.billing.stripe_client import create_checkout_session, is_configured
+            if is_configured():
+                user = st.session_state.get("user", {}) or {}
+                checkout_url = create_checkout_session(
+                    user_email=user.get("email", ""),
+                    plan=plan_requested,
+                    user_id=user.get("id", ""),
+                )
+                if checkout_url:
+                    # Limpiar el plan pendiente para que no se repita
+                    st.session_state.pop("pending_plan", None)
+                    st.markdown(
+                        f'<meta http-equiv="refresh" content="0;url={checkout_url}">',
+                        unsafe_allow_html=True,
+                    )
+                    st.info(t(
+                        "auth.redirecting_stripe",
+                        "Redirigiendo a la pasarela de pago..."
+                    ))
+                    st.stop()
+        except ImportError:
+            logger.warning("stripe_client no disponible, omitiendo redireccion a Stripe")
+        except Exception:
+            logger.exception("Error al crear sesion de Stripe Checkout")
+
+
 def render_login_page():
     """Renderiza la pagina de login/registro con tabs.
 
-    Incluye validación de campos, confirmacion de contraseña
-    en registro, longitud minima de contraseña (6 chars),
-    recuperacion de contraseña y aviso de terminos de servicio.
+    Incluye validacion de campos, confirmacion de contraseña
+    en registro, longitud minima de contraseña (8 chars),
+    recuperacion de contraseña, aviso de terminos de servicio,
+    y flujo de redireccion a Stripe para planes de pago.
+
+    Query params soportados:
+      - ?tab=register|login — pestaña inicial
+      - ?plan=free|pro|enterprise — plan seleccionado desde la landing
+      - ?payment=success|cancelled — retorno de Stripe Checkout
     """
     st.title(t("auth.login_title", "🔒 Trading Memes"))
     st.markdown(t("auth.login_subtitle", "Detector de Gems en Memecoins con Machine Learning"))
 
-    # Determinar tab inicial segun query param ?tab=register|login
+    # --- Procesar retorno de Stripe (success/cancelled) ---
+    _handle_payment_query_params()
+
+    # --- Leer query params: tab y plan ---
+    qp = st.query_params
+    default_tab = qp.get("tab", "login")
+    # Guardar plan solicitado desde la landing (free/pro/enterprise)
+    plan_from_url = qp.get("plan", "")
+    if plan_from_url and plan_from_url in ("free", "pro", "enterprise"):
+        st.session_state["pending_plan"] = plan_from_url
+
     tab_labels = [
         t("auth.tab_login", "Iniciar Sesión"),
         t("auth.tab_register", "Crear Cuenta"),
     ]
-    qp = st.query_params
-    default_tab = qp.get("tab", "login")
     # st.tabs no soporta default index, pero podemos reordenar para que el tab
     # deseado aparezca primero. Si tab=register, ponemos Crear Cuenta primero.
     if default_tab == "register":
@@ -328,6 +428,8 @@ def render_login_page():
         if st.button(t("auth.login_btn", "Acceder"), type="primary", key="btn_login"):
             if email and password:
                 if login(email, password):
+                    # Comprobar si hay plan pendiente para redirigir a Stripe
+                    _maybe_redirect_to_stripe()
                     st.rerun()
             else:
                 st.warning(t("auth.error_empty_fields", "Introduce email y contraseña."))
@@ -350,6 +452,15 @@ def render_login_page():
                     st.warning(t("auth.error_empty_email", "Introduce tu email."))
 
     with tab_register:
+        # Mostrar plan seleccionado si viene de la landing
+        pending = st.session_state.get("pending_plan", "")
+        if pending and pending != "free":
+            st.info(t(
+                "auth.plan_selected",
+                f"Plan seleccionado: **{pending.upper()}**. "
+                "Crea tu cuenta y tras iniciar sesión serás redirigido al pago."
+            ))
+
         reg_email = st.text_input(t("auth.email", "Email"), key="reg_email")
         reg_pass = st.text_input(
             t("auth.password", "Contraseña"), type="password", key="reg_password",

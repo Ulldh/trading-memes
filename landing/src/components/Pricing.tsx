@@ -3,11 +3,11 @@
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 
-// URLs de pago (no se traducen)
+// URLs de registro parametrizadas por plan (el dashboard maneja el flujo Stripe)
 const planHrefs = [
-  "https://app.memedetector.es/?tab=register",
-  "https://buy.stripe.com/bJe8wPgnT7Ai6RT4xCaZi00",
-  "https://buy.stripe.com/8x2fZh4Fbg6Oekld48aZi01",
+  "https://app.memedetector.es/?tab=register&plan=free",
+  "https://app.memedetector.es/?tab=register&plan=pro",
+  "https://app.memedetector.es/?tab=register&plan=enterprise",
 ];
 
 export default function Pricing() {
@@ -127,12 +127,6 @@ export default function Pricing() {
               >
                 {plan.cta}
               </a>
-              {/* Nota para planes de pago: usar mismo email */}
-              {index > 0 && (
-                <p className="text-xs text-gray-500 text-center mt-3">
-                  {t("plans.email_note")}
-                </p>
-              )}
             </motion.div>
           ))}
         </div>
