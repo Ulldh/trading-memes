@@ -263,7 +263,7 @@ def render():
         )
         if _stripe_ok and _create_checkout is not None:
             try:
-                checkout_url = _create_checkout(user_email=email, plan="pro")
+                checkout_url = _create_checkout(user_email=email, plan="pro", user_id=user_id or "")
             except Exception:
                 checkout_url = ""
             if checkout_url:

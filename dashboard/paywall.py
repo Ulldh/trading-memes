@@ -23,12 +23,14 @@ def _get_checkout_url(plan: str = "pro") -> str:
     if create_checkout_session is None or not _stripe_configured():
         return ""
 
-    email = st.session_state.get("user", {}).get("email", "")
+    user = st.session_state.get("user", {})
+    email = user.get("email", "")
+    user_id = user.get("id", "")
     if not email:
         return ""
 
     try:
-        return create_checkout_session(user_email=email, plan=plan) or ""
+        return create_checkout_session(user_email=email, plan=plan, user_id=user_id) or ""
     except Exception:
         return ""
 

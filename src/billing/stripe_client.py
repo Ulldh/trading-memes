@@ -27,11 +27,19 @@ def create_checkout_session(
     plan: str = "pro",
     success_url: str = "",
     cancel_url: str = "",
+    user_id: str = "",
 ) -> str:
     """Crea una sesion de Stripe Checkout. Retorna la URL de checkout.
 
     Si Stripe no esta configurado (sin API key o sin price ID),
     retorna cadena vacia.
+
+    Args:
+        user_email: Email del usuario (pre-rellena el campo en Stripe).
+        plan: 'pro' o 'enterprise'.
+        success_url: URL de redireccion tras pago exitoso.
+        cancel_url: URL de redireccion si cancela.
+        user_id: ID de Supabase Auth del usuario (para vincular perfil).
     """
     price_id = PRICE_IDS.get(plan, PRICE_IDS["pro"])
     if not price_id or not stripe.api_key:
@@ -41,6 +49,7 @@ def create_checkout_session(
         payment_method_types=["card"],
         mode="subscription",
         customer_email=user_email,
+        client_reference_id=user_id or None,
         line_items=[{"price": price_id, "quantity": 1}],
         success_url=success_url or "https://app.memedetector.es/?payment=success",
         cancel_url=cancel_url or "https://app.memedetector.es/?payment=cancelled",
