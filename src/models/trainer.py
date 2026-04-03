@@ -1363,12 +1363,41 @@ class ModelTrainer:
     # GUARDAR / CARGAR MODELOS
     # ============================================================
 
+    @staticmethod
+    def _unwrap_smote_pipeline(model):
+        """
+        Si el modelo es un ImbPipeline con SMOTE, extrae solo el clasificador.
+
+        RF se entrena dentro de ImbPipeline([SMOTE, RFC]). SMOTE solo debe
+        aplicarse durante training, no durante inferencia. Guardamos solo
+        el clasificador ya entrenado para que predict/predict_proba funcionen
+        sin pasar por SMOTE innecesariamente.
+
+        Args:
+            model: Modelo que puede ser ImbPipeline o estimador directo.
+
+        Returns:
+            El clasificador extraido si era un ImbPipeline, o el modelo original.
+        """
+        if hasattr(model, "steps"):
+            # ImbPipeline: lista de tuplas (nombre, estimador)
+            estimator = model.steps[-1][1]
+            logger.info(
+                f"  Extraido {type(estimator).__name__} de ImbPipeline "
+                f"(SMOTE removido del archivo guardado)"
+            )
+            return estimator
+        return model
+
     def save_models(self, path: Optional[Path] = None):
         """
         Guarda todos los modelos entrenados en disco usando joblib.
 
         joblib es mas eficiente que pickle para objetos con arrays numpy grandes,
         como los modelos de sklearn y xgboost.
+
+        Si el modelo es un ImbPipeline (RF con SMOTE), extrae solo el
+        clasificador entrenado para evitar aplicar SMOTE en inferencia.
 
         Args:
             path: Directorio donde guardar los modelos. Por defecto usa MODELS_DIR.
@@ -1377,8 +1406,10 @@ class ModelTrainer:
         save_dir.mkdir(parents=True, exist_ok=True)
 
         for name, model in self.models.items():
+            # Extraer clasificador si esta envuelto en ImbPipeline (SMOTE)
+            model_to_save = self._unwrap_smote_pipeline(model)
             filepath = save_dir / f"{name}.joblib"
-            joblib.dump(model, filepath)
+            joblib.dump(model_to_save, filepath)
             logger.info(f"Modelo '{name}' guardado en: {filepath}")
 
         # Guardar tambien los nombres de features (necesarios para prediccion)
@@ -1521,9 +1552,12 @@ class ModelTrainer:
         # ============================================================
         # 1. GUARDAR MODELOS EN CARPETA VERSIONADA
         # ============================================================
+        # Si el modelo es ImbPipeline (RF con SMOTE), guardamos solo el
+        # clasificador entrenado para evitar SMOTE durante inferencia.
         for name, model in self.models.items():
+            model_to_save = self._unwrap_smote_pipeline(model)
             filepath = version_dir / f"{name}.joblib"
-            joblib.dump(model, filepath)
+            joblib.dump(model_to_save, filepath)
             logger.info(f"  {name}.joblib -> {version_name}/")
 
         # Guardar ensemble meta-learner si existe

@@ -455,12 +455,13 @@ class GemScorer:
         """
         Extrae el estimador base de un Pipeline/ImbPipeline.
 
-        RF se almacena como ImbPipeline([("smote", SMOTE), ("rf", RFC)]).
-        Si llamamos predict_proba() sobre el pipeline, SMOTE se aplica
-        a los datos de inferencia y corrompe las predicciones.
+        Modelos nuevos (v22+) se guardan sin el wrapper ImbPipeline,
+        asi que este metodo retorna el modelo directamente.
+        Modelos antiguos (v21 y anteriores) estan envueltos en
+        ImbPipeline([("smote", SMOTE), ("rf", RFC)]) y necesitan
+        extraccion para evitar que SMOTE se aplique en inferencia.
 
-        Esta funcion extrae el clasificador final del pipeline para
-        llamar predict_proba directamente sobre el, sin pasar por SMOTE.
+        Compatible con ambos formatos para retrocompatibilidad.
 
         Args:
             model: Modelo que puede ser Pipeline, ImbPipeline o estimador directo.
@@ -469,10 +470,12 @@ class GemScorer:
             Estimador listo para predict/predict_proba sin SMOTE.
         """
         # Pipeline / ImbPipeline: tienen atributo 'steps' (lista de tuplas)
+        # (modelos antiguos guardados con wrapper SMOTE)
         if hasattr(model, "steps"):
             estimator = model.steps[-1][1]
             logger.debug(
-                f"Estimador extraido de pipeline: {type(estimator).__name__}"
+                f"Estimador extraido de pipeline (modelo legacy): "
+                f"{type(estimator).__name__}"
             )
             return estimator
         # named_steps (alternativa menos comun)
@@ -482,7 +485,7 @@ class GemScorer:
                 f"Estimador extraido de named_steps: {type(estimator).__name__}"
             )
             return estimator
-        # CalibratedClassifierCV o modelo directo: retornar tal cual
+        # Modelo directo (v22+ sin wrapper) o CalibratedClassifierCV
         return model
 
     def _prepare_features_batch(self, features_df: pd.DataFrame) -> pd.DataFrame:

@@ -208,6 +208,17 @@
       }
     ]
   },
+  "countdown": {
+    "next_scan": "Prochain scan dans",
+    "running": "Scan en cours..."
+  },
+  "changelog": {
+    "title": "\u00c9volution du Mod\u00e8le",
+    "subtitle": "Chaque version apprend de plus de donn\u00e9es et am\u00e9liore sa pr\u00e9cision",
+    "gems": "gems",
+    "features": "features",
+    "current": "Production"
+  },
   "social_proof": {
     "stat_signals": "signaux \u00e9mis",
     "stat_gems": "gems d\u00e9tect\u00e9s",

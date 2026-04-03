@@ -208,6 +208,17 @@
       }
     ]
   },
+  "countdown": {
+    "next_scan": "Próximo scan en",
+    "running": "Escaneando ahora..."
+  },
+  "changelog": {
+    "title": "Evolución del Modelo",
+    "subtitle": "Cada versión aprende de más datos y mejora su precisión",
+    "gems": "gems",
+    "features": "features",
+    "current": "Producción"
+  },
   "social_proof": {
     "stat_signals": "señales emitidas",
     "stat_gems": "gems detectados",

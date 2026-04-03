@@ -4,6 +4,7 @@ import { Ticker } from "@/components/Ticker";
 import Pipeline from "@/components/Pipeline";
 import Stats from "@/components/Stats";
 import Backtesting from "@/components/Backtesting";
+import ModelChangelog from "@/components/ModelChangelog";
 import SocialProof from "@/components/SocialProof";
 import Pricing from "@/components/Pricing";
 import FAQ from "@/components/FAQ";
@@ -25,6 +26,7 @@ export default function Home() {
         <div id="pipeline"><Pipeline /></div>
         <div id="stats"><Stats /></div>
         <div id="backtesting"><Backtesting /></div>
+        <div id="changelog"><ModelChangelog /></div>
         <SocialProof />
         <div id="pricing"><Pricing /></div>
         <div id="faq"><FAQ /></div>

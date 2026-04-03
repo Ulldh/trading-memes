@@ -262,9 +262,39 @@ class SupabaseStorage:
         self._client.rpc("exec_sql", {"query_text": final_sql}).execute()
 
     def execute_many(self, sql: str, params_list: list):
-        """Ejecuta una sentencia SQL para multiples filas."""
+        """Ejecuta una sentencia SQL para multiples filas (una llamada RPC por fila)."""
         for params in params_list:
             self.execute(sql, params)
+
+    def upsert_batch(
+        self, table: str, records: list[dict], on_conflict: str = None
+    ):
+        """
+        Upsert masivo via PostgREST (mucho mas eficiente que execute_many).
+
+        En vez de hacer N llamadas RPC individuales, usa la API de
+        PostgREST para enviar todos los registros en batches de _BATCH_SIZE.
+        Ideal para reemplazar execute_many en operaciones INSERT/UPSERT.
+
+        Args:
+            table: Nombre de la tabla destino (ej: "pool_snapshots").
+            records: Lista de dicts, cada uno representando una fila.
+            on_conflict: Columnas para ON CONFLICT (ej: "token_id,timestamp").
+                Si es None, PostgREST usa la clave primaria por defecto.
+
+        Ejemplo:
+            storage.upsert_batch("features", [
+                {"token_id": "0xABC", "feature_1": 0.5, "feature_2": 1.2},
+                {"token_id": "0xDEF", "feature_1": 0.3, "feature_2": 0.8},
+            ], on_conflict="token_id")
+        """
+        if not records:
+            return
+        logger.info(
+            f"upsert_batch: {len(records)} filas -> {table} "
+            f"(batches de {_BATCH_SIZE})"
+        )
+        self._batch_upsert(table, records, on_conflict=on_conflict)
 
     # ============================================================
     # HELPERS INTERNOS

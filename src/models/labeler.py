@@ -107,7 +107,9 @@ class Labeler:
     # METODO PRINCIPAL: Clasificar un token
     # ============================================================
 
-    def label_token(self, token_id: str) -> Optional[dict]:
+    def label_token(
+        self, token_id: str, liquidity_data: pd.DataFrame = None
+    ) -> Optional[dict]:
         """
         Clasifica un solo token basandose en sus datos OHLCV diarios.
 
@@ -122,6 +124,8 @@ class Labeler:
 
         Args:
             token_id: Identificador unico del token (contract address).
+            liquidity_data: DataFrame con snapshots de liquidez pre-fetched
+                para este token (None = consultar DB individualmente).
 
         Returns:
             Dict con: token_id, label_multi, label_binary, max_multiple,
@@ -222,6 +226,7 @@ class Labeler:
             final_multiple=final_multiple,
             daily_closes=daily_closes,
             notes_parts=notes_parts,
+            liquidity_data=liquidity_data,
         )
 
         # --- Paso 8: Clasificacion binaria ---
@@ -266,6 +271,9 @@ class Labeler:
         Obtiene la lista de tokens desde la tabla 'tokens', intenta
         clasificar cada uno, y devuelve un DataFrame con todos los resultados.
 
+        Optimizacion: pre-fetch de TODOS los snapshots de liquidez en una
+        sola query (evita N+1 queries individuales por token en _is_rug).
+
         Returns:
             DataFrame con columnas: token_id, label_multi, label_binary,
             max_multiple, final_multiple, notes.
@@ -279,6 +287,26 @@ class Labeler:
 
         logger.info(f"Clasificando {len(tokens_df)} tokens...")
 
+        # --- Pre-fetch de snapshots de liquidez para deteccion de rug ---
+        # Una sola query en vez de una por token (evita N+1 queries)
+        snapshots_by_token = {}
+        try:
+            all_snapshots = self.storage.query(
+                "SELECT token_id, liquidity_usd, snapshot_time "
+                "FROM pool_snapshots ORDER BY token_id, snapshot_time"
+            )
+            if not all_snapshots.empty:
+                snapshots_by_token = {
+                    tid: group_df.reset_index(drop=True)
+                    for tid, group_df in all_snapshots.groupby("token_id")
+                }
+            logger.info(
+                f"Pre-fetch liquidez: {len(snapshots_by_token)} tokens "
+                f"con snapshots (total {len(all_snapshots)} filas)"
+            )
+        except Exception as e:
+            logger.warning(f"No se pudo pre-fetch liquidez (se consultara por token): {e}")
+
         resultados = []
         exitos = 0
         fallos = 0
@@ -286,7 +314,9 @@ class Labeler:
         for _, row in tokens_df.iterrows():
             token_id = row["token_id"]
             try:
-                resultado = self.label_token(token_id)
+                # Pasar snapshots pre-fetched (DataFrame vacio si no hay datos)
+                liq_data = snapshots_by_token.get(token_id, pd.DataFrame())
+                resultado = self.label_token(token_id, liquidity_data=liq_data)
                 if resultado is not None:
                     resultados.append(resultado)
                     exitos += 1
@@ -325,6 +355,7 @@ class Labeler:
         final_multiple: float,
         daily_closes: list,
         notes_parts: list,
+        liquidity_data: pd.DataFrame = None,
     ) -> str:
         """
         Aplica las reglas de clasificacion multiclase.
@@ -343,13 +374,15 @@ class Labeler:
             final_multiple: Multiplo final.
             daily_closes: Lista de precios close diarios.
             notes_parts: Lista mutable donde agregar notas explicativas.
+            liquidity_data: DataFrame con snapshots de liquidez pre-fetched
+                (None = consultar DB individualmente).
 
         Returns:
             String con la etiqueta: "rug", "failure", "gem",
             "moderate_success", o "neutral".
         """
         # --- CHECK 1: Rug Pull ---
-        if self._is_rug(ohlcv_df, initial_price, notes_parts):
+        if self._is_rug(ohlcv_df, initial_price, notes_parts, liquidity_data=liquidity_data):
             return "rug"
 
         # --- CHECK 2: Failure (perdio 90%+) ---
@@ -422,9 +455,10 @@ class Labeler:
         ohlcv_df: pd.DataFrame,
         initial_price: float,
         notes_parts: list,
+        liquidity_data: pd.DataFrame = None,
     ) -> bool:
         """
-        Detecta si un token sufrió un rug pull.
+        Detecta si un token sufrio un rug pull.
 
         Un rug pull se identifica si:
         - El precio cayo por debajo de 0.01x en las primeras 72 horas (3 dias).
@@ -434,6 +468,8 @@ class Labeler:
             ohlcv_df: DataFrame con datos OHLCV.
             initial_price: Precio inicial del token.
             notes_parts: Lista donde agregar notas.
+            liquidity_data: DataFrame con columnas liquidity_usd, snapshot_time
+                para este token (pre-fetched). Si es None, consulta la DB.
 
         Returns:
             True si el token es un rug pull.
@@ -464,16 +500,20 @@ class Labeler:
             return True
 
         # --- Verificar caida de liquidez (si hay datos de pool_snapshots) ---
-        # Consultamos los snapshots de este token para ver si la liquidez desaparecio
+        # Si se paso liquidity_data pre-fetched, usarlo directamente.
+        # Si no, consultar la DB (caso de label_token individual).
         try:
-            token_id = ohlcv_df.iloc[0]["token_id"]
-            liq_df = self.storage.query(
-                """SELECT liquidity_usd, snapshot_time
-                   FROM pool_snapshots
-                   WHERE token_id = ?
-                   ORDER BY snapshot_time""",
-                (token_id,),
-            )
+            if liquidity_data is not None:
+                liq_df = liquidity_data
+            else:
+                token_id = ohlcv_df.iloc[0]["token_id"]
+                liq_df = self.storage.query(
+                    """SELECT liquidity_usd, snapshot_time
+                       FROM pool_snapshots
+                       WHERE token_id = ?
+                       ORDER BY snapshot_time""",
+                    (token_id,),
+                )
 
             if not liq_df.empty and len(liq_df) >= 2:
                 # Comparar primera y minima liquidez

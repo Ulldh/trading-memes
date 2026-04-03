@@ -9,6 +9,7 @@ Navegacion basada en roles:
 """
 import os
 import sys
+import datetime
 from pathlib import Path
 
 # Agregar la raiz del proyecto al path para que los imports funcionen
@@ -103,6 +104,7 @@ from public.pricing import render as render_pricing
 from public.profile import render as render_profile
 from public.legal import render as render_legal
 from public.academy import render as render_academy
+from public.model_history import render as render_model_history
 from admin.drift_monitor import render as render_drift_monitor
 from admin.retrain_panel import render as render_retrain_panel
 
@@ -128,6 +130,8 @@ if render_portfolio:
     public_pages.append(st.Page(render_portfolio, title="Portfolio", icon=":material/account_balance_wallet:", url_path="portfolio"))
 if render_track_record:
     public_pages.append(st.Page(render_track_record, title="Track Record", icon=":material/emoji_events:", url_path="track-record"))
+if render_model_history:
+    public_pages.append(st.Page(render_model_history, title="Bitácora ML", icon=":material/history:", url_path="model-history"))
 if render_alerts_config:
     public_pages.append(st.Page(render_alerts_config, title="Alertas", icon=":material/notifications:", url_path="alerts"))
 if render_profile:
@@ -173,6 +177,21 @@ pg = st.navigation(nav_config, position="sidebar")
 # =============================================================================
 
 st.sidebar.divider()
+
+# --- Countdown hasta proximo pipeline scan ---
+_now_utc = datetime.datetime.now(datetime.timezone.utc)
+_next_runs = []
+for _hour in [6, 18]:
+    _candidate = _now_utc.replace(hour=_hour, minute=0, second=0, microsecond=0)
+    if _candidate <= _now_utc:
+        _candidate += datetime.timedelta(days=1)
+    _next_runs.append(_candidate)
+_next_run = min(_next_runs)
+_delta = _next_run - _now_utc
+_hours, _remainder = divmod(int(_delta.total_seconds()), 3600)
+_minutes, _seconds = divmod(_remainder, 60)
+st.sidebar.caption(f"\u23f1\ufe0f Pr\u00f3ximo scan en {_hours:02d}:{_minutes:02d}:{_seconds:02d}")
+
 st.sidebar.caption(
     "**Gem Detector** - Herramienta de Machine Learning para analizar memecoins "
     "y detectar cuales tienen potencial de ser 'gems' (10x+)."

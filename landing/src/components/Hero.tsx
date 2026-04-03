@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
+import Countdown from "./Countdown";
 
 export default function Hero() {
   const t = useTranslations("hero");
@@ -104,6 +105,11 @@ export default function Hero() {
             <span className="text-gray-500 ml-2">{t("stat_vs_random")}</span>
           </div>
         </motion.div>
+
+        {/* Countdown hasta proximo scan */}
+        <div className="mb-8">
+          <Countdown />
+        </div>
 
         {/* CTA */}
         <motion.div
