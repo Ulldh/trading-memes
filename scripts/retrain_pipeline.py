@@ -163,6 +163,7 @@ def run_pipeline(
     dry_run: bool = False,
     tuned_params_file: str | None = None,
     use_v12_features: bool = False,
+    temporal_cv: bool = True,
 ) -> dict:
     """
     Pipeline completo: label -> features -> train -> save.
@@ -173,6 +174,8 @@ def run_pipeline(
         dry_run: Si True, solo muestra estadisticas sin entrenar.
         tuned_params_file: Ruta a JSON con hiperparametros optimizados (de tune_models.py).
         use_v12_features: Si True, filtra features al set de v12 para comparacion justa.
+        temporal_cv: Si True (default), usa split temporal + TimeSeriesSplit.
+                     Si False, usa split aleatorio + StratifiedKFold (comparacion).
 
     Returns:
         Dict con estadisticas del pipeline.
@@ -348,6 +351,7 @@ def run_pipeline(
     results = trainer.train_all(
         features_df, labels_df, target="label_binary",
         tuned_params_file=tuned_params_file,
+        temporal_cv=temporal_cv,
     )
     t1 = time.time()
 
@@ -689,6 +693,10 @@ if __name__ == "__main__":
         "--use-v12-features", action="store_true",
         help="Filtrar features al set de v12 (de metadata.json) para comparacion justa"
     )
+    parser.add_argument(
+        "--no-temporal-cv", action="store_true",
+        help="Desactivar split temporal (usar StratifiedKFold aleatorio, como antes)"
+    )
 
     args = parser.parse_args()
 
@@ -698,6 +706,7 @@ if __name__ == "__main__":
         dry_run=args.dry_run,
         tuned_params_file=args.tuned_params,
         use_v12_features=args.use_v12_features,
+        temporal_cv=not args.no_temporal_cv,
     )
 
     print(f"\nResultado: {stats}")

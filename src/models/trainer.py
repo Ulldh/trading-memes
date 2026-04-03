@@ -38,7 +38,10 @@ from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 
 # Utilidades de sklearn
-from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score, cross_val_predict
+from sklearn.model_selection import (
+    train_test_split, StratifiedKFold, TimeSeriesSplit,
+    cross_val_score, cross_val_predict,
+)
 from sklearn.metrics import (
     classification_report,
     accuracy_score,
@@ -294,6 +297,7 @@ class ModelTrainer:
         features_df: pd.DataFrame,
         labels_df: pd.DataFrame,
         target: str = "label_binary",
+        temporal_cv: bool = True,
     ) -> tuple:
         """
         Prepara los datos para entrenamiento: merge, limpieza, y split.
@@ -303,12 +307,19 @@ class ModelTrainer:
         2. Eliminar filas donde el target es NaN.
         3. Rellenar NaN en features con la mediana de cada columna.
         4. Separar features (X) y target (y).
-        5. Dividir en train/test con estratificacion.
+        5. Dividir en train/test:
+           - temporal_cv=True: split temporal (80% mas antiguos = train, 20% mas nuevos = test).
+             Evita data leakage temporal: el modelo no "ve el futuro" a traves de
+             features de market_context ni patrones estacionales.
+           - temporal_cv=False: split aleatorio estratificado (comportamiento anterior).
 
         Args:
             features_df: DataFrame con features calculados (debe tener 'token_id').
             labels_df: DataFrame con labels (debe tener 'token_id' y la columna target).
             target: Nombre de la columna objetivo ('label_binary' o 'label_multi').
+            temporal_cv: Si True (default), usa split temporal en vez de aleatorio.
+                         El split temporal es mas honesto porque simula condiciones reales:
+                         entrenar con datos pasados para predecir datos futuros.
 
         Returns:
             Tupla de (X_train, X_test, y_train, y_test, feature_names).
@@ -405,13 +416,56 @@ class ModelTrainer:
         if not feature_cols:
             raise ValueError("No se encontraron columnas de features.")
 
+        # --- Paso 3b: Ordenar por tiempo si temporal_cv esta activo ---
+        # Para split temporal necesitamos que los datos esten ordenados
+        # cronologicamente. Buscamos columnas de timestamp en el merged_df.
+        if temporal_cv:
+            # Intentar ordenar por created_at (fecha de creacion del token)
+            # o por labeled_at / computed_at como fallback
+            temporal_col = None
+            for col_candidate in ["created_at", "first_seen", "labeled_at", "computed_at"]:
+                if col_candidate in merged_df.columns:
+                    temporal_col = col_candidate
+                    break
+
+            if temporal_col is not None:
+                # Convertir a datetime para ordenar correctamente
+                merged_df[temporal_col] = pd.to_datetime(
+                    merged_df[temporal_col], errors="coerce"
+                )
+                n_valid = merged_df[temporal_col].notna().sum()
+                if n_valid > len(merged_df) * 0.5:
+                    # Suficientes timestamps validos -> ordenar por ellos
+                    merged_df = merged_df.sort_values(temporal_col).reset_index(drop=True)
+                    logger.info(
+                        f"Split temporal: ordenado por '{temporal_col}' "
+                        f"({n_valid}/{len(merged_df)} timestamps validos)"
+                    )
+                else:
+                    # Muy pocos timestamps -> usar orden de indice (insercion cronologica)
+                    logger.info(
+                        f"Split temporal: '{temporal_col}' tiene pocos valores validos "
+                        f"({n_valid}/{len(merged_df)}). Usando orden de indice."
+                    )
+                    merged_df = merged_df.reset_index(drop=True)
+            else:
+                # Sin columna temporal -> asumir que el orden de indice es cronologico
+                # (los tokens se insertan en orden de descubrimiento)
+                logger.info(
+                    "Split temporal: sin columna de timestamp. "
+                    "Usando orden de indice (insercion cronologica)."
+                )
+                merged_df = merged_df.reset_index(drop=True)
+
         X = merged_df[feature_cols].copy()
         y = merged_df[target].copy()
 
         self.feature_names = feature_cols
+        # Guardar flag para que train_all sepa que tipo de CV usar
+        self._temporal_cv = temporal_cv
         logger.info(f"Features seleccionados: {len(feature_cols)} columnas")
 
-        # --- Paso 4: Split train/test con estratificacion ---
+        # --- Paso 4: Split train/test ---
         test_size = ML_CONFIG.get("test_size", 0.2)
 
         # Verificar que hay al menos 2 clases y suficientes muestras
@@ -422,25 +476,46 @@ class ModelTrainer:
                 "Se necesitan al menos 2 clases para entrenar."
             )
 
-        # Verificar que cada clase tiene suficientes muestras para estratificar
-        min_class_count = y.value_counts().min()
-        if min_class_count < 2:
-            logger.warning(
-                f"La clase minoritaria solo tiene {min_class_count} muestra(s). "
-                "Esto puede causar problemas con estratificacion."
+        if temporal_cv:
+            # --- Split temporal: primeros 80% = train, ultimos 20% = test ---
+            # Simula la realidad: entrenar con datos pasados, predecir futuros.
+            # No se usa estratificacion porque romperia el orden temporal.
+            n_total = len(X)
+            n_train = int(n_total * (1 - test_size))
+
+            X_train = X.iloc[:n_train].copy()
+            X_test = X.iloc[n_train:].copy()
+            y_train = y.iloc[:n_train].copy()
+            y_test = y.iloc[n_train:].copy()
+
+            logger.info(
+                f"Split temporal: train={len(X_train)} (mas antiguos), "
+                f"test={len(X_test)} (mas nuevos)"
             )
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y,
-                test_size=test_size,
-                random_state=self.random_seed,
+            logger.info(
+                f"Train period: indices 0-{len(X_train)-1}, "
+                f"Test period: indices {len(X_train)}-{len(X_train)+len(X_test)-1}"
             )
         else:
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y,
-                test_size=test_size,
-                random_state=self.random_seed,
-                stratify=y,
-            )
+            # --- Split aleatorio con estratificacion (comportamiento original) ---
+            min_class_count = y.value_counts().min()
+            if min_class_count < 2:
+                logger.warning(
+                    f"La clase minoritaria solo tiene {min_class_count} muestra(s). "
+                    "Esto puede causar problemas con estratificacion."
+                )
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y,
+                    test_size=test_size,
+                    random_state=self.random_seed,
+                )
+            else:
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y,
+                    test_size=test_size,
+                    random_state=self.random_seed,
+                    stratify=y,
+                )
 
         # --- Paso 5: Reemplazar infinitos y rellenar NaN ---
         # Primero reemplazar inf/-inf con NaN para que la mediana los maneje
@@ -515,11 +590,21 @@ class ModelTrainer:
         # muestras sinteticas no contaminen la validacion del fold.
         cv_folds = ML_CONFIG.get("cv_folds", 5)
         try:
-            skf = StratifiedKFold(
-                n_splits=cv_folds,
-                shuffle=True,
-                random_state=self.random_seed,
-            )
+            # Elegir tipo de CV segun temporal_cv:
+            # - TimeSeriesSplit: respeta el orden temporal (sin shuffle)
+            # - StratifiedKFold: aleatorio con estratificacion (comportamiento original)
+            use_temporal = getattr(self, "_temporal_cv", False)
+            if use_temporal:
+                cv_splitter = TimeSeriesSplit(n_splits=cv_folds)
+                cv_label = "TimeSeriesSplit"
+            else:
+                cv_splitter = StratifiedKFold(
+                    n_splits=cv_folds,
+                    shuffle=True,
+                    random_state=self.random_seed,
+                )
+                cv_label = "StratifiedKFold"
+
             smote_rf_pipeline = ImbPipeline([
                 ("smote", SMOTE(
                     sampling_strategy=smote_ratio,
@@ -529,10 +614,10 @@ class ModelTrainer:
             ])
             cv_scores = cross_val_score(
                 smote_rf_pipeline, X_train, y_train,
-                cv=skf, scoring="f1", n_jobs=-1,
+                cv=cv_splitter, scoring="f1", n_jobs=-1,
             )
             logger.info(
-                f"CV ({cv_folds} folds, SMOTE por fold) F1: "
+                f"CV ({cv_folds} folds, {cv_label}, SMOTE por fold) F1: "
                 f"{cv_scores.mean():.4f} (+/- {cv_scores.std():.4f})"
             )
         except ValueError as e:
@@ -643,17 +728,26 @@ class ModelTrainer:
             xgb_cv_params = {k: v for k, v in xgb_params.items()
                              if k != "early_stopping_rounds"}
             cv_model = XGBClassifier(**xgb_cv_params)
-            skf = StratifiedKFold(
-                n_splits=cv_folds,
-                shuffle=True,
-                random_state=self.random_seed,
-            )
+
+            # Elegir tipo de CV segun temporal_cv
+            use_temporal = getattr(self, "_temporal_cv", False)
+            if use_temporal:
+                cv_splitter = TimeSeriesSplit(n_splits=cv_folds)
+                cv_label = "TimeSeriesSplit"
+            else:
+                cv_splitter = StratifiedKFold(
+                    n_splits=cv_folds,
+                    shuffle=True,
+                    random_state=self.random_seed,
+                )
+                cv_label = "StratifiedKFold"
+
             cv_scores = cross_val_score(
                 cv_model, X_train, y_train,
-                cv=skf, scoring="f1", n_jobs=-1,
+                cv=cv_splitter, scoring="f1", n_jobs=-1,
             )
             logger.info(
-                f"XGBoost CV ({cv_folds} folds) F1: "
+                f"XGBoost CV ({cv_folds} folds, {cv_label}) F1: "
                 f"{cv_scores.mean():.4f} (+/- {cv_scores.std():.4f})"
             )
         except ValueError as e:
@@ -801,6 +895,7 @@ class ModelTrainer:
         labels_df: pd.DataFrame,
         target: str = "label_binary",
         use_feature_selection: bool = True,
+        temporal_cv: bool = True,
         rf_params: dict | None = None,
         xgb_params: dict | None = None,
         lgb_params: dict | None = None,
@@ -810,7 +905,7 @@ class ModelTrainer:
         Pipeline completo: prepara datos, selecciona features, entrena modelos, evalua ensembles.
 
         Este es el metodo principal que ejecuta todo el flujo de entrenamiento:
-        1. Prepara los datos (merge, limpieza, split).
+        1. Prepara los datos (merge, limpieza, split temporal o aleatorio).
         2. Seleccion automatica de features (varianza, correlacion, importancia).
         3. Entrena Random Forest con SMOTE + hiperparametros regularizados.
         4. Entrena XGBoost con early stopping + hiperparametros regularizados.
@@ -830,6 +925,11 @@ class ModelTrainer:
             target: Columna objetivo ('label_binary' por defecto).
             use_feature_selection: Si True, aplica seleccion automatica de features
                                    para reducir overfitting (default True).
+            temporal_cv: Si True (default), usa split temporal + TimeSeriesSplit
+                         en vez de split aleatorio + StratifiedKFold.
+                         El split temporal es mas honesto porque el modelo no
+                         "ve el futuro". Puede reducir F1 reportado, pero refleja
+                         mejor el rendimiento real en produccion.
             rf_params: Hiperparametros personalizados para Random Forest (override).
             xgb_params: Hiperparametros personalizados para XGBoost (override).
             lgb_params: Hiperparametros personalizados para LightGBM (override).
@@ -855,11 +955,12 @@ class ModelTrainer:
         )
         logger.info("=" * 60)
         logger.info("INICIO DEL PIPELINE DE ENTRENAMIENTO (v2 - Fase 5)")
+        logger.info(f"  temporal_cv={'ACTIVO (TimeSeriesSplit)' if temporal_cv else 'DESACTIVADO (StratifiedKFold)'}")
         logger.info("=" * 60)
 
         # --- Paso 1: Preparar datos ---
         X_train, X_test, y_train, y_test, feature_names = self.prepare_data(
-            features_df, labels_df, target=target
+            features_df, labels_df, target=target, temporal_cv=temporal_cv
         )
 
         # Guardar datos de test para evaluacion posterior
@@ -908,6 +1009,8 @@ class ModelTrainer:
             "feature_names": feature_names,
             "target": target,
             "class_distribution": y_train.value_counts().to_dict(),
+            "temporal_cv": temporal_cv,
+            "cv_strategy": "TimeSeriesSplit" if temporal_cv else "StratifiedKFold",
         }
 
         # --- Paso 2: Entrenar Random Forest (hiperparametros regularizados o tuneados) ---
@@ -1007,13 +1110,18 @@ class ModelTrainer:
                     # Para lightgbm u otros, saltar threshold optimization
                     continue
 
-                skf_t = StratifiedKFold(
-                    n_splits=5, shuffle=True,
-                    random_state=self.random_seed,
-                )
+                # Elegir tipo de CV segun temporal_cv (consistente con el split)
+                use_temporal = getattr(self, "_temporal_cv", False)
+                if use_temporal:
+                    cv_t = TimeSeriesSplit(n_splits=5)
+                else:
+                    cv_t = StratifiedKFold(
+                        n_splits=5, shuffle=True,
+                        random_state=self.random_seed,
+                    )
                 y_prob_oof = cross_val_predict(
                     cv_est, X_train, y_train,
-                    cv=skf_t, method="predict_proba",
+                    cv=cv_t, method="predict_proba",
                 )[:, 1]
 
                 best_t, best_f1 = 0.5, 0.0

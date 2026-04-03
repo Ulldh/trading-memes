@@ -1,0 +1,106 @@
+# Enriquecimiento de tokens con datos de seguridad (GoPlus + RugCheck)
+# Se ejecuta manualmente desde Actions > Run workflow
+name: Enrich Security Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_tokens:
+        description: "Maximo de tokens a procesar"
+        required: false
+        default: "500"
+      chain:
+        description: "Cadena a procesar (vacio = todas)"
+        required: false
+        default: ""
+        type: choice
+        options:
+          - ""
+          - solana
+          - ethereum
+          - base
+      source:
+        description: "Fuente de datos de seguridad"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - goplus
+          - rugcheck
+
+concurrency:
+  group: database-writes
+  cancel-in-progress: false
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      STORAGE_BACKEND: supabase
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run security enrichment
+        run: |
+          ARGS="--max-tokens ${{ inputs.max_tokens || '500' }}"
+          ARGS="$ARGS --source ${{ inputs.source || 'all' }}"
+          if [ -n "${{ inputs.chain }}" ]; then
+            ARGS="$ARGS --chain ${{ inputs.chain }}"
+          fi
+          python scripts/enrich_security.py $ARGS
+
+      - name: Show enrichment stats
+        if: always()
+        run: |
+          python -c "
+          from src.data.supabase_storage import get_storage
+          storage = get_storage()
+          try:
+              df = storage.query('SELECT COUNT(*) as total FROM security_data')
+              print(f'Total security_data records: {df.iloc[0][\"total\"]}')
+              df2 = storage.query(
+                  'SELECT COUNT(*) as with_goplus FROM security_data WHERE goplus_data IS NOT NULL'
+              )
+              print(f'With GoPlus data: {df2.iloc[0][\"with_goplus\"]}')
+              df3 = storage.query(
+                  'SELECT COUNT(*) as with_rugcheck FROM security_data WHERE rugcheck_data IS NOT NULL'
+              )
+              print(f'With RugCheck data: {df3.iloc[0][\"with_rugcheck\"]}')
+          except Exception as e:
+              print(f'Error reading stats: {e}')
+          "
+
+      - name: Notify Telegram on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d parse_mode="Markdown" \
+            -d text="❌ *Enrich Security FAILED*%0A%0ARepo: ${REPO}%0ARun: ${RUN_URL}"
