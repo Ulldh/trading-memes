@@ -135,11 +135,13 @@ class FeatureBuilder:
         # ============================================================
         # 2. FEATURES DE TOKENOMICS (distribucion de holders)
         # ============================================================
+        # Inicializar contract_info antes del try/except para reutilizar en paso 6
+        contract_info = None
         try:
             # Obtener datos de holders (ultimo snapshot)
             holders_df = self._get_latest_holders(token_id)
 
-            # Obtener informacion del contrato
+            # Obtener informacion del contrato (se reutiliza en paso 6)
             contract_info = self._get_contract_info(token_id)
 
             # Agregar total_supply al contract_info para el calculo
@@ -239,9 +241,16 @@ class FeatureBuilder:
         # 6. FEATURES DE CONTRATO
         # ============================================================
         try:
-            contract_info = self._get_contract_info(token_id)
+            # Reutilizar contract_info del paso 2 (evita query duplicada)
+            # Determinar first_trade_at: timestamp de la primera vela OHLCV
+            # Si no hay OHLCV, usar created_at como fallback
+            if not ohlcv_df.empty and "timestamp" in ohlcv_df.columns:
+                first_trade_at = str(ohlcv_df["timestamp"].iloc[0])
+            else:
+                first_trade_at = created_at
+
             contract = compute_contract_features(
-                contract_info, created_at, created_at
+                contract_info, created_at, first_trade_at
             )
             all_features.update(contract)
             modules_ok += 1

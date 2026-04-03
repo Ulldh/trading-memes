@@ -690,8 +690,8 @@ class DataCollector:
                 )
                 errores += 1
 
-            # Pausa breve entre tokens (respetar rate limits)
-            time.sleep(0.2)
+            # Rate limiting ya gestionado por base_client.py (TokenBucketRateLimiter)
+            # No necesita sleep adicional aqui
 
         # Resumen del paso
         logger.info(
