@@ -77,26 +77,99 @@ class GemScorer:
     ):
         self.storage = storage or get_storage()
         self.builder = FeatureBuilder(self.storage)
-        self.model_name = model_name
         self._models_dir = Path(models_dir) if models_dir else MODELS_DIR
 
+        # Intentar usar ensemble si existe y es mejor que RF
+        # Si ensemble_meta.joblib existe y su F1 > RF F1, usar ensemble
+        effective_model_name = self._select_best_model(model_name)
+        self.model_name = effective_model_name
+
         # Cargar modelo
-        self.model = self._load_model(model_name)
+        self.model = self._load_model(effective_model_name)
 
         # Cargar columnas de features esperadas
         self.feature_columns = self._load_feature_columns()
 
         # Cargar threshold optimo desde metadata del entrenamiento
-        self.optimal_threshold = self._load_optimal_threshold(model_name)
+        self.optimal_threshold = self._load_optimal_threshold(effective_model_name)
 
         # Cargar medianas de training para imputacion consistente
         self.train_medians = self._load_train_medians()
 
         logger.info(
-            f"GemScorer inicializado: modelo={model_name}, "
+            f"GemScorer inicializado: modelo={effective_model_name}, "
             f"features={len(self.feature_columns)}, "
             f"threshold={self.optimal_threshold:.2f}"
         )
+
+    def _select_best_model(self, default_name: str) -> str:
+        """
+        Selecciona el mejor modelo disponible: ensemble vs RF.
+
+        Compara el F1 score del ensemble (si existe) con el del modelo
+        por defecto (random_forest). Si el ensemble es mejor, lo usa.
+
+        Busca ensemble_meta.joblib en el directorio de la version activa.
+        Si no existe o no se puede comparar, usa el modelo por defecto.
+
+        Args:
+            default_name: Nombre del modelo por defecto ("random_forest").
+
+        Returns:
+            Nombre del modelo a usar ("ensemble_meta" o el default).
+        """
+        import json
+
+        try:
+            # Obtener version activa
+            latest_file = self._models_dir / "latest_version.txt"
+            if not latest_file.exists():
+                return default_name
+
+            version = latest_file.read_text().strip()
+
+            # Verificar si existe el ensemble
+            ensemble_path = self._models_dir / f"ensemble_meta.joblib"
+            # Tambien buscar en el directorio de la version
+            ensemble_path_v = self._models_dir / version / "ensemble_meta.joblib"
+
+            if not ensemble_path.exists() and not ensemble_path_v.exists():
+                return default_name
+
+            # Leer metadata para comparar F1 scores
+            meta_path = self._models_dir / version / "metadata.json"
+            if not meta_path.exists():
+                return default_name
+
+            with open(meta_path) as f:
+                metadata = json.load(f)
+
+            results = metadata.get("results", {})
+
+            # Obtener F1 del RF
+            rf_results = results.get("random_forest", {})
+            rf_f1 = rf_results.get("f1_score", rf_results.get("f1", 0))
+
+            # Obtener F1 del ensemble
+            ensemble_results = results.get("ensemble_meta", results.get("ensemble", {}))
+            ensemble_f1 = ensemble_results.get("f1_score", ensemble_results.get("f1", 0))
+
+            if ensemble_f1 and float(ensemble_f1) > float(rf_f1):
+                logger.info(
+                    f"Ensemble seleccionado (F1={ensemble_f1:.3f}) "
+                    f"sobre RF (F1={rf_f1:.3f})"
+                )
+                return "ensemble_meta"
+
+            logger.info(
+                f"RF seleccionado (F1={rf_f1:.3f}) sobre "
+                f"ensemble (F1={ensemble_f1:.3f})"
+            )
+            return default_name
+
+        except Exception as e:
+            logger.debug(f"Error seleccionando modelo: {e}, usando {default_name}")
+            return default_name
 
     def _load_model(self, name: str):
         """Carga un modelo desde disco."""

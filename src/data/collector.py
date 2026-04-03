@@ -39,6 +39,8 @@ from src.api import (
     SolanaRPC,
     EtherscanClient,
     SolanaDiscoveryClient,
+    GoPlusClient,
+    RugCheckClient,
 )
 
 # Importar almacenamiento (factory que elige SQLite o Supabase segun config)
@@ -145,6 +147,12 @@ class DataCollector:
 
         # Cliente de descubrimiento Solana (Pump.fun, Jupiter, Raydium)
         self.solana_discovery = SolanaDiscoveryClient()
+
+        # Cliente GoPlus para seguridad de tokens (gratis, todas las cadenas)
+        self.goplus = GoPlusClient()
+
+        # Cliente RugCheck para seguridad de tokens Solana (gratis)
+        self.rugcheck = RugCheckClient()
 
         # Cliente Birdeye para enrichment multi-chain (Solana, Ethereum, Base, BSC, Arbitrum)
         # CAMBIO v24: Birdeye ahora es FALLBACK para OHLCV (antes era primario)
@@ -1566,6 +1574,206 @@ class DataCollector:
         )
 
     # ================================================================
+    # PASO 5A-bis: SEGURIDAD VIA GOPLUS (todas las cadenas)
+    # ================================================================
+
+    def collect_goplus_security(self, tokens: list[dict], max_tokens: int = 200) -> None:
+        """
+        Obtiene datos de seguridad via GoPlus para tokens nuevos.
+
+        GoPlus soporta batch de hasta 100 addresses por llamada,
+        lo que es muy eficiente. Los datos se guardan como JSON
+        en la tabla security_data para uso posterior en feature engineering.
+
+        Args:
+            tokens: Lista de tokens descubiertos.
+            max_tokens: Maximo de tokens a procesar por run (default 200).
+        """
+        import json as json_mod
+
+        logger.info("=" * 60)
+        logger.info("PASO 5A-bis: Seguridad via GoPlus (todas las cadenas)...")
+        logger.info("=" * 60)
+
+        if not tokens:
+            logger.info("No hay tokens para GoPlus, saltando")
+            return
+
+        # Limitar tokens a procesar por run
+        tokens_to_process = tokens[:max_tokens]
+
+        # Agrupar tokens por cadena para batch processing
+        by_chain: dict[str, list[dict]] = {}
+        for t in tokens_to_process:
+            chain = t.get("chain", "")
+            tid = t.get("token_id", "")
+            if chain and tid:
+                by_chain.setdefault(chain, []).append(t)
+
+        exitos = 0
+        errores = 0
+
+        for chain, chain_tokens in by_chain.items():
+            # Procesar en batches de 100 (limite de GoPlus)
+            for i in range(0, len(chain_tokens), 100):
+                batch = chain_tokens[i:i + 100]
+                addresses = [t["token_id"] for t in batch]
+
+                try:
+                    results = self.goplus.get_tokens_security(chain, addresses)
+
+                    if not results:
+                        errores += len(batch)
+                        continue
+
+                    # Guardar cada resultado en la BD
+                    for t in batch:
+                        tid = t["token_id"]
+                        addr_lower = tid.lower()
+                        goplus_data = results.get(addr_lower, {})
+
+                        if goplus_data:
+                            try:
+                                self._save_security_data(
+                                    token_id=tid,
+                                    chain=chain,
+                                    goplus_data=goplus_data,
+                                )
+                                exitos += 1
+                            except Exception as e:
+                                logger.debug(
+                                    f"Error guardando GoPlus para "
+                                    f"{tid[:10]}...: {e}"
+                                )
+                                errores += 1
+                        else:
+                            errores += 1
+
+                except Exception as e:
+                    logger.warning(
+                        f"Error GoPlus batch ({chain}, "
+                        f"{len(batch)} tokens): {e}"
+                    )
+                    errores += len(batch)
+
+                # Pausa entre batches
+                time.sleep(0.5)
+
+        logger.info(
+            f"GoPlus completado: {exitos} exitos, {errores} errores"
+        )
+
+    # ================================================================
+    # PASO 5A-ter: SEGURIDAD VIA RUGCHECK (solo Solana)
+    # ================================================================
+
+    def collect_rugcheck_security(self, tokens: list[dict], max_tokens: int = 200) -> None:
+        """
+        Obtiene datos de seguridad via RugCheck para tokens de Solana.
+
+        RugCheck solo soporta tokens de Solana y procesa de a uno.
+        Con rate limit de ~60 req/min, procesamos max_tokens tokens
+        por run. Los datos se guardan en la tabla security_data.
+
+        Args:
+            tokens: Lista de tokens descubiertos.
+            max_tokens: Maximo de tokens Solana a procesar (default 200).
+        """
+        logger.info("=" * 60)
+        logger.info("PASO 5A-ter: Seguridad via RugCheck (solo Solana)...")
+        logger.info("=" * 60)
+
+        # Filtrar solo tokens de Solana
+        solana_tokens = [
+            t for t in tokens
+            if t.get("chain") == "solana" and t.get("token_id")
+        ]
+
+        if not solana_tokens:
+            logger.info("No hay tokens Solana para RugCheck, saltando")
+            return
+
+        # Limitar tokens
+        solana_tokens = solana_tokens[:max_tokens]
+        logger.info(f"Procesando RugCheck para {len(solana_tokens)} tokens Solana")
+
+        exitos = 0
+        errores = 0
+
+        for token in tqdm(solana_tokens, desc="RugCheck", unit="token"):
+            tid = token.get("token_id", "")
+            try:
+                report = self.rugcheck.get_report(tid)
+
+                if report:
+                    self._save_security_data(
+                        token_id=tid,
+                        chain="solana",
+                        rugcheck_data=report,
+                    )
+                    exitos += 1
+                else:
+                    errores += 1
+
+            except Exception as e:
+                logger.debug(f"Error RugCheck para {tid[:10]}...: {e}")
+                errores += 1
+
+        logger.info(
+            f"RugCheck completado: {exitos} exitos, {errores} errores"
+        )
+
+    def _save_security_data(
+        self,
+        token_id: str,
+        chain: str,
+        goplus_data: dict = None,
+        rugcheck_data: dict = None,
+    ) -> None:
+        """
+        Guarda datos de seguridad (GoPlus y/o RugCheck) en la BD.
+
+        Usa upsert en la tabla security_data. Los datos se guardan
+        como JSON para flexibilidad (la estructura puede cambiar
+        entre versiones de las APIs).
+
+        Args:
+            token_id: Direccion del token.
+            chain: Cadena del token.
+            goplus_data: Dict de GoPlus (puede ser None).
+            rugcheck_data: Dict de RugCheck (puede ser None).
+        """
+        import json as json_mod
+
+        row = {
+            "token_id": token_id,
+            "chain": chain,
+        }
+
+        if goplus_data is not None:
+            row["goplus_data"] = json_mod.dumps(goplus_data)
+
+        if rugcheck_data is not None:
+            # Eliminar campo 'risks' detallado para ahorrar espacio
+            # (solo guardamos score y count)
+            clean_rugcheck = {
+                k: v for k, v in rugcheck_data.items()
+                if k != "risks"
+            }
+            row["rugcheck_data"] = json_mod.dumps(clean_rugcheck)
+
+        try:
+            self.storage.upsert_security_data(row)
+        except Exception:
+            # Si el metodo upsert_security_data no existe en storage,
+            # ignorar silenciosamente — la tabla se crea cuando se
+            # ejecuta la migracion correspondiente
+            logger.debug(
+                f"security_data table no disponible para {token_id[:10]}..., "
+                f"datos de seguridad no guardados"
+            )
+
+    # ================================================================
     # PASO 5B: SEGURIDAD VIA BIRDEYE (todas las cadenas)
     # ================================================================
 
@@ -2232,6 +2440,8 @@ class DataCollector:
             3.  Obtener OHLCV historico
             4.  Obtener holders (Solana via Helius + ETH/Base via Birdeye)
             5.  Verificar contratos (Etherscan + RPC)
+            5A-bis. Seguridad via GoPlus (todas las cadenas, batch 100)
+            5A-ter. Seguridad via RugCheck (solo Solana, 1 por llamada)
             5B. Seguridad via Birdeye (todas las cadenas, tokens sin info)
             5C. Fechas de creacion via Birdeye (tokens sin created_at)
             5D. Trade data via Birdeye (buys/sells/traders unicos)
@@ -2338,6 +2548,12 @@ class DataCollector:
 
         # --- Paso 5: Verificar contratos (Etherscan + RPC) ---
         self.collect_contract_info(tokens)
+
+        # --- Paso 5A-bis: Seguridad via GoPlus (todas las cadenas) ---
+        self.collect_goplus_security(tokens)
+
+        # --- Paso 5A-ter: Seguridad via RugCheck (solo Solana) ---
+        self.collect_rugcheck_security(tokens)
 
         # --- Paso 5B: Seguridad via Birdeye (tokens sin contract_info) ---
         self.collect_birdeye_security(tokens)

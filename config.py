@@ -57,6 +57,8 @@ RATE_LIMITS = {
     "birdeye": 900,         # Lite tier ($39/m): 15 rps = 900/min
     "jupiter": 60,          # JSON estatico, sin rate limit documentado
     "raydium": 60,          # JSON estatico, sin rate limit documentado
+    "goplus": 60,           # ~100 req/min fair use, conservador a 60
+    "rugcheck": 60,         # ~60 req/min fair use
 }
 
 # ============================================================

@@ -508,6 +508,46 @@ class SupabaseStorage:
         ).execute()
 
     # ============================================================
+    # SECURITY DATA (GoPlus + RugCheck)
+    # ============================================================
+
+    def upsert_security_data(self, data: dict):
+        """
+        Inserta o actualiza datos de seguridad (GoPlus/RugCheck).
+
+        Los datos de GoPlus y RugCheck se guardan como JSON en la
+        tabla security_data para uso posterior en feature engineering.
+
+        Args:
+            data: Dict con token_id, chain, y opcionalmente
+                  goplus_data (JSON string) y rugcheck_data (JSON string).
+        """
+        row = {
+            "token_id": data.get("token_id"),
+            "chain": data.get("chain"),
+        }
+        # Solo incluir campos que tienen valor (para no sobreescribir
+        # datos existentes con NULL en un upsert parcial)
+        if data.get("goplus_data") is not None:
+            row["goplus_data"] = data["goplus_data"]
+        if data.get("rugcheck_data") is not None:
+            row["rugcheck_data"] = data["rugcheck_data"]
+
+        try:
+            self._client.table("security_data").upsert(
+                row, on_conflict="token_id"
+            ).execute()
+        except Exception as e:
+            # Si la tabla no existe, loguear y no fallar
+            # (la tabla se crea con la migracion correspondiente)
+            from src.utils.logger import get_logger
+            logger = get_logger(__name__)
+            logger.debug(
+                f"Error en upsert_security_data: {e}. "
+                f"Tabla security_data puede no existir aun."
+            )
+
+    # ============================================================
     # LABELS
     # ============================================================
 

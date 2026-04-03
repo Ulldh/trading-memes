@@ -461,6 +461,45 @@ class Storage:
         ))
 
     # ============================================================
+    # SECURITY DATA (GoPlus + RugCheck)
+    # ============================================================
+
+    def upsert_security_data(self, data: dict):
+        """
+        Inserta o actualiza datos de seguridad (GoPlus/RugCheck).
+
+        Crea la tabla security_data si no existe (lazy creation).
+        Los datos de GoPlus y RugCheck se guardan como JSON.
+        """
+        # Crear tabla si no existe (lazy creation para no requerir migracion)
+        self.execute("""
+            CREATE TABLE IF NOT EXISTS security_data (
+                token_id TEXT PRIMARY KEY,
+                chain TEXT,
+                goplus_data TEXT,
+                rugcheck_data TEXT,
+                checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        sql = """
+            INSERT INTO security_data
+                (token_id, chain, goplus_data, rugcheck_data)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(token_id) DO UPDATE SET
+                chain = COALESCE(excluded.chain, security_data.chain),
+                goplus_data = COALESCE(excluded.goplus_data, security_data.goplus_data),
+                rugcheck_data = COALESCE(excluded.rugcheck_data, security_data.rugcheck_data),
+                checked_at = CURRENT_TIMESTAMP
+        """
+        self.execute(sql, (
+            data.get("token_id"),
+            data.get("chain"),
+            data.get("goplus_data"),
+            data.get("rugcheck_data"),
+        ))
+
+    # ============================================================
     # LABELS
     # ============================================================
 

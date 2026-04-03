@@ -43,6 +43,8 @@ from src.features.volatility_advanced import compute_volatility_advanced_feature
 from src.features.sentiment import compute_sentiment_features
 from src.features.technical import extract_technical_features
 from src.features.interactions import extract_interaction_features
+from src.features.security import compute_security_features
+from src.features.naming import compute_naming_features
 
 logger = get_logger(__name__)
 
@@ -270,6 +272,39 @@ class FeatureBuilder:
                     modules_ok += 1
         except Exception as e:
             logger.error(f"Error en contract_risk para {token_id}: {e}")
+            modules_fail += 1
+
+        # ============================================================
+        # 6c. FEATURES DE SEGURIDAD (GoPlus + RugCheck)
+        # ============================================================
+        try:
+            # Obtener datos de seguridad pre-almacenados en la BD
+            # GoPlus y RugCheck se ejecutan en el collector y se guardan
+            # como JSON en contract_info o tabla dedicada
+            goplus_data = self._get_goplus_data(token_id)
+            rugcheck_data = self._get_rugcheck_data(token_id, chain)
+            if goplus_data or rugcheck_data:
+                security = compute_security_features(
+                    goplus_data or {}, rugcheck_data
+                )
+                all_features.update(security)
+                modules_ok += 1
+        except Exception as e:
+            logger.error(f"Error en security para {token_id}: {e}")
+            modules_fail += 1
+
+        # ============================================================
+        # 6d. FEATURES DE NAMING (nombre y simbolo del token)
+        # ============================================================
+        try:
+            token_name = token_info.get("name", "")
+            token_symbol = token_info.get("symbol", "")
+            if token_name or token_symbol:
+                naming = compute_naming_features(token_name, token_symbol)
+                all_features.update(naming)
+                modules_ok += 1
+        except Exception as e:
+            logger.error(f"Error en naming para {token_id}: {e}")
             modules_fail += 1
 
         # ============================================================
@@ -604,6 +639,76 @@ class FeatureBuilder:
         if info.get("is_verified"):
             return info
         return None
+
+    def _get_goplus_data(self, token_id: str) -> Optional[dict]:
+        """
+        Obtiene datos de seguridad GoPlus pre-almacenados para un token.
+
+        Los datos de GoPlus se recopilan en el collector y se guardan
+        como JSON en la tabla security_data. Si no hay datos, retorna None.
+
+        Args:
+            token_id: ID del token.
+
+        Returns:
+            Dict con datos de GoPlus, o None si no disponible.
+        """
+        try:
+            df = self.storage.query(
+                """SELECT goplus_data FROM security_data
+                   WHERE token_id = ?""",
+                (token_id,)
+            )
+            if df.empty:
+                return None
+
+            data = df.iloc[0].get("goplus_data")
+            if data and isinstance(data, str):
+                import json
+                return json.loads(data)
+            elif isinstance(data, dict):
+                return data
+            return None
+        except Exception:
+            # Tabla puede no existir aun — no es un error critico
+            return None
+
+    def _get_rugcheck_data(self, token_id: str, chain: str) -> Optional[dict]:
+        """
+        Obtiene datos de RugCheck pre-almacenados para un token de Solana.
+
+        Solo aplica a tokens de Solana. Los datos se recopilan en el
+        collector y se guardan en la tabla security_data.
+
+        Args:
+            token_id: ID del token.
+            chain: Cadena del token (solo procesa "solana").
+
+        Returns:
+            Dict con datos de RugCheck, o None si no disponible.
+        """
+        if chain != "solana":
+            return None
+
+        try:
+            df = self.storage.query(
+                """SELECT rugcheck_data FROM security_data
+                   WHERE token_id = ?""",
+                (token_id,)
+            )
+            if df.empty:
+                return None
+
+            data = df.iloc[0].get("rugcheck_data")
+            if data and isinstance(data, str):
+                import json
+                return json.loads(data)
+            elif isinstance(data, dict):
+                return data
+            return None
+        except Exception:
+            # Tabla puede no existir aun — no es un error critico
+            return None
 
     def _get_twitter_mentions(self, token_info: dict) -> Optional[dict]:
         """

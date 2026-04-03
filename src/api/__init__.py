@@ -5,6 +5,8 @@ from .dexscreener_client import DexScreenerClient
 from .blockchain_rpc import SolanaRPC, EtherscanClient
 from .solana_discovery_client import SolanaDiscoveryClient
 from .birdeye_client import BirdeyeClient
+from .goplus_client import GoPlusClient
+from .rugcheck_client import RugCheckClient
 
 __all__ = [
     "CoinGeckoClient",
@@ -13,4 +15,6 @@ __all__ = [
     "EtherscanClient",
     "SolanaDiscoveryClient",
     "BirdeyeClient",
+    "GoPlusClient",
+    "RugCheckClient",
 ]
