@@ -231,6 +231,46 @@ class SolanaDiscoveryClient(BaseAPIClient):
         logger.info(f"Pump.fun top: {len(tokens)} tokens obtenidos")
         return tokens
 
+    def get_pumpfun_king_of_hill(self, limit: int = 50) -> list[dict]:
+        """
+        Obtiene tokens "King of the Hill" de Pump.fun.
+
+        Los tokens KotH son los que estan a punto de "graduarse" de
+        Pump.fun a Raydium. Esto indica que han alcanzado suficiente
+        liquidez y traccion — son candidatos serios a convertirse en gems.
+
+        Args:
+            limit: Cantidad de tokens a obtener (max 50).
+
+        Returns:
+            Lista de diccionarios con tokens proximos a graduarse.
+            Lista vacia si circuit breaker abierto o hay error.
+        """
+        self._check_circuit_auto_reset()
+        if self._pumpfun_circuit_open:
+            logger.debug("Pump.fun circuit breaker abierto, saltando KotH")
+            return []
+
+        logger.info(f"Obteniendo tokens King of the Hill de Pump.fun (limit={limit})")
+
+        respuesta = self._pumpfun_request(
+            "/coins/king-of-the-hill",
+            params={"limit": limit},
+        )
+
+        if respuesta is None:
+            return []
+
+        tokens = []
+        items = respuesta if isinstance(respuesta, list) else []
+        for coin in items:
+            parsed = self._parsear_pumpfun_coin(coin)
+            if parsed:
+                tokens.append(parsed)
+
+        logger.info(f"Pump.fun KotH: {len(tokens)} tokens obtenidos")
+        return tokens
+
     def _pumpfun_request(self, endpoint: str, params: Optional[dict] = None) -> Optional[list]:
         """
         Hace una peticion a Pump.fun con circuit breaker.

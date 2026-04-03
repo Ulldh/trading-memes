@@ -673,6 +673,257 @@ class DataCollector:
         return all_tokens
 
     # ================================================================
+    # PASO 1F: DESCUBRIR TOKENS DESDE PUMP.FUN
+    # ================================================================
+
+    def discover_from_pumpfun(self) -> list[dict]:
+        """
+        Descubre memecoins de Solana desde Pump.fun.
+
+        Pump.fun es el launcher de memecoins mas popular de Solana.
+        Tiene 3 endpoints utiles:
+        1. Latest: tokens mas recientes (alta volatilidad, alto potencial)
+        2. Top: tokens con mayor market cap (mas estables, ya traccionaron)
+        3. King of the Hill: tokens a punto de graduarse a Raydium
+           (la "graduacion" indica liquidez suficiente — candidatos a gems)
+
+        Todos los tokens de Pump.fun son de Solana. Se usa el
+        SolanaDiscoveryClient que ya tiene circuit breaker integrado:
+        si Pump.fun esta caido, se desactiva automaticamente tras 3 fallos.
+
+        Returns:
+            Lista de diccionarios con tokens descubiertos.
+        """
+        logger.info("=" * 60)
+        logger.info("PASO 1F: Descubriendo tokens desde Pump.fun...")
+        logger.info("=" * 60)
+
+        all_tokens: list[dict] = []
+
+        # --- 1. Tokens mas recientes de Pump.fun ---
+        try:
+            latest = self.solana_discovery.get_pumpfun_latest(limit=50, offset=0)
+            logger.info(f"Pump.fun latest: {len(latest)} tokens obtenidos")
+
+            for item in latest:
+                address = item.get("token_address", "")
+                if not address:
+                    continue
+
+                token = {
+                    "token_id": address,
+                    "chain": "solana",
+                    "name": item.get("name", "")[:100],
+                    "symbol": item.get("symbol", ""),
+                    "pool_address": "",
+                    "dex": "pump-fun",
+                    "created_at": None,
+                    "total_supply": None,
+                    "decimals": None,
+                }
+
+                try:
+                    self.storage.upsert_token(token)
+                    all_tokens.append(token)
+                except Exception as e:
+                    logger.debug(
+                        f"Error guardando token Pump.fun latest "
+                        f"{address[:10]}...: {e}"
+                    )
+
+        except Exception as e:
+            logger.warning(f"Error obteniendo Pump.fun latest: {e}")
+
+        # --- 2. Tokens top por market cap ---
+        try:
+            top = self.solana_discovery.get_pumpfun_top(limit=50, offset=0)
+            logger.info(f"Pump.fun top: {len(top)} tokens obtenidos")
+
+            for item in top:
+                address = item.get("token_address", "")
+                if not address:
+                    continue
+
+                token = {
+                    "token_id": address,
+                    "chain": "solana",
+                    "name": item.get("name", "")[:100],
+                    "symbol": item.get("symbol", ""),
+                    "pool_address": "",
+                    "dex": "pump-fun-top",
+                    "created_at": None,
+                    "total_supply": None,
+                    "decimals": None,
+                }
+
+                try:
+                    self.storage.upsert_token(token)
+                    all_tokens.append(token)
+                except Exception as e:
+                    logger.debug(
+                        f"Error guardando token Pump.fun top "
+                        f"{address[:10]}...: {e}"
+                    )
+
+        except Exception as e:
+            logger.warning(f"Error obteniendo Pump.fun top: {e}")
+
+        # --- 3. King of the Hill (proximos a graduarse a Raydium) ---
+        try:
+            koth = self.solana_discovery.get_pumpfun_king_of_hill(limit=50)
+            logger.info(f"Pump.fun KotH: {len(koth)} tokens obtenidos")
+
+            for item in koth:
+                address = item.get("token_address", "")
+                if not address:
+                    continue
+
+                token = {
+                    "token_id": address,
+                    "chain": "solana",
+                    "name": item.get("name", "")[:100],
+                    "symbol": item.get("symbol", ""),
+                    "pool_address": "",
+                    "dex": "pump-fun-koth",
+                    "created_at": None,
+                    "total_supply": None,
+                    "decimals": None,
+                }
+
+                try:
+                    self.storage.upsert_token(token)
+                    all_tokens.append(token)
+                except Exception as e:
+                    logger.debug(
+                        f"Error guardando token Pump.fun KotH "
+                        f"{address[:10]}...: {e}"
+                    )
+
+        except Exception as e:
+            logger.warning(f"Error obteniendo Pump.fun KotH: {e}")
+
+        logger.info(
+            f"Descubrimiento Pump.fun completado: "
+            f"{len(all_tokens)} tokens nuevos añadidos"
+        )
+        return all_tokens
+
+    # ================================================================
+    # PASO 1G: DESCUBRIR TOKENS DESDE COINGECKO TOP GAINERS
+    # ================================================================
+
+    def discover_from_top_gainers(self) -> list[dict]:
+        """
+        Descubre tokens que estan pumping AHORA via CoinGecko top gainers.
+
+        A diferencia de discover_from_coingecko_categories (que busca
+        por categoria con orden default), este metodo busca tokens
+        ordenados por cambio de precio 24h descendente. Esto captura
+        tokens que estan en pleno pump — potenciales gems en formacion.
+
+        Categorias consultadas: meme-token, solana-meme-coins,
+        base-meme-coins (las mas relevantes para nuestro target).
+
+        Uses CoinGecko Demo API (30 calls/min, requiere API key gratuita).
+
+        Returns:
+            Lista de diccionarios con tokens descubiertos.
+        """
+        logger.info("=" * 60)
+        logger.info("PASO 1G: Descubriendo tokens desde CoinGecko top gainers...")
+        logger.info("=" * 60)
+
+        all_tokens: list[dict] = []
+
+        # Categorias principales para top gainers
+        # No usamos todas las categorias para no gastar demasiadas calls
+        categorias_gainers = [
+            "meme-token",
+            "solana-meme-coins",
+            "base-meme-coins",
+        ]
+
+        # Mapeo de platform IDs de CoinGecko a nuestras chains
+        platform_map = {
+            "solana": "solana",
+            "ethereum": "ethereum",
+            "base": "base",
+            "binance-smart-chain": "bsc",
+            "arbitrum-one": "arbitrum",
+        }
+
+        for categoria in categorias_gainers:
+            try:
+                # Usar _cg_get directamente para pedir ordenados por
+                # price_change_percentage_24h_desc (los que mas suben)
+                respuesta = self.gecko._cg_get(
+                    "/coins/markets",
+                    params={
+                        "vs_currency": "usd",
+                        "category": categoria,
+                        "order": "price_change_percentage_24h_desc",
+                        "per_page": 250,
+                        "page": 1,
+                    },
+                )
+
+                if not respuesta or not isinstance(respuesta, list):
+                    logger.warning(
+                        f"Sin resultados top gainers para '{categoria}'"
+                    )
+                    continue
+
+                logger.info(
+                    f"CoinGecko top gainers '{categoria}': "
+                    f"{len(respuesta)} tokens obtenidos"
+                )
+
+                for coin in respuesta:
+                    # Extraer platforms para mapear a nuestras chains
+                    platforms = coin.get("platforms", {}) or {}
+
+                    for platform_id, address in platforms.items():
+                        chain = platform_map.get(platform_id.lower())
+                        if chain and address:
+                            token = {
+                                "token_id": address,
+                                "chain": chain,
+                                "name": coin.get("name", ""),
+                                "symbol": (
+                                    coin.get("symbol") or ""
+                                ).upper(),
+                                "pool_address": "",
+                                "dex": f"coingecko-gainer-{categoria}",
+                                "created_at": None,
+                                "total_supply": None,
+                                "decimals": None,
+                            }
+
+                            try:
+                                self.storage.upsert_token(token)
+                                all_tokens.append(token)
+                            except Exception as e:
+                                logger.debug(
+                                    f"Error guardando token gainer "
+                                    f"{address[:10]}...: {e}"
+                                )
+
+                # Pausa entre categorias para respetar rate limits (30/min)
+                time.sleep(2.5)
+
+            except Exception as e:
+                logger.warning(
+                    f"Error obteniendo top gainers '{categoria}': {e}"
+                )
+                continue
+
+        logger.info(
+            f"Descubrimiento top gainers completado: "
+            f"{len(all_tokens)} tokens nuevos añadidos"
+        )
+        return all_tokens
+
+    # ================================================================
     # PASO 2: ENRIQUECER CON DEXSCREENER
     # ================================================================
 
@@ -1970,10 +2221,13 @@ class DataCollector:
         Ejecuta el pipeline completo de recopilacion diaria.
 
         Llama a los pasos en orden:
-            1.  Descubrir pools nuevos (GeckoTerminal, 10 paginas/cadena)
+            1.  Descubrir pools nuevos (GeckoTerminal, 30 paginas/cadena)
             1B. Descubrir tokens desde DexScreener (boosted, profiles, CTO)
             1C. Descubrir tokens desde categorias CoinGecko (meme-token, etc.)
             1D. Descubrir tokens desde Birdeye (new listings + meme list)
+            1E. Descubrir tokens desde GeckoTerminal trending
+            1F. Descubrir tokens desde Pump.fun (latest, top, KotH)
+            1G. Descubrir tokens desde CoinGecko top gainers (pumping ahora)
             2.  Enriquecer con DexScreener (buyers/sellers)
             3.  Obtener OHLCV historico
             4.  Obtener holders (Solana via Helius + ETH/Base via Birdeye)
@@ -2050,6 +2304,14 @@ class DataCollector:
         trending_tokens = self.discover_from_trending()
         tokens.extend(trending_tokens)
 
+        # --- Paso 1F: Descubrir tokens desde Pump.fun (Solana memecoins) ---
+        pumpfun_tokens = self.discover_from_pumpfun()
+        tokens.extend(pumpfun_tokens)
+
+        # --- Paso 1G: Descubrir tokens desde CoinGecko top gainers ---
+        gainers_tokens = self.discover_from_top_gainers()
+        tokens.extend(gainers_tokens)
+
         # Deduplicar tokens por token_id (puede haber solapamiento entre fuentes)
         seen_ids: set[str] = set()
         unique_tokens: list[dict] = []
@@ -2061,7 +2323,8 @@ class DataCollector:
         tokens = unique_tokens
         logger.info(
             f"Total tokens descubiertos (deduplicados): {len(tokens)} "
-            f"(GeckoTerminal + DexScreener + CoinGecko + Birdeye + Trending)"
+            f"(GeckoTerminal + DexScreener + CoinGecko + Birdeye + "
+            f"Trending + Pump.fun + TopGainers)"
         )
 
         # --- Paso 2: Enriquecer con DexScreener ---
@@ -2103,11 +2366,17 @@ class DataCollector:
         # Construir diccionario de estadisticas
         stats = {
             "tokens_discovered": len(tokens),
-            "tokens_gecko": len(tokens) - len(dex_tokens) - len(cg_tokens) - len(birdeye_tokens) - len(trending_tokens),
+            "tokens_gecko": (
+                len(tokens) - len(dex_tokens) - len(cg_tokens)
+                - len(birdeye_tokens) - len(trending_tokens)
+                - len(pumpfun_tokens) - len(gainers_tokens)
+            ),
             "tokens_dexscreener": len(dex_tokens),
             "tokens_coingecko_categories": len(cg_tokens),
             "tokens_birdeye": len(birdeye_tokens),
             "tokens_trending": len(trending_tokens),
+            "tokens_pumpfun": len(pumpfun_tokens),
+            "tokens_top_gainers": len(gainers_tokens),
             "birdeye_enrichment": birdeye_enrich_stats,
             "chains_processed": chains or list(SUPPORTED_CHAINS.keys()),
             "duration_seconds": round(duracion, 2),

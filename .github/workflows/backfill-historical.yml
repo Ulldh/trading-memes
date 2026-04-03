@@ -1,0 +1,133 @@
+# Backfill historico: descubre tokens que el pipeline diario no capturo
+# Manual trigger only — ejecutar cuando se necesiten mas datos para training
+# Usa GeckoTerminal (gratis), DexScreener (gratis), CoinGecko Demo (gratis)
+# NO consume CU de Birdeye
+name: Backfill Historical
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "Fuente: gecko_deep, gecko_volume, coingecko_gainers, dex_search, all"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - gecko_deep
+          - gecko_volume
+          - coingecko_gainers
+          - dex_search
+      max_tokens:
+        description: "Max tokens a procesar (default 5000)"
+        required: false
+        default: "5000"
+      pages:
+        description: "Paginas para gecko_deep (default 70, rango 31-100)"
+        required: false
+        default: "70"
+      chains:
+        description: "Cadenas (comma-sep, ej: solana,base). Vacio = todas"
+        required: false
+        default: ""
+      keywords:
+        description: "Keywords para dex_search (comma-sep, ej: pepe,doge,ai)"
+        required: false
+        default: ""
+      no_ohlcv:
+        description: "Solo descubrir tokens, no recopilar OHLCV"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+concurrency:
+  group: database-writes
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    env:
+      STORAGE_BACKEND: supabase
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create data directories
+        run: mkdir -p data/raw data/processed data/models .cache
+
+      - name: Run backfill historical
+        run: |
+          CMD="python scripts/backfill_historical.py"
+          CMD="$CMD --source ${{ inputs.source || 'all' }}"
+          CMD="$CMD --max-tokens ${{ inputs.max_tokens || '5000' }}"
+          CMD="$CMD --pages ${{ inputs.pages || '70' }}"
+
+          # Agregar --chains si se especifico
+          CHAINS="${{ inputs.chains }}"
+          if [ -n "$CHAINS" ]; then
+            CMD="$CMD --chains $CHAINS"
+          fi
+
+          # Agregar --keywords si se especifico
+          KEYWORDS="${{ inputs.keywords }}"
+          if [ -n "$KEYWORDS" ]; then
+            CMD="$CMD --keywords $KEYWORDS"
+          fi
+
+          # Agregar --no-ohlcv si se selecciono
+          if [ "${{ inputs.no_ohlcv }}" = "true" ]; then
+            CMD="$CMD --no-ohlcv"
+          fi
+
+          echo "Ejecutando: $CMD"
+          eval $CMD
+
+      - name: Show DB stats
+        run: |
+          python -c "
+          from src.data.supabase_storage import get_storage
+          storage = get_storage()
+          stats = storage.stats()
+          print('=== DB Stats post-backfill ===')
+          for k, v in stats.items():
+              print(f'  {k}: {v}')
+          "
+
+      # Notificacion por Telegram si falla
+      - name: Notify Telegram on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d parse_mode="Markdown" \
+            -d text="❌ *Backfill Historical FAILED*%0A%0ARepo: ${REPO}%0ARun: ${RUN_URL}"
