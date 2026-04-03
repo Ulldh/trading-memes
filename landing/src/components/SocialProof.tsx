@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
 import { useTranslations } from "next-intl";
+import { useStats } from "@/hooks/useStats";
 
 // Anima un número desde 0 hasta el valor objetivo cuando entra en pantalla
 function CountUp({
@@ -48,24 +49,26 @@ function CountUp({
 
 export default function SocialProof(): React.JSX.Element {
   const t = useTranslations("social_proof");
+  const apiStats = useStats();
 
+  // Valores dinámicos desde la API
   const stats = [
     {
-      value: 606,
+      value: apiStats.signals,
       suffix: "",
       label: t("stat_signals"),
       icon: ">>",
       color: "text-primary",
     },
     {
-      value: 194,
+      value: apiStats.gems,
       suffix: "",
       label: t("stat_gems"),
       icon: "◆",
       color: "text-gem-yellow",
     },
     {
-      value: 8385,
+      value: apiStats.tokens,
       suffix: "",
       label: t("stat_tokens"),
       icon: "{ }",

@@ -35,8 +35,8 @@ interface SimResult {
   worstTrade: { name: string; pct: number };
 }
 
-// --- Parametros basados en datos reales del modelo v21 (2026-04-01) ---
-// Fuente: scores + labels en Supabase (4,061 tokens scored, 194 gems)
+// --- Parametros de simulacion basados en datos reales ---
+// Fuente: scores + labels en Supabase
 // Win rate = porcentaje de señales que alcanzan al menos 2x (doblan su precio)
 // Mediana peak: STRONG 3.71x, MEDIUM 1.58x, WEAK 1.38x
 

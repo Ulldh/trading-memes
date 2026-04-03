@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
 import { useTranslations } from "next-intl";
+import { useStats } from "@/hooks/useStats";
 
 interface StatItem {
   value: number;
@@ -10,13 +11,6 @@ interface StatItem {
   prefix?: string;
   label: string;
   decimals?: number;
-}
-
-interface StatsData {
-  tokens: number;
-  ohlcv: number;
-  scores: number;
-  gems: number;
 }
 
 function useCountUp(
@@ -91,41 +85,20 @@ function StatCard({ item, index }: { item: StatItem; index: number }) {
   );
 }
 
-// Valores por defecto (actualizados 2026-03-31)
-// Actualizados 2026-04-01 con datos reales de Supabase
-const DEFAULT_STATS: StatsData = {
-  tokens: 8385,
-  ohlcv: 163492,
-  scores: 4061,
-  gems: 194,
-};
-
 export default function Stats() {
   const t = useTranslations("stats");
-  const [stats, setStats] = useState<StatsData>(DEFAULT_STATS);
+  const stats = useStats();
 
-  useEffect(() => {
-    fetch("/api/stats")
-      .then((r) => r.json())
-      .then((data: StatsData) => {
-        if (data && typeof data.tokens === "number") {
-          setStats(data);
-        }
-      })
-      .catch(() => {
-        // Mantener valores por defecto
-      });
-  }, []);
-
+  // Valores dinámicos desde la API + fijos operativos
   const statsData: StatItem[] = [
-    { value: stats.tokens, label: t("items.0.label") },
-    { value: stats.ohlcv, label: t("items.1.label") },
-    { value: 22, label: t("items.2.label") },
-    { value: 52, suffix: "%", label: t("items.3.label") },
-    { value: 3, label: t("items.4.label") },
-    { value: 7.3, label: t("items.5.label"), decimals: 1 },
-    { value: 15, prefix: "<", suffix: "s", label: t("items.6.label") },
-    { value: 24, suffix: "/7", label: t("items.7.label") },
+    { value: stats.tokens, label: t("items.0.label") },                              // tokens analizados
+    { value: stats.ohlcv, label: t("items.1.label") },                               // candles OHLCV
+    { value: stats.features_count, label: t("items.2.label") },                      // features / token
+    { value: Math.round(stats.hit_rate * 100), suffix: "%", label: t("items.3.label") }, // hit rate
+    { value: 3, label: t("items.4.label") },                                          // blockchains (fijo)
+    { value: 2, label: t("items.5.label") },                                          // señales diarias 2x/dia (fijo: pipeline cron)
+    { value: 15, prefix: "<", suffix: "s", label: t("items.6.label") },              // scoring time (fijo)
+    { value: 24, suffix: "/7", label: t("items.7.label") },                          // monitoreo 24/7 (fijo)
   ];
 
   return (

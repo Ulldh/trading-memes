@@ -1,27 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
+import { useStats } from "@/hooks/useStats";
 import Countdown from "./Countdown";
+
+// Formatea hit rate de 0.52 a "52%"
+function fmtPct(v: number): string {
+  return `${Math.round(v * 100)}%`;
+}
+
+// Calcula "vs random" — cuantas veces mejor que azar (gem rate ~5% base)
+function vsRandom(hitRate: number): string {
+  const base = 0.05; // ~5% de tokens son gems de forma aleatoria
+  return `${(hitRate / base).toFixed(1)}x`;
+}
 
 export default function Hero() {
   const t = useTranslations("hero");
-  const [tokenCount, setTokenCount] = useState(5000);
-
-  useEffect(() => {
-    // Cargar el conteo real de tokens desde la API
-    fetch("/api/stats")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data && typeof data.tokens === "number") {
-          setTokenCount(data.tokens);
-        }
-      })
-      .catch(() => {
-        // Mantener el valor por defecto
-      });
-  }, []);
+  const stats = useStats();
 
   return (
     <section className="relative min-h-screen flex items-center justify-center matrix-bg overflow-hidden">
@@ -71,7 +68,7 @@ export default function Hero() {
           {t("title_line2")}
         </motion.h1>
 
-        {/* Subtitle */}
+        {/* Subtitle — tokens analizados dinámico */}
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -80,12 +77,12 @@ export default function Hero() {
         >
           {t("subtitle_prefix")}{" "}
           <span className="text-primary font-semibold">
-            {tokenCount.toLocaleString("es-ES")}+
+            {stats.tokens.toLocaleString("es-ES")}+
           </span>{" "}
           {t("subtitle_suffix")}
         </motion.p>
 
-        {/* Three stats */}
+        {/* Three stats — dinámicos desde API */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -93,15 +90,15 @@ export default function Hero() {
           className="flex flex-wrap justify-center gap-8 mb-12 text-sm"
         >
           <div className="border border-dark-600 px-5 py-3">
-            <span className="text-primary font-bold text-lg">174</span>
+            <span className="text-primary font-bold text-lg">{stats.gems.toLocaleString("es-ES")}</span>
             <span className="text-gray-500 ml-2">{t("stat_gems")}</span>
           </div>
           <div className="border border-dark-600 px-5 py-3">
-            <span className="text-primary font-bold text-lg">40%</span>
+            <span className="text-primary font-bold text-lg">{fmtPct(stats.hit_rate)}</span>
             <span className="text-gray-500 ml-2">{t("stat_hit_rate")}</span>
           </div>
           <div className="border border-dark-600 px-5 py-3">
-            <span className="text-primary font-bold text-lg">7.3x</span>
+            <span className="text-primary font-bold text-lg">{vsRandom(stats.hit_rate)}</span>
             <span className="text-gray-500 ml-2">{t("stat_vs_random")}</span>
           </div>
         </motion.div>
@@ -137,7 +134,7 @@ export default function Hero() {
           </div>
         </motion.div>
 
-        {/* Bottom terminal line */}
+        {/* Bottom terminal line — métricas dinámicas */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -145,9 +142,9 @@ export default function Hero() {
           className="mt-16 text-xs text-gray-500 font-mono"
         >
           <span className="text-gem-green">{t("status_label")}</span> {t("status_value")} &middot;{" "}
-          <span className="text-gem-green">{t("model_label")}</span> {t("model_value")} &middot;{" "}
-          <span className="text-gem-green">{t("f1_label")}</span> {t("f1_value")} &middot;{" "}
-          <span className="text-gem-green">{t("precision_label")}</span> {t("precision_value")}
+          <span className="text-gem-green">{t("model_label")}</span> {stats.model_version} &middot;{" "}
+          <span className="text-gem-green">{t("f1_label")}</span> {stats.auc.toFixed(3)} &middot;{" "}
+          <span className="text-gem-green">{t("precision_label")}</span> {fmtPct(stats.recall)}
         </motion.div>
 
         {/* Disclaimer banner */}

@@ -1,12 +1,12 @@
 {
   "meta": {
     "title": "Meme Detector — Detecta las próximas gems 10x en memecoins",
-    "description": "Machine Learning analiza +5,000 memecoins diariamente en Solana, Ethereum y Base para detectar las próximas gems antes que nadie.",
+    "description": "Machine Learning analiza +11,000 memecoins diariamente en Solana, Ethereum y Base para detectar las próximas gems antes que nadie.",
     "keywords": ["memecoin", "gem detector", "crypto", "solana", "machine learning", "trading signals"],
     "og_title": "Meme Detector — Gems 10x en Memecoins",
-    "og_description": "ML analiza +5,000 memecoins diariamente. Señales de trading con IA.",
+    "og_description": "ML analiza +11,000 memecoins diariamente. Señales de trading con IA.",
     "twitter_title": "Meme Detector — Detecta Gems 10x",
-    "twitter_description": "ML analiza +5,000 memecoins diariamente."
+    "twitter_description": "ML analiza +11,000 memecoins diariamente."
   },
   "nav": {
     "brand": "MEME DETECTOR",
@@ -35,7 +35,7 @@
     "status_label": "STATUS:",
     "status_value": "ONLINE",
     "model_label": "MODELO:",
-    "model_value": "v21",
+    "model_value": "v23",
     "f1_label": "AUC:",
     "f1_value": "0.914",
     "precision_label": "RECALL:",
@@ -56,7 +56,7 @@
       {
         "title": "DATOS",
         "icon": "{ }",
-        "stats": ["5,329 tokens", "3 blockchains", "11 APIs activas"],
+        "stats": ["11,000+ tokens", "3 blockchains", "11 APIs activas"],
         "detail": "Recopilamos datos de Solana, Ethereum y Base cada día desde 11 fuentes distintas."
       },
       {
@@ -81,7 +81,7 @@
   },
   "stats": {
     "section_title": "Números que hablan",
-    "section_subtitle": "Datos actualizados del pipeline v21",
+    "section_subtitle": "Datos actualizados en tiempo real desde la base de datos",
     "items": [
       { "label": "tokens analizados" },
       { "label": "candles OHLCV" },
@@ -96,7 +96,7 @@
   "backtesting": {
     "section_title": "Simulador de Estrategia",
     "simulation_badge": "SIMULACIÓN",
-    "section_subtitle": "Basado en datos reales del modelo v21: STRONG gem rate 52%, win rate 71% (2x+). No es rendimiento pasado real.",
+    "section_subtitle": "Basado en datos reales del modelo actual: STRONG gem rate 52%, win rate 71% (2x+). No es rendimiento pasado real.",
     "investment_label": "Inversión inicial",
     "period_label": "Período",
     "strategy_label": "Estrategia",
@@ -120,10 +120,10 @@
     "chart_x_label": "Día",
     "chart_ref_label": "Inversión",
     "tooltip_day": "Día",
-    "transparency_note": "Esta simulación usa datos reales del modelo v21: STRONG 52% gem rate (mediana 3.71x), STRONG+MEDIUM 25% gem rate, win rates basados en tokens que alcanzan 2x+. No representa rendimiento real pasado.",
+    "transparency_note": "Esta simulación usa datos reales del modelo actual: STRONG 52% gem rate (mediana 3.71x), STRONG+MEDIUM 25% gem rate, win rates basados en tokens que alcanzan 2x+. No representa rendimiento real pasado.",
     "track_record_note": "Track record real disponible en el dashboard.",
     "track_record_link": "Ver historial →",
-    "disclaimer": "AVISO: Simulación estimada basada en métricas del modelo v21. Track record verificable con datos reales disponible próximamente (estamos acumulando datos desde marzo 2026). Rendimiento pasado no garantiza resultados futuros.",
+    "disclaimer": "AVISO: Simulación estimada basada en métricas del modelo actual. Track record verificable con datos reales disponible próximamente (estamos acumulando datos desde marzo 2026). Rendimiento pasado no garantiza resultados futuros.",
     "start_label": "Inicio"
   },
   "pricing": {
@@ -184,11 +184,11 @@
       },
       {
         "question": "¿Por qué no es gratis?",
-        "answer": "Los bots de Telegram gratuitos usan alertas basadas en volumen o mentions. Nuestro modelo analiza 22 variables de cada token incluyendo concentración de holders, profundidad de liquidez y momentum. Esa diferencia es la razón por la que el 40% de nuestras señales STRONG son gems reales."
+        "answer": "Los bots de Telegram gratuitos usan alertas basadas en volumen o mentions. Nuestro modelo analiza 22 variables de cada token incluyendo concentración de holders, profundidad de liquidez y momentum. Esa diferencia es la razón por la que el 52% de nuestras señales STRONG son gems reales."
       },
       {
         "question": "¿Cómo funciona el modelo ML?",
-        "answer": "Ensemble de Random Forest + XGBoost. Entrenado con 22 features extraídas de 7,900+ tokens. Métricas actuales: AUC 0.914, Recall 69%. El modelo analiza tokenomics, liquidez, price action, concentración de holders y contexto de mercado."
+        "answer": "Ensemble de Random Forest + XGBoost. Entrenado con 22 features extraídas de 11,000+ tokens. Métricas actuales: AUC 0.914, Recall 69%. El modelo analiza tokenomics, liquidez, price action, concentración de holders y contexto de mercado."
       },
       {
         "question": "¿Qué blockchains soportáis?",

@@ -2,27 +2,20 @@
 
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
+import { useStats } from "@/hooks/useStats";
 
-// Historial de versiones del modelo (datos estaticos)
-const versions = [
-  {
-    version: "v23",
-    date: "2026-04-03",
-    gems: 260,
-    features: 22,
-    rf_f1: 0.48,
-    highlights: ["contract_age_hours recovered", "5 pipeline optimizations"],
-    isCurrent: true,
-  },
-  {
-    version: "v22",
-    date: "2026-04-03",
-    gems: 260,
-    features: 22,
-    rf_f1: 0.48,
-    highlights: ["219\u2192260 gems", "+7% RF F1 vs v21"],
-    isCurrent: false,
-  },
+interface VersionEntry {
+  version: string;
+  date: string;
+  gems: number;
+  features: number;
+  rf_f1: number;
+  highlights: string[];
+  isCurrent: boolean;
+}
+
+// Historial de versiones anteriores (estatico — ya no cambian)
+const previousVersions: VersionEntry[] = [
   {
     version: "v21",
     date: "2026-03-28",
@@ -45,6 +38,23 @@ const versions = [
 
 export default function ModelChangelog() {
   const t = useTranslations("changelog");
+  const stats = useStats();
+
+  // La version actual se construye dinámicamente desde la API
+  const currentVersion: VersionEntry = {
+    version: stats.model_version,
+    date: new Date().toISOString().split("T")[0],
+    gems: stats.gems,
+    features: stats.features_count,
+    rf_f1: stats.auc, // Usamos AUC como métrica principal visible
+    highlights: [
+      `${Math.round(stats.hit_rate * 100)}% STRONG gem rate`,
+      `${Math.round(stats.win_rate * 100)}% win rate (2x+)`,
+    ],
+    isCurrent: true,
+  };
+
+  const versions = [currentVersion, ...previousVersions];
 
   return (
     <section className="relative py-20 px-4 bg-dark-900">
@@ -129,7 +139,9 @@ export default function ModelChangelog() {
                       <p className="text-lg font-bold text-primary font-mono">
                         {v.rf_f1.toFixed(3)}
                       </p>
-                      <p className="text-[10px] text-gray-500 font-mono uppercase">RF F1</p>
+                      <p className="text-[10px] text-gray-500 font-mono uppercase">
+                        {v.isCurrent ? "AUC" : "RF F1"}
+                      </p>
                     </div>
                     <div className="text-center">
                       <p className="text-lg font-bold text-gem-yellow font-mono">{v.gems}</p>
