@@ -87,6 +87,8 @@ API_URLS = {
 ETHERSCAN_CHAIN_IDS = {
     "ethereum": 1,
     "base": 8453,
+    "bsc": 56,
+    "arbitrum": 42161,
 }
 
 # ============================================================
@@ -108,6 +110,36 @@ SUPPORTED_CHAINS = {
         "dexscreener_id": "base",
         "native_token": "ETH",
     },
+    "bsc": {
+        "geckoterminal_id": "bsc",
+        "dexscreener_id": "bsc",
+        "native_token": "BNB",
+    },
+    "arbitrum": {
+        "geckoterminal_id": "arbitrum",
+        "dexscreener_id": "arbitrum",
+        "native_token": "ETH",
+    },
+}
+
+# ============================================================
+# BIRDEYE CU BUDGET (control de costes)
+# ============================================================
+# Birdeye Lite: 1.5M CU/mes ≈ 50K CU/dia
+# Presupuesto conservador: 30K CU/dia para no exceder el limite
+BIRDEYE_DAILY_CU_BUDGET = 30_000
+
+# Costes estimados por endpoint en CU (Birdeye Lite tier)
+# Fuente: https://docs.birdeye.so/docs/credit-usage
+BIRDEYE_CU_COSTS = {
+    "ohlcv": 5,              # GET /defi/ohlcv
+    "token_overview": 10,    # GET /defi/token_overview
+    "token_security": 5,     # GET /defi/token_security
+    "token_creation_info": 5,  # GET /defi/token_creation_info
+    "token_holder": 10,      # GET /defi/v3/token/holder
+    "new_listing": 5,        # GET /defi/v2/tokens-new_listing
+    "meme_list": 5,          # GET /defi/v3/token/meme-list
+    "trade_data": 5,         # GET /defi/v3/token/trade-data-single
 }
 
 # ============================================================

@@ -53,7 +53,7 @@ except ImportError:
     HELIUS_API_KEY = ""
     ETHERSCAN_API_KEY = ""
     BASESCAN_API_KEY = ""
-    ETHERSCAN_CHAIN_IDS = {"ethereum": 1, "base": 8453}
+    ETHERSCAN_CHAIN_IDS = {"ethereum": 1, "base": 8453, "bsc": 56, "arbitrum": 42161}
 
 # Logger para este modulo
 logger = get_logger(__name__)
@@ -346,8 +346,13 @@ class EtherscanClient(BaseAPIClient):
         # V2 URL unificada
         url = API_URLS.get("etherscan", "https://api.etherscan.io/v2/api")
 
-        # Nombre para logging
-        name = "basescan" if chain == "base" else "etherscan"
+        # Nombre para logging (Etherscan V2 soporta todas las EVM chains)
+        chain_names = {
+            "base": "basescan",
+            "bsc": "bscscan",
+            "arbitrum": "arbiscan",
+        }
+        name = chain_names.get(chain, "etherscan")
 
         # Inicializar la clase base
         super().__init__(

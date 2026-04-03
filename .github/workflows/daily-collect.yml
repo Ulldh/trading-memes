@@ -1,5 +1,5 @@
-# Recopilacion de datos 2x/dia - Reducido de 4x para conservar Birdeye CUs
-# Birdeye Lite: 1.5M CU/mes. A 2x/dia caben ~25K CU/run
+# Recopilacion de datos 2x/dia - GeckoTerminal primario, Birdeye solo fallback/enrichment
+# Birdeye Lite: 1.5M CU/mes, presupuesto 30K CU/dia. OHLCV via GeckoTerminal (gratis)
 name: Daily Collect
 
 on:
@@ -10,9 +10,9 @@ on:
   workflow_dispatch:
     inputs:
       max_tokens_ohlcv:
-        description: "Maximo de tokens para OHLCV (default 300)"
+        description: "Maximo de tokens para OHLCV (default 500)"
         required: false
-        default: "300"
+        default: "500"
 
 concurrency:
   group: database-writes
@@ -38,8 +38,8 @@ jobs:
       BIRDEYE_API_KEY: ${{ secrets.BIRDEYE_API_KEY }}
       JUPITER_API_KEY: ${{ secrets.JUPITER_API_KEY }}
       X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
-      # Limite de tokens para OHLCV update (default 300 para cron, configurable en manual)
-      MAX_TOKENS_OHLCV: ${{ inputs.max_tokens_ohlcv || '300' }}
+      # Limite de tokens para OHLCV update (default 500 — GeckoTerminal es gratis)
+      MAX_TOKENS_OHLCV: ${{ inputs.max_tokens_ohlcv || '500' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -167,10 +167,11 @@ jobs:
       # Birdeye backfill: tokens con <7 velas diarias no pueden ser etiquetados
       # por el labeler (necesita return_7d). Birdeye rellena el historial.
       # Procesa tokens de TODAS las cadenas con OHLCV insuficiente via Birdeye API.
-      # max-tokens=200 para ahorrar CU Birdeye (antes 500, excedia presupuesto).
+      # max-tokens=100 para ahorrar CU Birdeye (presupuesto 30K CU/dia).
+      # GeckoTerminal ahora es primario para OHLCV, Birdeye solo backfill.
       # BIRDEYE_API_KEY ya esta en env del job (linea 40).
       - name: Birdeye OHLCV backfill for tokens with few candles
-        run: python scripts/backfill_ohlcv.py --max-tokens 200 --min-ohlcv 7 --chain all
+        run: python scripts/backfill_ohlcv.py --max-tokens 100 --min-ohlcv 7 --chain all
         timeout-minutes: 30
 
       # Scoring de tokens con modelos ML

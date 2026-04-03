@@ -59,20 +59,33 @@ from src.utils.helpers import safe_float
 from src.utils.logger import get_logger
 
 try:
-    from config import API_URLS, RATE_LIMITS, BIRDEYE_API_KEY
+    from config import (
+        API_URLS, RATE_LIMITS, BIRDEYE_API_KEY,
+        BIRDEYE_DAILY_CU_BUDGET, BIRDEYE_CU_COSTS,
+    )
 except ImportError:
     API_URLS = {"birdeye": "https://public-api.birdeye.so"}
     RATE_LIMITS = {"birdeye": 900}
     BIRDEYE_API_KEY = ""
+    BIRDEYE_DAILY_CU_BUDGET = 30_000
+    BIRDEYE_CU_COSTS = {
+        "ohlcv": 5, "token_overview": 10, "token_security": 5,
+        "token_creation_info": 5, "token_holder": 10, "new_listing": 5,
+        "meme_list": 5, "trade_data": 5,
+    }
 
 logger = get_logger(__name__)
 
 # Cadenas soportadas por Birdeye y su nombre en el header x-chain
-SUPPORTED_CHAINS = {
+BIRDEYE_SUPPORTED_CHAINS = {
     "solana": "solana",
     "ethereum": "ethereum",
     "base": "base",
+    "bsc": "bsc",
+    "arbitrum": "arbitrum",
 }
+# Alias para compatibilidad
+SUPPORTED_CHAINS = BIRDEYE_SUPPORTED_CHAINS
 
 
 class BirdeyeClient(BaseAPIClient):
@@ -82,10 +95,15 @@ class BirdeyeClient(BaseAPIClient):
     Hereda de BaseAPIClient para reusar rate limiting, retries y cache.
     Requiere BIRDEYE_API_KEY en .env para funcionar.
 
-    Cadenas soportadas: solana, ethereum, base.
+    Cadenas soportadas: solana, ethereum, base, bsc, arbitrum.
 
     Timeframes soportados para OHLCV:
         1m, 3m, 5m, 15m, 30m, 1H, 2H, 4H, 6H, 8H, 12H, 1D, 3D, 1W, 1M
+
+    Presupuesto diario de CU:
+        Birdeye Lite = 1.5M CU/mes ≈ 50K CU/dia.
+        Presupuesto conservador: 30K CU/dia (configurable en config.py).
+        Cuando se excede el presupuesto, las llamadas se rechazan con log de advertencia.
     """
 
     def __init__(self):
@@ -98,17 +116,99 @@ class BirdeyeClient(BaseAPIClient):
 
         self._api_key = BIRDEYE_API_KEY
 
+        # --- Presupuesto diario de CU ---
+        # Se resetea al inicio de cada run (el collector corre 2x/dia)
+        self._daily_cu_budget = BIRDEYE_DAILY_CU_BUDGET
+        self._cu_costs = BIRDEYE_CU_COSTS
+        self._cu_used_today: int = 0
+        self._budget_exhausted: bool = False
+
         # Agregar header de autenticacion a la sesion
         if self._api_key:
             self.session.headers.update({
                 "X-API-KEY": self._api_key,
             })
-            logger.info("BirdeyeClient inicializado con API key")
+            logger.info(
+                f"BirdeyeClient inicializado con API key "
+                f"(presupuesto diario: {self._daily_cu_budget} CU)"
+            )
         else:
             logger.warning(
                 "BirdeyeClient sin API key. "
                 "Obtener en https://bds.birdeye.so y agregar BIRDEYE_API_KEY al .env"
             )
+
+    # ==================================================================
+    # PRESUPUESTO DE CU (Credit Units)
+    # ==================================================================
+
+    def _check_cu_budget(self, endpoint_type: str) -> bool:
+        """
+        Verifica si hay presupuesto de CU disponible para una llamada.
+
+        Si el presupuesto se ha agotado, retorna False y loguea una advertencia.
+        Cada tipo de endpoint tiene un coste diferente en CU.
+
+        Args:
+            endpoint_type: Tipo de endpoint (ej: "ohlcv", "token_overview").
+
+        Returns:
+            True si hay presupuesto, False si se ha agotado.
+        """
+        if self._budget_exhausted:
+            return False
+
+        cu_cost = self._cu_costs.get(endpoint_type, 5)
+        if self._cu_used_today + cu_cost > self._daily_cu_budget:
+            self._budget_exhausted = True
+            logger.warning(
+                f"BIRDEYE CU BUDGET AGOTADO: {self._cu_used_today} CU usados "
+                f"de {self._daily_cu_budget} CU/dia. "
+                f"Llamada '{endpoint_type}' rechazada. "
+                f"Birdeye desactivado hasta el proximo run."
+            )
+            return False
+
+        return True
+
+    def _register_cu(self, endpoint_type: str) -> None:
+        """
+        Registra el consumo de CU de una llamada exitosa.
+
+        Args:
+            endpoint_type: Tipo de endpoint (ej: "ohlcv", "token_overview").
+        """
+        cu_cost = self._cu_costs.get(endpoint_type, 5)
+        self._cu_used_today += cu_cost
+
+        # Log cada 1000 CU para monitorizar
+        if self._cu_used_today % 1000 < cu_cost:
+            logger.info(
+                f"Birdeye CU: {self._cu_used_today}/{self._daily_cu_budget} "
+                f"({self._cu_used_today * 100 / self._daily_cu_budget:.0f}%)"
+            )
+
+    def reset_cu_budget(self) -> None:
+        """
+        Resetea el presupuesto diario de CU. Llamar al inicio de cada run.
+        """
+        if self._cu_used_today > 0:
+            logger.info(
+                f"Reseteando presupuesto Birdeye CU "
+                f"(usado en run anterior: {self._cu_used_today} CU)"
+            )
+        self._cu_used_today = 0
+        self._budget_exhausted = False
+
+    @property
+    def cu_used(self) -> int:
+        """CU consumidos en este run."""
+        return self._cu_used_today
+
+    @property
+    def cu_remaining(self) -> int:
+        """CU restantes en este run."""
+        return max(0, self._daily_cu_budget - self._cu_used_today)
 
     @property
     def is_available(self) -> bool:
@@ -203,6 +303,10 @@ class BirdeyeClient(BaseAPIClient):
             logger.debug("Birdeye: sin API key, saltando")
             return []
 
+        # Verificar presupuesto diario de CU
+        if not self._check_cu_budget("ohlcv"):
+            return []
+
         # Establecer cadena en el header x-chain
         self._set_chain(chain)
 
@@ -228,6 +332,9 @@ class BirdeyeClient(BaseAPIClient):
         items = respuesta.get("data", {}).get("items", [])
         if not items:
             return []
+
+        # Registrar consumo de CU (la llamada fue exitosa)
+        self._register_cu("ohlcv")
 
         # Parsear cada vela al formato estandar del proyecto
         velas = []
@@ -332,6 +439,9 @@ class BirdeyeClient(BaseAPIClient):
             logger.debug("Birdeye: sin API key, saltando token_overview")
             return None
 
+        if not self._check_cu_budget("token_overview"):
+            return None
+
         self._set_chain(chain)
 
         respuesta = self._get(
@@ -343,6 +453,8 @@ class BirdeyeClient(BaseAPIClient):
         data = self._extract_data(respuesta, "token_overview")
         if not data:
             return None
+
+        self._register_cu("token_overview")
 
         # Normalizar campos a formato estandar del proyecto
         resultado = {
@@ -419,6 +531,9 @@ class BirdeyeClient(BaseAPIClient):
             logger.debug("Birdeye: sin API key, saltando token_security")
             return None
 
+        if not self._check_cu_budget("token_security"):
+            return None
+
         self._set_chain(chain)
 
         respuesta = self._get(
@@ -430,6 +545,8 @@ class BirdeyeClient(BaseAPIClient):
         data = self._extract_data(respuesta, "token_security")
         if not data:
             return None
+
+        self._register_cu("token_security")
 
         # Normalizar campos a formato estandar
         resultado = {
@@ -497,6 +614,9 @@ class BirdeyeClient(BaseAPIClient):
             logger.debug("Birdeye: sin API key, saltando token_creation_info")
             return None
 
+        if not self._check_cu_budget("token_creation_info"):
+            return None
+
         self._set_chain(chain)
 
         respuesta = self._get(
@@ -508,6 +628,8 @@ class BirdeyeClient(BaseAPIClient):
         data = self._extract_data(respuesta, "token_creation_info")
         if not data:
             return None
+
+        self._register_cu("token_creation_info")
 
         # Parsear timestamp a ISO
         created_unix = data.get("blockUnixTime") or data.get("creationTime")
@@ -576,6 +698,9 @@ class BirdeyeClient(BaseAPIClient):
             logger.debug("Birdeye: sin API key, saltando token_holder")
             return None
 
+        if not self._check_cu_budget("token_holder"):
+            return None
+
         self._set_chain(chain)
 
         respuesta = self._get(
@@ -594,6 +719,8 @@ class BirdeyeClient(BaseAPIClient):
         items = data.get("items", [])
         if not items:
             return []
+
+        self._register_cu("token_holder")
 
         # Normalizar cada holder
         holders = []
@@ -644,6 +771,9 @@ class BirdeyeClient(BaseAPIClient):
             logger.debug("Birdeye: sin API key, saltando new_listings")
             return None
 
+        if not self._check_cu_budget("new_listing"):
+            return None
+
         self._set_chain(chain)
 
         respuesta = self._get(
@@ -655,6 +785,8 @@ class BirdeyeClient(BaseAPIClient):
         data = self._extract_data(respuesta, "new_listings")
         if not data:
             return None
+
+        self._register_cu("new_listing")
 
         items = data.get("items", data) if isinstance(data, dict) else data
         if not isinstance(items, list):
@@ -713,6 +845,9 @@ class BirdeyeClient(BaseAPIClient):
             logger.debug("Birdeye: sin API key, saltando meme_list")
             return None
 
+        if not self._check_cu_budget("meme_list"):
+            return None
+
         self._set_chain(chain)
 
         respuesta = self._get(
@@ -724,6 +859,8 @@ class BirdeyeClient(BaseAPIClient):
         data = self._extract_data(respuesta, "meme_list")
         if not data:
             return None
+
+        self._register_cu("meme_list")
 
         items = data.get("items", data) if isinstance(data, dict) else data
         if not isinstance(items, list):
@@ -791,6 +928,9 @@ class BirdeyeClient(BaseAPIClient):
             logger.debug("Birdeye: sin API key, saltando trade_data")
             return None
 
+        if not self._check_cu_budget("trade_data"):
+            return None
+
         self._set_chain(chain)
 
         respuesta = self._get(
@@ -802,6 +942,8 @@ class BirdeyeClient(BaseAPIClient):
         data = self._extract_data(respuesta, "trade_data")
         if not data:
             return None
+
+        self._register_cu("trade_data")
 
         # Normalizar a formato plano para feature engineering
         resultado = {

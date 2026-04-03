@@ -613,10 +613,13 @@ class CoinGeckoClient(BaseAPIClient):
             return []
 
         # Mapeo de platform IDs de CoinGecko a nuestras chains
+        # Incluye BSC y Arbitrum para descubrimiento multi-chain
         platform_map = {
             "solana": "solana",
             "ethereum": "ethereum",
             "base": "base",
+            "binance-smart-chain": "bsc",
+            "arbitrum-one": "arbitrum",
         }
 
         tokens = []

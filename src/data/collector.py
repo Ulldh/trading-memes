@@ -72,6 +72,16 @@ except ImportError:
             "dexscreener_id": "base",
             "native_token": "ETH",
         },
+        "bsc": {
+            "geckoterminal_id": "bsc",
+            "dexscreener_id": "bsc",
+            "native_token": "BNB",
+        },
+        "arbitrum": {
+            "geckoterminal_id": "arbitrum",
+            "dexscreener_id": "arbitrum",
+            "native_token": "ETH",
+        },
     }
     PROCESSED_DIR = Path("data/processed")
 
@@ -125,20 +135,29 @@ class DataCollector:
         self.solana_rpc = SolanaRPC()
 
         # Clientes Etherscan V2 - uno por cadena EVM (misma API key, distinto chainid)
+        # BSC y Arbitrum tambien soportados por Etherscan V2
         self._etherscan_clients = {
             "ethereum": EtherscanClient(chain="ethereum"),
             "base": EtherscanClient(chain="base"),
+            "bsc": EtherscanClient(chain="bsc"),
+            "arbitrum": EtherscanClient(chain="arbitrum"),
         }
 
         # Cliente de descubrimiento Solana (Pump.fun, Jupiter, Raydium)
         self.solana_discovery = SolanaDiscoveryClient()
 
-        # Cliente Birdeye para OHLCV multi-chain (Solana, Ethereum, Base)
-        # Birdeye tiene 900 calls/min (Lite) vs GeckoTerminal 30/min
-        # Se usa como fuente primaria de OHLCV, con GeckoTerminal como fallback
+        # Cliente Birdeye para enrichment multi-chain (Solana, Ethereum, Base, BSC, Arbitrum)
+        # CAMBIO v24: Birdeye ahora es FALLBACK para OHLCV (antes era primario)
+        # Motivo: Birdeye al 104% del limite CU mensual en dia 3 del ciclo
+        # GeckoTerminal es gratis y suficiente para OHLCV (30/min)
+        # Birdeye se reserva para datos que GeckoTerminal no tiene:
+        # holders, security, creation dates, trade data, overview
         self.birdeye = BirdeyeClient()
         if self.birdeye.is_available:
-            logger.info("BirdeyeClient disponible — OHLCV primario via Birdeye")
+            logger.info(
+                "BirdeyeClient disponible — OHLCV via GeckoTerminal (primario), "
+                "Birdeye solo como fallback y para enrichment"
+            )
         else:
             logger.info("BirdeyeClient no disponible — OHLCV solo via GeckoTerminal")
 
@@ -590,6 +609,70 @@ class DataCollector:
         return all_tokens
 
     # ================================================================
+    # PASO 1E: DESCUBRIR TOKENS DESDE GECKOTERMINAL TRENDING
+    # ================================================================
+
+    def discover_from_trending(self) -> list[dict]:
+        """
+        Descubre tokens desde pools en tendencia de GeckoTerminal.
+
+        Los pools trending son aquellos con mayor actividad reciente.
+        Fuente gratuita que complementa el descubrimiento por new_pools.
+
+        Se consultan todas las cadenas soportadas.
+
+        Returns:
+            Lista de diccionarios con tokens descubiertos.
+        """
+        logger.info("=" * 60)
+        logger.info("PASO 1E: Descubriendo tokens desde GeckoTerminal trending...")
+        logger.info("=" * 60)
+
+        all_tokens: list[dict] = []
+        chains = list(SUPPORTED_CHAINS.keys())
+
+        for chain in chains:
+            try:
+                chain_config = SUPPORTED_CHAINS.get(chain, {})
+                gecko_chain_id = chain_config.get("geckoterminal_id", chain)
+
+                pools = self.gecko.get_trending_pools(gecko_chain_id)
+
+                if not pools:
+                    logger.debug(f"Sin pools trending para '{chain}'")
+                    continue
+
+                logger.info(
+                    f"GeckoTerminal trending ({chain}): "
+                    f"{len(pools)} pools obtenidos"
+                )
+
+                for pool in pools:
+                    try:
+                        token = self._pool_to_token(pool, chain)
+                        if token and token.get("token_id"):
+                            self.storage.upsert_token(token)
+                            all_tokens.append(token)
+                    except Exception as e:
+                        logger.debug(
+                            f"Error procesando pool trending: {e}"
+                        )
+
+                # Pausa entre cadenas para respetar rate limits
+                time.sleep(2.0)
+
+            except Exception as e:
+                logger.warning(
+                    f"Error obteniendo trending pools de '{chain}': {e}"
+                )
+
+        logger.info(
+            f"Descubrimiento trending completado: "
+            f"{len(all_tokens)} tokens nuevos añadidos"
+        )
+        return all_tokens
+
+    # ================================================================
     # PASO 2: ENRIQUECER CON DEXSCREENER
     # ================================================================
 
@@ -808,19 +891,21 @@ class DataCollector:
         """
         logger.info("=" * 60)
         logger.info(f"PASO 3: Recopilando OHLCV ({timeframe}, {limit} velas)...")
-        if self.birdeye.is_available:
-            logger.info("Fuente primaria: Birdeye (900/min), fallback: GeckoTerminal")
-        else:
-            logger.info("Fuente: GeckoTerminal (Birdeye no disponible)")
+        logger.info(
+            "Fuente primaria: GeckoTerminal (gratis, 30/min), "
+            "fallback: Birdeye (solo si no hay pool_address)"
+        )
         logger.info("=" * 60)
 
         if not tokens:
             logger.info("No hay tokens para OHLCV, saltando paso 3")
             return
 
-        # Con Birdeye, podemos procesar tokens incluso sin pool_address
-        # (Birdeye usa token address directamente, no necesita pool)
+        # GeckoTerminal es ahora la fuente primaria (gratis, sin limite CU)
+        # Necesita pool_address para funcionar
+        # Birdeye es fallback solo para tokens sin pool_address
         if self.birdeye.is_available:
+            # Con Birdeye como fallback, procesamos todos los tokens
             tokens_procesables = [t for t in tokens if t.get("token_id")]
         else:
             # Sin Birdeye, solo tokens con pool_address (requerido por GeckoTerminal)
@@ -855,20 +940,9 @@ class DataCollector:
 
                 ohlcv_rows = []
 
-                # --- Intento 1: Birdeye (primario, mas rapido) ---
-                if self.birdeye.is_available:
-                    birdeye_velas = self._fetch_ohlcv_birdeye(
-                        token_id=token_id, chain=chain, limit=limit,
-                    )
-                    if birdeye_velas:
-                        ohlcv_rows = self._birdeye_velas_to_rows(
-                            birdeye_velas, token_id, chain,
-                            pool_address, timeframe,
-                        )
-                        exitos_birdeye += 1
-
-                # --- Intento 2: GeckoTerminal (fallback) ---
-                if not ohlcv_rows and pool_address:
+                # --- Intento 1: GeckoTerminal (PRIMARIO, gratis, sin CU) ---
+                # GeckoTerminal requiere pool_address pero es gratis
+                if pool_address:
                     velas = self.gecko.get_pool_ohlcv(
                         chain=gecko_chain_id,
                         pool_address=pool_address,
@@ -900,6 +974,19 @@ class DataCollector:
                             })
                         exitos_gecko += 1
 
+                # --- Intento 2: Birdeye (FALLBACK, solo si no hay pool_address) ---
+                # Solo usa Birdeye si GeckoTerminal no pudo (ahorra CU)
+                if not ohlcv_rows and self.birdeye.is_available:
+                    birdeye_velas = self._fetch_ohlcv_birdeye(
+                        token_id=token_id, chain=chain, limit=limit,
+                    )
+                    if birdeye_velas:
+                        ohlcv_rows = self._birdeye_velas_to_rows(
+                            birdeye_velas, token_id, chain,
+                            pool_address, timeframe,
+                        )
+                        exitos_birdeye += 1
+
                 if not ohlcv_rows:
                     logger.debug(f"Sin OHLCV para {token_id[:10]}...")
                     errores += 1
@@ -918,10 +1005,9 @@ class DataCollector:
                 )
                 errores += 1
 
-            # Pausa entre tokens: Birdeye es rapido (900/min = 0.07s)
-            # pero mantenemos 0.15s para seguridad. Si usamos GeckoTerminal
-            # fallback, BaseAPIClient ya tiene rate limiting interno.
-            time.sleep(0.15 if self.birdeye.is_available else 0.5)
+            # Pausa entre tokens: GeckoTerminal tiene 30/min = 2s entre calls
+            # BaseAPIClient ya maneja rate limiting, pero añadimos pausa minima
+            time.sleep(0.5)
 
         # Resumen del paso
         logger.info(
@@ -1080,17 +1166,17 @@ class DataCollector:
                 # Pausa breve entre tokens
                 time.sleep(0.3)
 
-        # --- 4B: Holders de ETH/Base via Birdeye ---
+        # --- 4B: Holders de ETH/Base/BSC/Arbitrum via Birdeye ---
         if self.birdeye.is_available:
             eth_base_tokens = [
                 t for t in tokens
-                if t.get("chain") in ("ethereum", "base")
+                if t.get("chain") in ("ethereum", "base", "bsc", "arbitrum")
             ]
 
             if eth_base_tokens:
                 logger.info(
                     f"4B: Procesando holders para {len(eth_base_tokens)} tokens "
-                    f"de ETH/Base via Birdeye"
+                    f"de ETH/Base/BSC/Arbitrum via Birdeye"
                 )
 
                 for token in tqdm(eth_base_tokens, desc="Holders ETH/Base", unit="token"):
@@ -1180,8 +1266,8 @@ class DataCollector:
                     "deploy_timestamp": None,
                 }
 
-                if chain in ("ethereum", "base"):
-                    # --- Verificacion via Etherscan V2 ---
+                if chain in ("ethereum", "base", "bsc", "arbitrum"):
+                    # --- Verificacion via Etherscan V2 (todas las cadenas EVM) ---
                     ethclient = self._etherscan_for(chain)
                     is_verified = ethclient.is_contract_verified(token_id)
                     contract_info["is_verified"] = is_verified
@@ -1717,20 +1803,20 @@ class DataCollector:
 
         stats = {"holders_added": 0, "security_added": 0, "dates_added": 0}
 
-        # --- 7A: Holders para ETH/Base tokens sin holder_snapshots ---
+        # --- 7A: Holders para EVM tokens sin holder_snapshots ---
         try:
             missing_holders_df = self.storage.query("""
                 SELECT t.token_id, t.chain
                 FROM tokens t
                 LEFT JOIN holder_snapshots h ON t.token_id = h.token_id
                 WHERE h.token_id IS NULL
-                  AND t.chain IN ('ethereum', 'base')
+                  AND t.chain IN ('ethereum', 'base', 'bsc', 'arbitrum')
                 LIMIT ?
             """, (max_tokens,))
 
             if not missing_holders_df.empty:
                 logger.info(
-                    f"7A: {len(missing_holders_df)} tokens ETH/Base sin holders"
+                    f"7A: {len(missing_holders_df)} tokens EVM sin holders"
                 )
                 exitos = 0
                 for _, row in tqdm(
@@ -1756,7 +1842,7 @@ class DataCollector:
                 stats["holders_added"] = exitos
                 logger.info(f"7A: {exitos} tokens con holders nuevos")
             else:
-                logger.info("7A: Todos los tokens ETH/Base ya tienen holders")
+                logger.info("7A: Todos los tokens EVM ya tienen holders")
         except Exception as e:
             logger.warning(f"Error en paso 7A: {e}")
 
@@ -1939,8 +2025,14 @@ class DataCollector:
         # (si estaba abierto de un run anterior, le damos otra oportunidad)
         self.solana_discovery.reset_circuit_breaker()
 
-        # --- Paso 1: Descubrir pools nuevos (GeckoTerminal) ---
-        tokens = self.discover_new_pools(chains=chains)
+        # Resetear presupuesto diario de CU de Birdeye al inicio de cada run
+        if self.birdeye.is_available:
+            self.birdeye.reset_cu_budget()
+
+        # --- Paso 1: Descubrir pools nuevos (GeckoTerminal, 30 paginas/cadena) ---
+        # Aumentado de 10 a 30 paginas para triplicar descubrimiento (~1800 tokens/run)
+        # GeckoTerminal es gratis, 30 paginas x 5 cadenas = 150 calls ≈ 5 min
+        tokens = self.discover_new_pools(chains=chains, pages=30)
 
         # --- Paso 1B: Descubrir tokens desde DexScreener ---
         dex_tokens = self.discover_from_dexscreener()
@@ -1954,6 +2046,10 @@ class DataCollector:
         birdeye_tokens = self.discover_from_birdeye()
         tokens.extend(birdeye_tokens)
 
+        # --- Paso 1E: Descubrir tokens desde GeckoTerminal trending ---
+        trending_tokens = self.discover_from_trending()
+        tokens.extend(trending_tokens)
+
         # Deduplicar tokens por token_id (puede haber solapamiento entre fuentes)
         seen_ids: set[str] = set()
         unique_tokens: list[dict] = []
@@ -1965,7 +2061,7 @@ class DataCollector:
         tokens = unique_tokens
         logger.info(
             f"Total tokens descubiertos (deduplicados): {len(tokens)} "
-            f"(GeckoTerminal + DexScreener + CoinGecko + Birdeye)"
+            f"(GeckoTerminal + DexScreener + CoinGecko + Birdeye + Trending)"
         )
 
         # --- Paso 2: Enriquecer con DexScreener ---
@@ -1996,9 +2092,10 @@ class DataCollector:
         ohlcv_update_stats = self.update_existing_ohlcv(max_tokens=max_tokens_ohlcv)
 
         # --- Paso 7: Enriquecer tokens existentes sin datos via Birdeye ---
-        # max_tokens=200 por tipo (holders, security, dates) = hasta ~600 calls
-        # Reducido de 3000 para ahorrar CU Birdeye (~50K/dia presupuesto).
-        birdeye_enrich_stats = self.enrich_existing_tokens_birdeye(max_tokens=200)
+        # max_tokens=50 por tipo (holders, security, dates) = hasta ~150 calls
+        # Reducido de 200 para ahorrar CU Birdeye (presupuesto 30K CU/dia).
+        # Birdeye ahora es solo fallback para OHLCV, concentramos CU en enrichment.
+        birdeye_enrich_stats = self.enrich_existing_tokens_birdeye(max_tokens=50)
 
         # Calcular duracion total
         duracion = time.time() - inicio
@@ -2006,10 +2103,11 @@ class DataCollector:
         # Construir diccionario de estadisticas
         stats = {
             "tokens_discovered": len(tokens),
-            "tokens_gecko": len(tokens) - len(dex_tokens) - len(cg_tokens) - len(birdeye_tokens),
+            "tokens_gecko": len(tokens) - len(dex_tokens) - len(cg_tokens) - len(birdeye_tokens) - len(trending_tokens),
             "tokens_dexscreener": len(dex_tokens),
             "tokens_coingecko_categories": len(cg_tokens),
             "tokens_birdeye": len(birdeye_tokens),
+            "tokens_trending": len(trending_tokens),
             "birdeye_enrichment": birdeye_enrich_stats,
             "chains_processed": chains or list(SUPPORTED_CHAINS.keys()),
             "duration_seconds": round(duracion, 2),
@@ -2020,10 +2118,20 @@ class DataCollector:
         db_stats = self.storage.stats()
         stats["db_totals"] = db_stats
 
+        # Registrar consumo de CU de Birdeye
+        if self.birdeye.is_available:
+            stats["birdeye_cu_used"] = self.birdeye.cu_used
+            stats["birdeye_cu_remaining"] = self.birdeye.cu_remaining
+
         logger.info("#" * 60)
         logger.info("RECOPILACION DIARIA COMPLETADA")
         logger.info(f"Tokens descubiertos: {stats['tokens_discovered']}")
         logger.info(f"Birdeye enrichment: {birdeye_enrich_stats}")
+        if self.birdeye.is_available:
+            logger.info(
+                f"Birdeye CU: {self.birdeye.cu_used} usados, "
+                f"{self.birdeye.cu_remaining} restantes"
+            )
         logger.info(f"Duracion: {duracion:.1f} segundos")
         logger.info(f"Totales en DB: {db_stats}")
         logger.info("#" * 60)
@@ -2227,7 +2335,7 @@ class DataCollector:
                 "deploy_timestamp": None,
             }
 
-            if chain in ("ethereum", "base"):
+            if chain in ("ethereum", "base", "bsc", "arbitrum"):
                 ethclient = self._etherscan_for(chain)
                 is_verified = ethclient.is_contract_verified(
                     token_address
@@ -2481,20 +2589,19 @@ class DataCollector:
         """
         logger.info("=" * 60)
         logger.info("PASO 6: Actualizando OHLCV de tokens existentes...")
-        if self.birdeye.is_available:
-            logger.info("Fuente primaria: Birdeye, fallback: GeckoTerminal")
+        logger.info(
+            "Fuente primaria: GeckoTerminal (gratis), "
+            "fallback: Birdeye (solo sin pool_address)"
+        )
         logger.info("=" * 60)
 
         # Buscar tokens que necesitan OHLCV actualizado
-        # Con Birdeye no necesitamos pool_address, asi que incluimos todos los tokens
+        # GeckoTerminal es ahora primario (gratis), pero necesita pool_address
+        # Birdeye es fallback solo para tokens sin pool_address
         # Prioridad 1: tokens sin ningun OHLCV
         # Prioridad 2: tokens cuyo ultimo OHLCV tiene >1 dia
-        # Consulta compatible con PostgreSQL (Supabase):
-        # - No se pueden usar alias en HAVING, repetimos la expresion
-        # - DATE('now', '-1 day') es SQLite; en PG: CURRENT_DATE - INTERVAL '1 day'
-        # - timestamp::date para extraer la fecha del timestamp
         if self.birdeye.is_available:
-            # Con Birdeye: incluir todos los tokens (no necesitan pool_address)
+            # Con Birdeye como fallback: incluir todos los tokens
             tokens_df = self.storage.query("""
                 SELECT t.token_id, t.chain, t.pool_address,
                        MAX(o.timestamp::date) as last_ohlcv_date,
@@ -2549,20 +2656,8 @@ class DataCollector:
 
                 ohlcv_rows = []
 
-                # --- Intento 1: Birdeye (primario, mas rapido) ---
-                if self.birdeye.is_available:
-                    birdeye_velas = self._fetch_ohlcv_birdeye(
-                        token_id=token_id, chain=chain, limit=limit,
-                    )
-                    if birdeye_velas:
-                        ohlcv_rows = self._birdeye_velas_to_rows(
-                            birdeye_velas, token_id, chain,
-                            pool_address, timeframe,
-                        )
-                        exitos_birdeye += 1
-
-                # --- Intento 2: GeckoTerminal (fallback) ---
-                if not ohlcv_rows and pool_address:
+                # --- Intento 1: GeckoTerminal (PRIMARIO, gratis) ---
+                if pool_address:
                     velas = self.gecko.get_pool_ohlcv(
                         chain=gecko_chain_id,
                         pool_address=pool_address,
@@ -2594,6 +2689,18 @@ class DataCollector:
                             })
                         exitos_gecko += 1
 
+                # --- Intento 2: Birdeye (FALLBACK, solo sin pool_address) ---
+                if not ohlcv_rows and self.birdeye.is_available:
+                    birdeye_velas = self._fetch_ohlcv_birdeye(
+                        token_id=token_id, chain=chain, limit=limit,
+                    )
+                    if birdeye_velas:
+                        ohlcv_rows = self._birdeye_velas_to_rows(
+                            birdeye_velas, token_id, chain,
+                            pool_address, timeframe,
+                        )
+                        exitos_birdeye += 1
+
                 if not ohlcv_rows:
                     errores += 1
                     continue
@@ -2608,9 +2715,8 @@ class DataCollector:
                 )
                 errores += 1
 
-            # Pausa entre tokens: Birdeye es rapido (900/min = 0.07s)
-            # pero mantenemos 0.15s para seguridad.
-            time.sleep(0.15 if self.birdeye.is_available else 0.5)
+            # Pausa entre tokens: GeckoTerminal 30/min, BaseAPIClient maneja rate limiting
+            time.sleep(0.5)
 
         stats = {
             "tokens_processed": exitos,
