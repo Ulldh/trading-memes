@@ -1,19 +1,22 @@
-# Manual Retrain - Pipeline completo de re-entrenamiento bajo demanda
+# Manual Retrain - Re-entrenamiento bajo demanda
+# Labels y features se procesan incrementalmente en Daily Collect (2x/dia).
+# Por defecto solo entrena + valida + scoring (~5 min).
+# Activar labels/features solo si necesitas reprocesar todo desde cero.
 name: Manual Retrain
 
 on:
   workflow_dispatch:
     inputs:
       skip_labels:
-        description: "Saltar re-etiquetado (usar labels existentes)"
+        description: "Saltar re-etiquetado (Daily Collect ya lo hace incrementalmente)"
         required: false
         type: boolean
-        default: false
+        default: true
       skip_features:
-        description: "Saltar extraccion de features (usar existentes)"
+        description: "Saltar extraccion de features (Daily Collect ya lo hace incrementalmente)"
         required: false
         type: boolean
-        default: false
+        default: true
       dry_run:
         description: "Solo mostrar estadisticas, no entrenar"
         required: false
