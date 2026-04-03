@@ -55,43 +55,62 @@ def check_feature_access(feature: str) -> bool:
     return limits.get(feature, False)
 
 
-def show_upgrade_prompt(feature_name: str = "esta función"):
+def show_upgrade_prompt(feature_name: str = "esta funcion"):
     """Muestra prompt de upgrade cuando el usuario no tiene acceso.
 
     Si Stripe esta configurado, genera una URL de checkout real.
     Si no, muestra un mensaje de "Proximamente".
+    Estilo premium coherente con la paleta terminal.
     """
-    st.warning(f"🔒 {feature_name} requiere suscripción Pro.")
+    st.markdown(
+        f"<div style='text-align: center; padding: 40px 20px;'>"
+        f"<div style='font-size: 2rem; margin-bottom: 8px;'>:lock:</div>"
+        f"<h3 style='margin: 0;'>{feature_name} requiere suscripcion "
+        f"<span style='color: #00ff41;'>Pro</span></h3>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
 
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("""
-        **Plan Pro — $29/mes**
-        - ✅ Todas las señales diarias
-        - ✅ Búsqueda de tokens ilimitada
-        - ✅ Análisis SHAP
-        - ✅ Alertas Telegram
-        - ✅ Watchlist de 10 tokens
-        """)
+        st.markdown(
+            "<div style='background: #111111; border: 1px solid rgba(0,255,65,0.2); "
+            "border-radius: 12px; padding: 20px;'>"
+            "<h4 style='color: #00ff41; margin-top: 0;'>Pro -- $29/mes</h4>"
+            "<ul style='list-style: none; padding: 0; margin: 0;'>"
+            "<li style='padding: 4px 0;'><span style='color: #00ff41;'>&#10003;</span> Todas las senales diarias</li>"
+            "<li style='padding: 4px 0;'><span style='color: #00ff41;'>&#10003;</span> Busqueda de tokens ilimitada</li>"
+            "<li style='padding: 4px 0;'><span style='color: #00ff41;'>&#10003;</span> Analisis SHAP</li>"
+            "<li style='padding: 4px 0;'><span style='color: #00ff41;'>&#10003;</span> Alertas Telegram</li>"
+            "<li style='padding: 4px 0;'><span style='color: #00ff41;'>&#10003;</span> Watchlist de 10 tokens</li>"
+            "</ul></div>",
+            unsafe_allow_html=True,
+        )
     with col2:
-        st.markdown("""
-        **Plan Enterprise — $99/mes**
-        - ✅ Todo lo de Pro
-        - ✅ API access
-        - ✅ Watchlist ilimitada
-        - ✅ Soporte prioritario
-        """)
+        st.markdown(
+            "<div style='background: #111111; border: 1px solid rgba(255,255,255,0.06); "
+            "border-radius: 12px; padding: 20px;'>"
+            "<h4 style='color: #fbbf24; margin-top: 0;'>Enterprise -- $99/mes</h4>"
+            "<ul style='list-style: none; padding: 0; margin: 0;'>"
+            "<li style='padding: 4px 0;'><span style='color: #fbbf24;'>&#10003;</span> Todo lo de Pro</li>"
+            "<li style='padding: 4px 0;'><span style='color: #fbbf24;'>&#10003;</span> API access</li>"
+            "<li style='padding: 4px 0;'><span style='color: #fbbf24;'>&#10003;</span> Watchlist ilimitada</li>"
+            "<li style='padding: 4px 0;'><span style='color: #fbbf24;'>&#10003;</span> Soporte prioritario</li>"
+            "</ul></div>",
+            unsafe_allow_html=True,
+        )
 
+    st.markdown("")
     # Intentar obtener URL real de Stripe Checkout
     checkout_url = _get_checkout_url("pro")
 
     if checkout_url:
-        st.link_button("🚀 Suscribirse", checkout_url, type="primary")
+        st.link_button("Suscribirse a Pro", checkout_url, type="primary")
     else:
         # Stripe no configurado — mostrar mensaje informativo
         st.info(
-            "💳 Pagos próximamente. Estamos configurando el sistema de "
-            "suscripciones. Contacta info@memedetector.es para más información."
+            "Pagos proximamente. Estamos configurando el sistema de "
+            "suscripciones. Contacta info@memedetector.es para mas informacion."
         )
 
 

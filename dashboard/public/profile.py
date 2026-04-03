@@ -1,15 +1,20 @@
 """
-profile.py — Perfil de usuario: gestiónar cuenta y suscripción.
+profile.py — Perfil de usuario: gestionar cuenta y suscripcion.
 
-Muestra información de la cuenta, permite editar el display name,
-ver el estado de suscripción, la conexion con Telegram, y eliminar
+Muestra informacion de la cuenta, permite editar el display name,
+ver el estado de suscripcion, la conexion con Telegram, y eliminar
 la cuenta (zona de peligro).
+
+Estilo premium coherente con la paleta terminal (#00ff41).
 """
 
 import logging
 import streamlit as st
 
 from src.data.supabase_storage import get_storage as _get_storage
+from dashboard.theme import (
+    role_badge_html, ACCENT, GOLD, BG_CARD, BORDER, TEXT_MUTED, DANGER,
+)
 
 # Importar stripe_client con try/except (las keys pueden no estar configuradas)
 try:
@@ -164,40 +169,65 @@ _PLAN_LABELS = {
 # ============================================================
 
 def render():
-    """Perfil de usuario — gestiónar cuenta y suscripción."""
-    st.header(":material/person: Mi Perfil")
+    """Perfil de usuario — gestionar cuenta y suscripcion."""
 
     # Obtener datos del usuario de session_state
     user = st.session_state.get("user", {})
     user_id = user.get("id")
-    email = user.get("email", "—")
+    email = user.get("email", "")
     role = st.session_state.get("role", "free")
 
     if not user_id:
-        st.warning("No se encontro información de la sesión. Inicia sesión de nuevo.")
+        st.warning("No se encontro informacion de la sesion. Inicia sesion de nuevo.")
         st.stop()
 
     # Cargar perfil actualizado desde la base de datos
     profile = _load_profile(user_id)
+    display_name = profile.get("display_name", "")
+
+    # Obtener iniciales para el avatar
+    if display_name:
+        initials = display_name[:2].upper()
+    elif email:
+        initials = email[:2].upper()
+    else:
+        initials = "U"
+
+    # Color del rol
+    role_colors = {"admin": DANGER, "pro": ACCENT, "free": TEXT_MUTED}
+    rc = role_colors.get(role, TEXT_MUTED)
 
     # -----------------------------------------------------------------
-    # 1. Informacion de la cuenta
+    # 1. Header con avatar y datos principales
     # -----------------------------------------------------------------
-    st.subheader("Cuenta")
+    st.markdown(
+        f"<div style='display: flex; align-items: center; gap: 20px; "
+        f"margin-bottom: 24px;'>"
+        # Avatar circular
+        f"<div style='width: 72px; height: 72px; border-radius: 50%; "
+        f"background: {rc}15; border: 2px solid {rc}40; "
+        f"display: flex; align-items: center; justify-content: center; "
+        f"flex-shrink: 0;'>"
+        f"<span style='color: {rc}; font-weight: 700; "
+        f"font-size: 1.5rem;'>{initials}</span>"
+        f"</div>"
+        # Info
+        f"<div>"
+        f"<h2 style='margin: 0 0 4px 0;'>{display_name or email.split('@')[0] if email else 'User'}</h2>"
+        f"<span style='color: {TEXT_MUTED}; font-size: 0.9rem;'>{email}</span>"
+        f"</div>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
 
-    col_info1, col_info2 = st.columns(2)
-    with col_info1:
-        st.markdown(f"**Email:** {email}")
-        badge = _ROLE_BADGES.get(role, "Free")
-        st.markdown(f"**Plan actual:** {badge}")
-    with col_info2:
-        created_at = profile.get("created_at", "—")
-        if created_at and created_at != "—":
-            # Formatear fecha legible (quitar parte de tiempo si existe)
-            fecha = str(created_at)[:10]
-            st.markdown(f"**Miembro desde:** {fecha}")
-        else:
-            st.markdown("**Miembro desde:** —")
+    # Plan badge
+    st.markdown(role_badge_html(role), unsafe_allow_html=True)
+
+    # Fecha de miembro
+    created_at = profile.get("created_at", "")
+    if created_at:
+        fecha = str(created_at)[:10]
+        st.caption(f"Miembro desde: {fecha}")
 
     st.divider()
 
@@ -333,8 +363,13 @@ def render():
     st.divider()
 
     # -----------------------------------------------------------------
-    # 5. Zona de peligro
+    # 5. Zona de peligro — estilo rojo con borde de advertencia
     # -----------------------------------------------------------------
+    st.markdown(
+        f"<div style='border: 1px solid {DANGER}30; border-radius: 12px; "
+        f"padding: 2px; margin-top: 8px;'>",
+        unsafe_allow_html=True,
+    )
     with st.expander(":material/warning: Zona de peligro", expanded=False):
         st.markdown(
             "**Eliminar cuenta**: esta accion es irreversible. Se eliminaran "
@@ -377,3 +412,5 @@ def render():
                     st.rerun()
                 else:
                     st.session_state.delete_confirmed = False
+    # Cerrar div del borde rojo de zona de peligro
+    st.markdown("</div>", unsafe_allow_html=True)

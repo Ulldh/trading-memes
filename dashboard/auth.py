@@ -390,12 +390,20 @@ def render_login_page():
     y flujo de redireccion a Stripe para planes de pago.
 
     Query params soportados:
-      - ?tab=register|login — pestaña inicial
+      - ?tab=register|login — pestana inicial
       - ?plan=free|pro|enterprise — plan seleccionado desde la landing
       - ?payment=success|cancelled — retorno de Stripe Checkout
     """
-    st.title(t("auth.login_title", "🔒 Trading Memes"))
-    st.markdown(t("auth.login_subtitle", "Detector de Gems en Memecoins con Machine Learning"))
+    # --- Branding centrado ---
+    st.markdown(
+        "<div style='text-align: center; padding: 40px 0 10px 0;'>"
+        "<h1 style='font-size: 2.2rem; margin-bottom: 4px;'>"
+        "<span style='color: #00ff41;'>Meme</span> Detector</h1>"
+        "<p style='color: #6b7280; font-size: 0.95rem; margin: 0;'>"
+        f"{t('auth.login_subtitle', 'Detector de Gems en Memecoins con Machine Learning')}"
+        "</p></div>",
+        unsafe_allow_html=True,
+    )
 
     # --- Procesar retorno de Stripe (success/cancelled) ---
     _handle_payment_query_params()
@@ -408,99 +416,133 @@ def render_login_page():
     if plan_from_url and plan_from_url in ("free", "pro", "enterprise"):
         st.session_state["pending_plan"] = plan_from_url
 
-    tab_labels = [
-        t("auth.tab_login", "Iniciar Sesión"),
-        t("auth.tab_register", "Crear Cuenta"),
-    ]
-    # st.tabs no soporta default index, pero podemos reordenar para que el tab
-    # deseado aparezca primero. Si tab=register, ponemos Crear Cuenta primero.
-    if default_tab == "register":
-        tab_register, tab_login = st.tabs(list(reversed(tab_labels)))
-    else:
-        tab_login, tab_register = st.tabs(tab_labels)
+    # --- Layout centrado: columnas para simular tarjeta centrada ---
+    _spacer_l, col_form, _spacer_r = st.columns([1, 2, 1])
 
-    with tab_login:
-        # --- Formulario de login ---
-        email = st.text_input(t("auth.email", "Email"), key="login_email")
-        password = st.text_input(
-            t("auth.password", "Contraseña"), type="password", key="login_password"
-        )
-        if st.button(t("auth.login_btn", "Acceder"), type="primary", key="btn_login"):
-            if email and password:
-                if login(email, password):
-                    # Comprobar si hay plan pendiente para redirigir a Stripe
-                    _maybe_redirect_to_stripe()
-                    st.rerun()
-            else:
-                st.warning(t("auth.error_empty_fields", "Introduce email y contraseña."))
+    with col_form:
+        tab_labels = [
+            t("auth.tab_login", "Iniciar Sesion"),
+            t("auth.tab_register", "Crear Cuenta"),
+        ]
+        # st.tabs no soporta default index, pero podemos reordenar para que el tab
+        # deseado aparezca primero. Si tab=register, ponemos Crear Cuenta primero.
+        if default_tab == "register":
+            tab_register, tab_login = st.tabs(list(reversed(tab_labels)))
+        else:
+            tab_login, tab_register = st.tabs(tab_labels)
 
-        # --- Recuperar contrasena ---
-        st.markdown("---")
-        with st.expander(t("auth.forgot_password", "¿Olvidaste tu contraseña?")):
-            reset_email = st.text_input(
-                t("auth.reset_email_label",
-                  "Introduce tu email para restablecer la contraseña"),
-                key="reset_email",
+        with tab_login:
+            st.markdown("")  # Espaciado visual
+            # --- Formulario de login ---
+            email = st.text_input(
+                t("auth.email", "Email"), key="login_email",
+                placeholder="tu@email.com",
             )
-            if st.button(t("auth.reset_btn", "Enviar enlace de recuperacion"), key="btn_reset"):
-                if reset_email:
-                    if reset_password(reset_email):
-                        st.success(t("auth.reset_success",
-                                     "Te hemos enviado un email para restablecer "
-                                     "tu contraseña. Revisa tu bandeja de entrada."))
+            password = st.text_input(
+                t("auth.password", "Contrasena"), type="password", key="login_password",
+                placeholder="Tu contrasena",
+            )
+            st.markdown("")  # Espaciado antes del boton
+            if st.button(
+                t("auth.login_btn", "Acceder"),
+                type="primary", key="btn_login",
+                use_container_width=True,
+            ):
+                if email and password:
+                    if login(email, password):
+                        # Comprobar si hay plan pendiente para redirigir a Stripe
+                        _maybe_redirect_to_stripe()
+                        st.rerun()
                 else:
-                    st.warning(t("auth.error_empty_email", "Introduce tu email."))
+                    st.warning(t("auth.error_empty_fields", "Introduce email y contrasena."))
 
-    with tab_register:
-        # Mostrar plan seleccionado si viene de la landing
-        pending = st.session_state.get("pending_plan", "")
-        if pending and pending != "free":
-            st.info(t(
-                "auth.plan_selected",
-                f"Plan seleccionado: **{pending.upper()}**. "
-                "Crea tu cuenta y tras iniciar sesión serás redirigido al pago."
-            ))
+            # --- Recuperar contrasena ---
+            st.markdown("")
+            with st.expander(t("auth.forgot_password", "Olvidaste tu contrasena?")):
+                reset_email = st.text_input(
+                    t("auth.reset_email_label",
+                      "Introduce tu email para restablecer la contrasena"),
+                    key="reset_email",
+                )
+                if st.button(
+                    t("auth.reset_btn", "Enviar enlace de recuperacion"),
+                    key="btn_reset",
+                    use_container_width=True,
+                ):
+                    if reset_email:
+                        if reset_password(reset_email):
+                            st.success(t("auth.reset_success",
+                                         "Te hemos enviado un email para restablecer "
+                                         "tu contrasena. Revisa tu bandeja de entrada."))
+                    else:
+                        st.warning(t("auth.error_empty_email", "Introduce tu email."))
 
-        reg_email = st.text_input(t("auth.email", "Email"), key="reg_email")
-        reg_pass = st.text_input(
-            t("auth.password", "Contraseña"), type="password", key="reg_password",
-            help=t("auth.password_hint",
-                   "Minimo 8 caracteres, al menos una mayúscula y un número"),
-        )
-        st.caption(t("auth.password_hint",
-                      "Minimo 8 caracteres, al menos una mayúscula y un número"))
-        reg_pass2 = st.text_input(
-            t("auth.confirm_password", "Confirmar contraseña"),
-            type="password", key="reg_password2",
-        )
-        if st.button(t("auth.register_btn", "Crear cuenta"), type="primary", key="btn_register"):
-            if not reg_email or not reg_pass:
-                st.warning(t("auth.error_fill_all", "Completa todos los campos."))
-            elif reg_pass != reg_pass2:
-                st.error(t("auth.error_password_mismatch", "Las contraseñas no coinciden."))
-            elif len(reg_pass) < 8:
-                st.error(t("auth.error_password_length",
-                           "La contraseña debe tener al menos 8 caracteres."))
-            elif not any(c.isupper() for c in reg_pass):
-                st.error(t("auth.error_password_uppercase",
-                           "La contraseña debe contener al menos una mayúscula."))
-            elif not any(c.isdigit() for c in reg_pass):
-                st.error(t("auth.error_password_digit",
-                           "La contraseña debe contener al menos un número."))
-            else:
-                register(reg_email, reg_pass)
+        with tab_register:
+            # Mostrar plan seleccionado si viene de la landing
+            pending = st.session_state.get("pending_plan", "")
+            if pending and pending != "free":
+                st.markdown(
+                    f"<div style='background: rgba(0,255,65,0.05); "
+                    f"border: 1px solid rgba(0,255,65,0.2); border-radius: 8px; "
+                    f"padding: 12px 16px; margin: 8px 0;'>"
+                    f"Plan seleccionado: <strong style='color:#00ff41;'>"
+                    f"{pending.upper()}</strong>. "
+                    f"Crea tu cuenta y tras iniciar sesion seras redirigido al pago."
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
 
-        # Aviso de terminos de servicio
-        st.caption(t("auth.tos_notice",
-                      "Al crear tu cuenta aceptas los Terminos de Servicio."))
+            st.markdown("")  # Espaciado visual
+            reg_email = st.text_input(
+                t("auth.email", "Email"), key="reg_email",
+                placeholder="tu@email.com",
+            )
+            reg_pass = st.text_input(
+                t("auth.password", "Contrasena"), type="password", key="reg_password",
+                placeholder="Minimo 8 caracteres",
+                help=t("auth.password_hint",
+                       "Minimo 8 caracteres, al menos una mayuscula y un numero"),
+            )
+            st.caption(t("auth.password_hint",
+                          "Minimo 8 caracteres, al menos una mayuscula y un numero"))
+            reg_pass2 = st.text_input(
+                t("auth.confirm_password", "Confirmar contrasena"),
+                type="password", key="reg_password2",
+                placeholder="Repite tu contrasena",
+            )
+            st.markdown("")  # Espaciado antes del boton
+            if st.button(
+                t("auth.register_btn", "Crear cuenta"),
+                type="primary", key="btn_register",
+                use_container_width=True,
+            ):
+                if not reg_email or not reg_pass:
+                    st.warning(t("auth.error_fill_all", "Completa todos los campos."))
+                elif reg_pass != reg_pass2:
+                    st.error(t("auth.error_password_mismatch", "Las contrasenas no coinciden."))
+                elif len(reg_pass) < 8:
+                    st.error(t("auth.error_password_length",
+                               "La contrasena debe tener al menos 8 caracteres."))
+                elif not any(c.isupper() for c in reg_pass):
+                    st.error(t("auth.error_password_uppercase",
+                               "La contrasena debe contener al menos una mayuscula."))
+                elif not any(c.isdigit() for c in reg_pass):
+                    st.error(t("auth.error_password_digit",
+                               "La contrasena debe contener al menos un numero."))
+                else:
+                    register(reg_email, reg_pass)
+
+            # Aviso de terminos de servicio
+            st.caption(t("auth.tos_notice",
+                          "Al crear tu cuenta aceptas los Terminos de Servicio."))
 
 
 def render_sidebar_user_info():
     """Muestra info del usuario en el sidebar + boton logout.
 
-    Incluye email, badge del plan (Admin/Pro/Free),
+    Incluye avatar con iniciales, email, badge del plan (Admin/Pro/Free),
     Pro member since + dias hasta renovacion,
-    y boton para cerrar sesion.
+    y boton para cerrar sesion. Estilo premium con paleta terminal.
     """
     if is_authenticated():
         user = st.session_state.get("user", {})
@@ -508,29 +550,58 @@ def render_sidebar_user_info():
         profile = st.session_state.get("profile", {}) or {}
 
         plan = profile.get("subscription_plan", role)
+        email = user.get("email", "")
 
-        role_badges = {
-            "admin": f"🔴 {t('roles.admin', 'Admin')}",
-            "pro": f"🟢 {t('roles.pro', 'Pro')}",
-            "free": f"⚪ {t('roles.free', 'Free')}",
+        # Obtener iniciales para el avatar circular
+        display_name = profile.get("display_name", "")
+        if display_name:
+            initials = display_name[:2].upper()
+        elif email:
+            initials = email[:2].upper()
+        else:
+            initials = "U"
+
+        # Colores segun rol
+        role_config = {
+            "admin": {"color": "#ef4444", "label": t('roles.admin', 'Admin')},
+            "pro": {"color": "#00ff41", "label": t('roles.pro', 'Pro')},
+            "free": {"color": "#6b7280", "label": t('roles.free', 'Free')},
         }
-        badge = role_badges.get(role, f"⚪ {t('roles.free', 'Free')}")
+        rc = role_config.get(role, role_config["free"])
 
-        st.sidebar.markdown(f"**{user.get('email', '')}**")
+        # --- Avatar + nombre + badge en bloque visual ---
+        st.sidebar.markdown(
+            f"<div style='text-align: center; margin: 0 0 12px 0;'>"
+            # Avatar circular con iniciales
+            f"<div style='width: 48px; height: 48px; border-radius: 50%; "
+            f"background: {rc['color']}20; border: 2px solid {rc['color']}40; "
+            f"display: inline-flex; align-items: center; justify-content: center; "
+            f"margin-bottom: 8px;'>"
+            f"<span style='color: {rc['color']}; font-weight: 700; "
+            f"font-size: 1.1rem;'>{initials}</span>"
+            f"</div><br>"
+            # Nombre o email
+            f"<span style='font-weight: 600; font-size: 0.9rem;'>"
+            f"{display_name or email.split('@')[0] if email else 'User'}</span><br>"
+            f"<span style='color: #6b7280; font-size: 0.75rem;'>{email}</span>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
 
-        # Pro/Admin: badge prominente con estilo
+        # Badge de plan (siempre visible)
+        st.sidebar.markdown(
+            f"<div role='status' aria-label='Plan: {rc['label']}' "
+            f"style='background: {rc['color']}15; color: {rc['color']}; "
+            f"padding: 6px 16px; border-radius: 8px; text-align: center; "
+            f"font-weight: 700; font-size: 0.8rem; "
+            f"border: 1px solid {rc['color']}30; "
+            f"margin: 0 0 8px 0; letter-spacing: 0.5px;'>"
+            f"{rc['label']}</div>",
+            unsafe_allow_html=True,
+        )
+
+        # Pro/Admin: info de suscripcion
         if role in ("pro", "admin"):
-            badge_color = "#2ecc71" if role == "pro" else "#e74c3c"
-            badge_text = t('roles.pro', 'Pro') if role == "pro" else t('roles.admin', 'Admin')
-            st.sidebar.markdown(
-                f"<div role='status' aria-label='Plan: {badge_text}' "
-                f"style='background-color:{badge_color}; color:white; "
-                f"padding:6px 12px; border-radius:8px; text-align:center; "
-                f"font-weight:bold; margin:4px 0 8px 0;'>"
-                f"{badge_text}</div>",
-                unsafe_allow_html=True,
-            )
-
             # Pro member since (si hay created_at en el profile)
             sub_start = profile.get("subscription_start") or profile.get("created_at")
             if sub_start and role == "pro":
@@ -576,10 +647,10 @@ def render_sidebar_user_info():
                         )
                 except Exception:
                     pass
-        else:
-            # Free: mostrar badge simple
-            st.sidebar.markdown(f"{t('roles.plan_label', 'Plan')}: {badge}")
 
-        if st.sidebar.button(f"🔓 {t('app.logout', 'Cerrar sesion')}"):
+        if st.sidebar.button(
+            f":material/logout: {t('app.logout', 'Cerrar sesion')}",
+            use_container_width=True,
+        ):
             logout()
             st.rerun()

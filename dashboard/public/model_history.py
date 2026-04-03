@@ -6,13 +6,16 @@ permitiendo al usuario ver como ha evolucionado el detector de gems.
 
 Secciones:
   1. KPI cards de la version actual en produccion
-  2. Timeline/tabla de todas las versiones
-  3. Grafico de evolucion de metricas
+  2. Timeline visual con cards por version
+  3. Grafico de evolucion de metricas (dual-axis)
+  4. Detalle expandible por version
 """
 
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+
+from dashboard.theme import ACCENT, GOLD, BG_CARD, BORDER, TEXT_MUTED
 
 
 # ============================================================
@@ -61,10 +64,14 @@ MODEL_VERSIONS = [
 
 def render():
     """Renderiza la pagina de historial de versiones del modelo."""
-    st.title("Bitácora del Modelo")
+    st.markdown(
+        f"<h2 style='margin-bottom: 0;'>"
+        f"Bitacora del <span style='color: {ACCENT};'>Modelo</span></h2>",
+        unsafe_allow_html=True,
+    )
     st.caption(
-        "Historial de versiones del modelo ML. Cada iteración se entrena "
-        "con más datos y mejora su capacidad de detectar gems."
+        "Historial de versiones del modelo ML. Cada iteracion se entrena "
+        "con mas datos y mejora su capacidad de detectar gems."
     )
 
     # ------------------------------------------------------------------
@@ -72,44 +79,72 @@ def render():
     # ------------------------------------------------------------------
     current = next((v for v in MODEL_VERSIONS if v["is_current"]), MODEL_VERSIONS[0])
 
-    st.subheader(f"Versión actual: {current['version']}")
+    # Badge de version actual con glow
+    st.markdown(
+        f"<div style='display: inline-block; background: {ACCENT}15; "
+        f"color: {ACCENT}; padding: 4px 14px; border-radius: 6px; "
+        f"font-weight: 700; font-size: 0.85rem; "
+        f"border: 1px solid {ACCENT}30; margin-bottom: 12px; "
+        f"box-shadow: 0 0 12px {ACCENT}20;'>"
+        f"En produccion: {current['version']}</div>",
+        unsafe_allow_html=True,
+    )
 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("RF F1 Score", f"{current['rf_f1']:.3f}")
-    col2.metric("Gems de entrenamiento", current["gems"])
+    col2.metric("Gems entrenamiento", current["gems"])
     col3.metric("Features", current["features"])
     col4.metric("Fecha", current["date"])
 
     st.divider()
 
     # ------------------------------------------------------------------
-    # 2. Tabla de todas las versiones
+    # 2. Timeline visual con cards
     # ------------------------------------------------------------------
     st.subheader("Historial de versiones")
 
-    df = pd.DataFrame(MODEL_VERSIONS)
-    # Marcar la version actual
-    df["estado"] = df["is_current"].apply(lambda x: "🟢 Producción" if x else "")
-    df = df[["version", "date", "rf_f1", "gems", "features", "highlights", "estado"]]
-    df.columns = ["Versión", "Fecha", "RF F1", "Gems", "Features", "Cambios clave", "Estado"]
+    for v in MODEL_VERSIONS:
+        is_cur = v["is_current"]
+        border = ACCENT if is_cur else BORDER
+        glow = f"box-shadow: 0 0 15px {ACCENT}15;" if is_cur else ""
+        badge = (
+            f"<span style='background: {ACCENT}20; color: {ACCENT}; "
+            f"padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; "
+            f"font-weight: 700; margin-left: 8px;'>PRODUCCION</span>"
+            if is_cur else ""
+        )
 
-    st.dataframe(
-        df,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "RF F1": st.column_config.NumberColumn(format="%.3f"),
-            "Gems": st.column_config.NumberColumn(format="%d"),
-            "Features": st.column_config.NumberColumn(format="%d"),
-        },
-    )
+        st.markdown(
+            f"<div style='background: {BG_CARD}; border: 1px solid {border}; "
+            f"border-left: 3px solid {border}; border-radius: 10px; "
+            f"padding: 14px 18px; margin-bottom: 8px; {glow}'>"
+            # Header: version + fecha + badge
+            f"<div style='display: flex; align-items: center; margin-bottom: 6px;'>"
+            f"<strong style='font-size: 1.05rem;'>{v['version']}</strong>"
+            f"<span style='color: {TEXT_MUTED}; margin-left: 12px; "
+            f"font-size: 0.85rem;'>{v['date']}</span>"
+            f"{badge}"
+            f"</div>"
+            # Metricas inline
+            f"<div style='display: flex; gap: 20px; color: {TEXT_MUTED}; "
+            f"font-size: 0.85rem;'>"
+            f"<span>F1: <strong style='color: {ACCENT};'>{v['rf_f1']:.3f}</strong></span>"
+            f"<span>Gems: <strong style='color: {GOLD};'>{v['gems']}</strong></span>"
+            f"<span>Features: <strong>{v['features']}</strong></span>"
+            f"</div>"
+            # Highlights
+            f"<div style='color: {TEXT_MUTED}; font-size: 0.8rem; margin-top: 6px;'>"
+            f"{v['highlights']}</div>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
 
     st.divider()
 
     # ------------------------------------------------------------------
     # 3. Grafico de evolucion de metricas
     # ------------------------------------------------------------------
-    st.subheader("Evolución de métricas")
+    st.subheader("Evolucion de metricas")
 
     # Ordenar por fecha (mas antiguo primero)
     df_chart = pd.DataFrame(MODEL_VERSIONS).sort_values("date")
@@ -123,7 +158,7 @@ def render():
             y=df_chart["rf_f1"],
             name="RF F1 Score",
             mode="lines+markers",
-            line=dict(color="#00d4aa", width=2),
+            line=dict(color=ACCENT, width=2),
             marker=dict(size=10),
             yaxis="y",
         )
@@ -136,7 +171,7 @@ def render():
             y=df_chart["gems"],
             name="Gems",
             mode="lines+markers",
-            line=dict(color="#ffaa00", width=2, dash="dash"),
+            line=dict(color=GOLD, width=2, dash="dash"),
             marker=dict(size=10),
             yaxis="y2",
         )
@@ -147,16 +182,17 @@ def render():
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         height=400,
+        font=dict(color="#e0e0e0"),
         yaxis=dict(
             title="RF F1 Score",
-            titlefont=dict(color="#00d4aa"),
-            tickfont=dict(color="#00d4aa"),
-            gridcolor="rgba(255,255,255,0.05)",
+            titlefont=dict(color=ACCENT),
+            tickfont=dict(color=ACCENT),
+            gridcolor="rgba(255,255,255,0.04)",
         ),
         yaxis2=dict(
             title="Gems",
-            titlefont=dict(color="#ffaa00"),
-            tickfont=dict(color="#ffaa00"),
+            titlefont=dict(color=GOLD),
+            tickfont=dict(color=GOLD),
             overlaying="y",
             side="right",
         ),
@@ -171,20 +207,3 @@ def render():
     )
 
     st.plotly_chart(fig, use_container_width=True)
-
-    # ------------------------------------------------------------------
-    # 4. Detalle expandible por version
-    # ------------------------------------------------------------------
-    st.subheader("Detalle por versión")
-
-    for v in MODEL_VERSIONS:
-        label = f"**{v['version']}** — {v['date']}"
-        if v["is_current"]:
-            label += " 🟢 Producción"
-
-        with st.expander(label, expanded=v["is_current"]):
-            c1, c2, c3 = st.columns(3)
-            c1.metric("RF F1", f"{v['rf_f1']:.3f}")
-            c2.metric("Gems", v["gems"])
-            c3.metric("Features", v["features"])
-            st.markdown(f"**Cambios clave:** {v['highlights']}")

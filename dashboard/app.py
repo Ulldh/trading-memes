@@ -33,6 +33,10 @@ st.set_page_config(
 )
 
 from dashboard.i18n import render_language_selector
+from dashboard.theme import inject_global_css
+
+# Inyectar CSS global para aspecto premium (una sola vez)
+inject_global_css()
 
 # Set HTML lang attribute for accessibility
 _locale = st.session_state.get("locale", "es")
@@ -178,7 +182,7 @@ pg = st.navigation(nav_config, position="sidebar")
 
 st.sidebar.divider()
 
-# --- Countdown hasta proximo pipeline scan ---
+# --- Countdown hasta proximo pipeline scan (estilo terminal) ---
 _now_utc = datetime.datetime.now(datetime.timezone.utc)
 _next_runs = []
 for _hour in [6, 18]:
@@ -190,11 +194,29 @@ _next_run = min(_next_runs)
 _delta = _next_run - _now_utc
 _hours, _remainder = divmod(int(_delta.total_seconds()), 3600)
 _minutes, _seconds = divmod(_remainder, 60)
-st.sidebar.caption(f"\u23f1\ufe0f Pr\u00f3ximo scan en {_hours:02d}:{_minutes:02d}:{_seconds:02d}")
+
+st.sidebar.markdown(
+    f"<div style='background: rgba(0,255,65,0.05); border: 1px solid rgba(0,255,65,0.15); "
+    f"border-radius: 8px; padding: 10px 14px; margin: 4px 0 12px 0; text-align: center;'>"
+    f"<span style='color: #6b7280; font-size: 0.7rem; text-transform: uppercase; "
+    f"letter-spacing: 1px;'>Proximo scan</span><br>"
+    f"<span style='color: #00ff41; font-size: 1.3rem; font-weight: 700; "
+    f"font-family: monospace; letter-spacing: 2px;'>"
+    f"{_hours:02d}:{_minutes:02d}:{_seconds:02d}</span></div>",
+    unsafe_allow_html=True,
+)
 
 st.sidebar.caption(
-    "**Gem Detector** - Herramienta de Machine Learning para analizar memecoins "
-    "y detectar cuales tienen potencial de ser 'gems' (10x+)."
+    "**Gem Detector** - ML para analizar memecoins "
+    "y detectar gems (10x+)."
+)
+
+# --- Version footer ---
+st.sidebar.markdown(
+    "<div style='position: fixed; bottom: 12px; color: #374151; "
+    "font-size: 0.65rem; letter-spacing: 0.5px;'>"
+    "v2.3 &middot; memedetector.es</div>",
+    unsafe_allow_html=True,
 )
 
 pg.run()

@@ -32,6 +32,10 @@ from datetime import datetime, timezone
 from src.data.supabase_storage import get_storage as _get_storage
 from dashboard.constants import SIGNAL_COLORS, CHAIN_COLORS
 from dashboard.i18n import t
+from dashboard.theme import (
+    signal_badge_html, chain_badge_html,
+    ACCENT, GOLD, BG_CARD, BORDER, TEXT_MUTED,
+)
 
 try:
     from config import SIGNAL_THRESHOLDS
@@ -127,13 +131,13 @@ def _confidence_badge(probability: float) -> str:
 
 
 def _confidence_color(probability: float) -> str:
-    """Devuelve color CSS segun nivel de confianza."""
+    """Devuelve color CSS segun nivel de confianza (paleta terminal)."""
     if probability >= 0.70:
-        return "#2ecc71"  # verde
+        return "#00ff41"  # verde terminal
     elif probability >= 0.50:
-        return "#f39c12"  # naranja
+        return "#fbbf24"  # oro
     else:
-        return "#e74c3c"  # rojo
+        return "#ef4444"  # rojo
 
 
 def _time_since_discovered(first_seen) -> str:
@@ -205,11 +209,15 @@ def _is_pro_or_admin() -> bool:
 def render():
     """Señales del dia — pagina principal del producto."""
 
-    st.header(t("pro.signals_title", ":fire: Señales del Dia"))
+    st.markdown(
+        f"<h2 style='margin-bottom: 0;'>"
+        f"<span style='color: {ACCENT};'>Senales</span> del Dia</h2>",
+        unsafe_allow_html=True,
+    )
     st.caption(
         t("pro.signals_subtitle",
           "Tokens con mayor probabilidad de ser gems, detectados por nuestro modelo ML. "
-          "Actualizado diariamente a las 07:00 UTC.")
+          "Actualizado 2x/dia (06:00 y 18:00 UTC).")
     )
 
     df = load_todays_signals()
@@ -466,7 +474,11 @@ def _render_basic_signals_table(df_filtered: pd.DataFrame):
 
 
 def _render_pro_signal_cards(df_filtered: pd.DataFrame):
-    """Vista Pro enriquecida: cada señal como card con indicadores de confianza."""
+    """Vista Pro enriquecida: cada senal como card premium con indicadores de confianza.
+
+    Cada card tiene borde lateral coloreado segun nivel de senal,
+    badges de chain/confianza, barra de probabilidad, y links a DEX.
+    """
 
     for idx, row in df_filtered.iterrows():
         name = row.get("name", "")
@@ -480,75 +492,100 @@ def _render_pro_signal_cards(df_filtered: pd.DataFrame):
         first_seen = row.get("first_seen", None)
         scored_at = row.get("scored_at", None)
         market_cap = row.get("market_cap", None)
-        fdv = row.get("fdv", None)
 
         # Colores y badges
-        icon = _chain_icon(chain)
         conf_badge = _confidence_badge(probability)
         conf_color = _confidence_color(probability)
-        signal_color = SIGNAL_COLORS.get(signal, "#95a5a6")
+        signal_color = SIGNAL_COLORS.get(signal, "#374151")
         time_str = _time_since_discovered(first_seen)
         scored_str = _time_since_scored(scored_at)
 
-        with st.container():
-            # Fila principal: Token + Chain icon + Signal + Confianza
-            col_name, col_score, col_conf, col_time, col_links = st.columns(
-                [3, 1.5, 1.5, 1, 2]
+        # Market cap formateado
+        mc_str = ""
+        if market_cap and market_cap > 0:
+            if market_cap >= 1_000_000:
+                mc_str = f"${market_cap / 1_000_000:.1f}M"
+            elif market_cap >= 1_000:
+                mc_str = f"${market_cap / 1_000:.0f}K"
+            else:
+                mc_str = f"${market_cap:,.0f}"
+
+        # Links
+        dex_link = ""
+        gecko_link = ""
+        if pool_addr and chain:
+            dex_link = _dexscreener_url(chain, pool_addr)
+            gecko_link = _geckoterminal_url(chain, pool_addr)
+
+        # Glow para STRONG
+        glow = f"box-shadow: 0 0 18px {signal_color}20;" if signal == "STRONG" else ""
+
+        # Barra de score visual (HTML)
+        score_pct = int(probability * 100)
+        score_bar = (
+            f"<div style='background: rgba(255,255,255,0.05); border-radius: 4px; "
+            f"height: 6px; margin: 6px 0;'>"
+            f"<div style='background: {signal_color}; width: {score_pct}%; "
+            f"height: 100%; border-radius: 4px;'></div></div>"
+        )
+
+        # Links HTML
+        links_html = ""
+        if dex_link:
+            links_html += (
+                f"<a href='{dex_link}' target='_blank' "
+                f"style='color: {TEXT_MUTED}; text-decoration: none; font-size: 0.8rem; "
+                f"margin-right: 12px;'>DexScreener &rarr;</a>"
+            )
+        if gecko_link:
+            links_html += (
+                f"<a href='{gecko_link}' target='_blank' "
+                f"style='color: {TEXT_MUTED}; text-decoration: none; font-size: 0.8rem;'>"
+                f"GeckoTerminal &rarr;</a>"
             )
 
-            with col_name:
-                st.markdown(
-                    f"{icon} **{token_label}**"
-                    f" <span style='color:{signal_color}; font-weight:bold;'"
-                    f" role='status' aria-label='Senal: {signal}'>"
-                    f"[{signal}]</span>",
-                    unsafe_allow_html=True,
-                )
-                # Market cap badge (si disponible)
-                if market_cap and market_cap > 0:
-                    if market_cap >= 1_000_000:
-                        mc_str = f"MC: ${market_cap / 1_000_000:.1f}M"
-                    elif market_cap >= 1_000:
-                        mc_str = f"MC: ${market_cap / 1_000:.0f}K"
-                    else:
-                        mc_str = f"MC: ${market_cap:,.0f}"
-                    st.caption(mc_str + (f"  •  Actualizado {scored_str}" if scored_str else ""))
-                elif scored_str:
-                    st.caption(f"Actualizado {scored_str}")
+        # Info secundaria (MC, tiempo, scored)
+        meta_parts = []
+        if mc_str:
+            meta_parts.append(f"MC: {mc_str}")
+        if time_str != "N/A":
+            meta_parts.append(f"Descubierto: {time_str}")
+        if scored_str:
+            meta_parts.append(scored_str)
+        meta_html = " &middot; ".join(meta_parts)
 
-            with col_score:
-                st.progress(float(probability))
-                st.caption(f"Score: {probability:.0%}")
-
-            with col_conf:
-                st.markdown(
-                    f"<span role='status' aria-label='Confianza: {conf_badge}' "
-                    f"style='background-color:{conf_color}; color:white; "
-                    f"padding:2px 10px; border-radius:12px; font-size:0.85em; "
-                    f"font-weight:bold;'>"
-                    f"{t('pro.confidence_label', 'Confianza')}: {conf_badge}</span>",
-                    unsafe_allow_html=True,
-                )
-
-            with col_time:
-                if time_str != "N/A":
-                    st.caption(
-                        f"{t('pro.discovered', 'Descubierto')}: {time_str}"
-                    )
-                else:
-                    st.caption("")
-
-            with col_links:
-                link_parts = []
-                if pool_addr and chain:
-                    dex_url = _dexscreener_url(chain, pool_addr)
-                    gecko_url = _geckoterminal_url(chain, pool_addr)
-                    link_parts.append(f"[DexScreener]({dex_url})")
-                    link_parts.append(f"[GeckoTerminal]({gecko_url})")
-                if link_parts:
-                    st.markdown(" | ".join(link_parts))
-
-            st.divider()
+        # Renderizar card como HTML
+        st.markdown(
+            f"<div style='background: {BG_CARD}; border: 1px solid {BORDER}; "
+            f"border-left: 3px solid {signal_color}; border-radius: 10px; "
+            f"padding: 16px 20px; margin-bottom: 10px; {glow}' "
+            f"aria-label='{token_label}: senal {signal}, {probability:.0%}'>"
+            # Fila 1: nombre + badges
+            f"<div style='display: flex; align-items: center; flex-wrap: wrap; gap: 8px; "
+            f"margin-bottom: 6px;'>"
+            f"<strong style='font-size: 1.05rem;'>{token_label}</strong>"
+            f"{signal_badge_html(signal, 'small')}"
+            f"{chain_badge_html(chain)}"
+            f"<span style='background: {conf_color}20; color: {conf_color}; "
+            f"padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; "
+            f"font-weight: 600; border: 1px solid {conf_color}30;'>"
+            f"Confianza: {conf_badge}</span>"
+            f"</div>"
+            # Fila 2: barra de score + porcentaje
+            f"<div style='display: flex; align-items: center; gap: 10px;'>"
+            f"<div style='flex: 1;'>{score_bar}</div>"
+            f"<span style='color: {signal_color}; font-weight: 700; "
+            f"font-size: 0.95rem; min-width: 40px;'>{probability:.0%}</span>"
+            f"</div>"
+            # Fila 3: metadata + links
+            f"<div style='display: flex; justify-content: space-between; "
+            f"align-items: center; margin-top: 8px;'>"
+            f"<span style='color: {TEXT_MUTED}; font-size: 0.8rem;'>{meta_html}</span>"
+            f"<div>{links_html}</div>"
+            f"</div>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
 
 
 def _render_export_csv(df: pd.DataFrame):
@@ -620,18 +657,22 @@ def _render_signal_distribution(df: pd.DataFrame):
         values="Cantidad",
         color="Senal",
         color_discrete_map=SIGNAL_COLORS,
-        hole=0.45,
+        hole=0.5,
     )
 
     fig.update_traces(
         textposition="inside",
-        textinfo="percent+label+value",
+        textinfo="percent+label",
         textfont_size=12,
     )
     fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
         showlegend=False,
         margin=dict(t=20, b=20, l=20, r=20),
         height=350,
+        font=dict(color="#e0e0e0"),
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -669,11 +710,16 @@ def _render_chain_distribution(df: pd.DataFrame):
         textfont_size=13,
     )
     fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
         showlegend=False,
         margin=dict(t=20, b=20, l=20, r=20),
         height=350,
-        xaxis_title=t("pro.chart_signals_count", "Numero de señales"),
+        xaxis_title=t("pro.chart_signals_count", "Numero de senales"),
         yaxis_title="",
+        font=dict(color="#e0e0e0"),
+        xaxis=dict(gridcolor="rgba(255,255,255,0.04)"),
     )
 
     st.plotly_chart(fig, use_container_width=True)

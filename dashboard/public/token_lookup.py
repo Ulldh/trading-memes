@@ -31,6 +31,7 @@ from src.data.supabase_storage import get_storage as _get_storage
 from src.utils.helpers import detect_chain
 from config import MODELS_DIR, SUPPORTED_CHAINS
 from dashboard.constants import LABEL_COLORS
+from dashboard.theme import ACCENT, BG_CARD, BORDER, TEXT_MUTED, GOLD
 
 
 @st.cache_resource
@@ -277,14 +278,16 @@ def render():
     except ImportError:
         pass  # Sin paywall en desarrollo
 
-    st.title("Buscar Token")
+    st.markdown(
+        f"<h2 style='margin-bottom: 0;'>"
+        f"<span style='color: {ACCENT};'>Buscar</span> Token</h2>",
+        unsafe_allow_html=True,
+    )
 
-    st.info(
-        "**¿Qué es esto?** Busca cualquier memecoin por su contract address para ver "
-        "todos los datos que tenemos, el grafico de precio, y la prediccion del modelo "
-        "de Machine Learning sobre si podria ser un 'gem' o no.\n\n"
-        "**Contract address** es el identificador unico de un token en la blockchain. "
-        "Lo puedes encontrar en DexScreener, CoinGecko o copiandolo de la URL del token."
+    st.caption(
+        "Busca cualquier memecoin por su contract address para ver "
+        "datos, grafico de precio y prediccion ML. "
+        "Encuentra el contract address en DexScreener o CoinGecko."
     )
 
     storage = get_storage()
@@ -351,15 +354,50 @@ def render():
     if not (buscar or auto_search or active_search or is_processing) or not contract_address.strip():
         # Sin direccion, limpiar estado de busqueda
         st.session_state.pop("active_search", None)
-        # Mostrar tokens de ejemplo
-        st.caption("**Tokens de ejemplo para probar:**")
+        # Mostrar tokens de ejemplo con estilo card
+        st.markdown("")
+        st.markdown(
+            f"<p style='color: {TEXT_MUTED}; font-size: 0.85rem; font-weight: 600; "
+            f"text-transform: uppercase; letter-spacing: 0.5px;'>Tokens de ejemplo</p>",
+            unsafe_allow_html=True,
+        )
         col_ex1, col_ex2, col_ex3 = st.columns(3)
-        col_ex1.code("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263")
-        col_ex1.caption("BONK (Solana) - Gem")
-        col_ex2.code("0x6982508145454Ce325dDbE47a25d4ec3d2311933")
-        col_ex2.caption("PEPE (Ethereum) - Gem")
-        col_ex3.code("0x3301Ee63Fb29F863f2333Bd4466acb46CD8323E6")
-        col_ex3.caption("AKITA (Ethereum) - Failure")
+        with col_ex1:
+            st.markdown(
+                f"<div style='background: {BG_CARD}; border: 1px solid {BORDER}; "
+                f"border-radius: 10px; padding: 12px 16px;'>"
+                f"<strong style='color: {ACCENT};'>BONK</strong>"
+                f"<span style='color: {TEXT_MUTED}; margin-left: 6px; font-size: 0.8rem;'>"
+                f"Solana &middot; Gem</span><br>"
+                f"<code style='font-size: 0.7rem; color: {TEXT_MUTED};'>"
+                f"DezXAZ...PB263</code></div>",
+                unsafe_allow_html=True,
+            )
+            st.code("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263")
+        with col_ex2:
+            st.markdown(
+                f"<div style='background: {BG_CARD}; border: 1px solid {BORDER}; "
+                f"border-radius: 10px; padding: 12px 16px;'>"
+                f"<strong style='color: {ACCENT};'>PEPE</strong>"
+                f"<span style='color: {TEXT_MUTED}; margin-left: 6px; font-size: 0.8rem;'>"
+                f"Ethereum &middot; Gem</span><br>"
+                f"<code style='font-size: 0.7rem; color: {TEXT_MUTED};'>"
+                f"0x6982...1933</code></div>",
+                unsafe_allow_html=True,
+            )
+            st.code("0x6982508145454Ce325dDbE47a25d4ec3d2311933")
+        with col_ex3:
+            st.markdown(
+                f"<div style='background: {BG_CARD}; border: 1px solid {BORDER}; "
+                f"border-radius: 10px; padding: 12px 16px;'>"
+                f"<strong style='color: #ef4444;'>AKITA</strong>"
+                f"<span style='color: {TEXT_MUTED}; margin-left: 6px; font-size: 0.8rem;'>"
+                f"Ethereum &middot; Failure</span><br>"
+                f"<code style='font-size: 0.7rem; color: {TEXT_MUTED};'>"
+                f"0x3301...23E6</code></div>",
+                unsafe_allow_html=True,
+            )
+            st.code("0x3301Ee63Fb29F863f2333Bd4466acb46CD8323E6")
         return
 
     contract_address = contract_address.strip()
@@ -518,7 +556,10 @@ def render():
     # ------------------------------------------------------------------
     # 2. Informacion basica del token
     # ------------------------------------------------------------------
-    st.subheader("Informacion del Token")
+    st.markdown(
+        f"<h3 style='margin-bottom: 4px;'>Informacion del Token</h3>",
+        unsafe_allow_html=True,
+    )
     st.caption("Datos basicos del token extraidos de DexScreener y GeckoTerminal.")
 
     token_info = df_token.iloc[0]
