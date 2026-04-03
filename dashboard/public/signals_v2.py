@@ -1,23 +1,23 @@
 """
-signals_v2.py - Señales del dia (version comercial).
+signals_v2.py - Senales del dia (version comercial premium).
 
 Pagina principal del producto: muestra los tokens que el modelo ML
 ha detectado con mayor probabilidad de ser "gems" (10x+).
 
 Orientada a suscriptores — lenguaje accesible, sin jerga tecnica,
-visualizaciones limpias y un disclaimer claro.
+visualizaciones estilo trading terminal profesional.
 
 Secciones:
-  1. KPI cards: total señales, STRONG, mejor score, chains activas
-  2. Tabla principal: tokens del dia ordenados por score
-  3. Distribucion de señales (donut chart)
+  1. KPI cards: total senales, STRONG, mejor score, chains activas
+  2. Tabla principal: tokens del dia como trading cards premium
+  3. Distribucion de senales (donut chart)
   4. Distribucion por chain (bar chart horizontal)
   5. Disclaimer legal
 
 PRO enhancements:
-  - Indicador de confianza del modelo (Alta/Media/Baja) por señal
-  - Barra de probabilidad visual
-  - Icono de chain (Solana/ETH/Base) junto a cada token
+  - Indicador de confianza del modelo (Alta/Media/Baja) por senal
+  - Barra de probabilidad visual con glow
+  - Badge de chain (SOL/ETH/BASE) junto a cada token
   - Tiempo desde que el token fue descubierto
   - Quick link a DexScreener y GeckoTerminal
   - Boton de exportar CSV (solo Pro/Admin)
@@ -34,7 +34,8 @@ from dashboard.constants import SIGNAL_COLORS, CHAIN_COLORS
 from dashboard.i18n import t
 from dashboard.theme import (
     signal_badge_html, chain_badge_html,
-    ACCENT, GOLD, BG_CARD, BORDER, TEXT_MUTED,
+    kpi_card_html, signal_card_html,
+    ACCENT, GOLD, BG_CARD, BG_SURFACE, BORDER, TEXT_MUTED,
 )
 
 try:
@@ -56,10 +57,10 @@ def get_storage():
 @st.cache_data(ttl=300)
 def load_todays_signals() -> pd.DataFrame:
     """
-    Carga las señales del dia desde Supabase (tabla scores + tokens).
+    Carga las senales del dia desde Supabase (tabla scores + tokens).
 
     Hace JOIN con tokens para obtener name, symbol, chain y pool_address.
-    Si no hay señales de hoy, devuelve TODAS las señales mas recientes
+    Si no hay senales de hoy, devuelve TODAS las senales mas recientes
     (para entornos donde el scorer no se ejecuta diariamente).
 
     Returns:
@@ -203,15 +204,37 @@ def _is_pro_or_admin() -> bool:
 
 
 # ============================================================
+# Plotly layout premium
+# ============================================================
+
+_PLOTLY_LAYOUT = dict(
+    template="plotly_dark",
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(color="#e0e0e0", size=13),
+    margin=dict(t=20, b=20, l=20, r=20),
+    xaxis=dict(gridcolor="rgba(0,255,65,0.03)", zeroline=False),
+    yaxis=dict(gridcolor="rgba(0,255,65,0.03)", zeroline=False),
+)
+
+
+# ============================================================
 # Render principal
 # ============================================================
 
 def render():
-    """Señales del dia — pagina principal del producto."""
+    """Senales del dia — pagina principal del producto."""
 
+    # Header premium con indicador de estado
     st.markdown(
-        f"<h2 style='margin-bottom: 0;'>"
-        f"<span style='color: {ACCENT};'>Senales</span> del Dia</h2>",
+        f"<div style='display: flex; align-items: center; gap: 10px; "
+        f"margin-bottom: 4px;'>"
+        f"<div style='width: 8px; height: 8px; border-radius: 50%; "
+        f"background: {ACCENT}; box-shadow: 0 0 10px {ACCENT}60;'></div>"
+        f"<h2 style='margin: 0; font-weight: 800; letter-spacing: -0.5px;'>"
+        f"<span style='color: {ACCENT}; text-shadow: 0 0 20px rgba(0,255,65,0.2);'>"
+        f"Senales</span> del Dia</h2>"
+        f"</div>",
         unsafe_allow_html=True,
     )
     st.caption(
@@ -222,7 +245,7 @@ def render():
 
     df = load_todays_signals()
 
-    # --- Limitar señales para usuarios Free ---
+    # --- Limitar senales para usuarios Free ---
     from dashboard.paywall import limit_signals
     role = st.session_state.get("role", "free")
     plan = st.session_state.get("profile", {}).get("subscription_plan", "free")
@@ -233,18 +256,18 @@ def render():
     if df.empty:
         st.info(
             t("pro.no_signals",
-              ":hourglass_flowing_sand: **No hay señales disponibles en este momento.**\n\n"
+              ":hourglass_flowing_sand: **No hay senales disponibles en este momento.**\n\n"
               "El modelo se ejecuta diariamente a las 07:00 UTC. "
-              "Las señales aparecen aqui automaticamente tras cada analisis.")
+              "Las senales aparecen aqui automaticamente tras cada analisis.")
         )
         return
 
     # ======================================================
-    # 1. KPI CARDS
+    # 1. KPI CARDS — estilo premium con HTML personalizado
     # ======================================================
     _render_kpis(df)
 
-    st.divider()
+    st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
     # ======================================================
     # 2. TABLA PRINCIPAL (con mejoras Pro)
@@ -261,7 +284,7 @@ def render():
               "Exportar a CSV disponible con suscripcion Pro.")
         )
 
-    st.divider()
+    st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
     # ======================================================
     # 3 y 4. GRAFICOS: distribucion de senales + chains
@@ -274,7 +297,7 @@ def render():
     with col_chart2:
         _render_chain_distribution(df)
 
-    st.divider()
+    st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
     # ======================================================
     # 5. DISCLAIMER
@@ -287,7 +310,7 @@ def render():
 # ============================================================
 
 def _render_kpis(df: pd.DataFrame):
-    """Tarjetas KPI en la parte superior."""
+    """Tarjetas KPI premium en la parte superior."""
 
     total = len(df)
     strong_count = (df["signal"] == "STRONG").sum() if "signal" in df.columns else 0
@@ -296,36 +319,64 @@ def _render_kpis(df: pd.DataFrame):
 
     col1, col2, col3, col4 = st.columns(4)
 
-    col1.metric(
-        t("pro.kpi_total", "Total señales"),
-        total,
-        help=t("pro.kpi_total_help", "Numero total de tokens analizados con senal activa."),
-    )
-    col2.metric(
-        t("pro.kpi_strong", "Señales STRONG"),
-        strong_count,
-        help=f"Tokens con probabilidad >= {SIGNAL_THRESHOLDS['STRONG']:.0%}. Alta confianza.",
-    )
-    col3.metric(
-        t("pro.kpi_best", "Mejor score"),
-        f"{best_score:.1%}",
-        help=t("pro.kpi_best_help", "La probabilidad mas alta asignada por el modelo hoy."),
-    )
-    col4.metric(
-        t("pro.kpi_chains", "Chains activas"),
-        chains_activas,
-        help=t("pro.kpi_chains_help", "Numero de blockchains con señales (Solana, Ethereum, Base)."),
-    )
+    with col1:
+        st.markdown(
+            kpi_card_html(
+                icon="&#128200;",
+                label=t("pro.kpi_total", "Total senales"),
+                value=str(total),
+                color=ACCENT,
+            ),
+            unsafe_allow_html=True,
+        )
+
+    with col2:
+        st.markdown(
+            kpi_card_html(
+                icon="&#9889;",
+                label=t("pro.kpi_strong", "Senales STRONG"),
+                value=str(strong_count),
+                color=ACCENT,
+            ),
+            unsafe_allow_html=True,
+        )
+
+    with col3:
+        st.markdown(
+            kpi_card_html(
+                icon="&#127942;",
+                label=t("pro.kpi_best", "Mejor score"),
+                value=f"{best_score:.0%}",
+                color=GOLD,
+            ),
+            unsafe_allow_html=True,
+        )
+
+    with col4:
+        st.markdown(
+            kpi_card_html(
+                icon="&#128279;",
+                label=t("pro.kpi_chains", "Chains activas"),
+                value=str(chains_activas),
+                color=ACCENT,
+            ),
+            unsafe_allow_html=True,
+        )
 
 
 def _render_signals_table(df: pd.DataFrame, is_pro: bool = False):
-    """Tabla principal de señales del dia, ordenada por score descendente.
+    """Tabla principal de senales del dia, con filtros y cards premium.
 
     Si is_pro=True, muestra vista enriquecida con indicadores de confianza,
     iconos de chain, tiempo desde descubrimiento y links multiples.
     """
 
-    st.subheader(t("pro.candidates_title", "Candidatos detectados"))
+    # Seccion header
+    st.markdown(
+        f"<h4 style='font-weight: 700; margin-bottom: 4px;'>"
+        f"{t('pro.candidates_title', 'Candidatos detectados')}</h4>",
+        unsafe_allow_html=True,
+    )
 
     # Filtros rapidos
     col_f1, col_f2 = st.columns(2)
@@ -357,28 +408,28 @@ def _render_signals_table(df: pd.DataFrame, is_pro: bool = False):
         df_filtered = df_filtered[df_filtered["chain"] == selected_chain]
 
     if df_filtered.empty:
-        st.info(t("pro.no_filtered_signals", "No hay señales con los filtros seleccionados."))
+        st.info(t("pro.no_filtered_signals", "No hay senales con los filtros seleccionados."))
         return
 
     # Ordenar por probabilidad descendente
     df_filtered = df_filtered.sort_values("probability", ascending=False).reset_index(drop=True)
 
     if is_pro:
-        # --- Vista Pro: cards expandidas con indicadores de confianza ---
+        # --- Vista Pro: trading cards premium ---
         _render_pro_signal_cards(df_filtered)
     else:
         # --- Vista Free: tabla basica ---
         _render_basic_signals_table(df_filtered)
 
     st.caption(
-        t("pro.showing_count", "Mostrando {count} de {total} señales.").format(
+        t("pro.showing_count", "Mostrando {count} de {total} senales.").format(
             count=len(df_filtered), total=len(df)
         )
     )
 
 
 def _render_basic_signals_table(df_filtered: pd.DataFrame):
-    """Tabla basica de señales para usuarios Free."""
+    """Tabla basica de senales para usuarios Free."""
     display_data = []
     for _, row in df_filtered.iterrows():
         name = row.get("name", "")
@@ -474,16 +525,11 @@ def _render_basic_signals_table(df_filtered: pd.DataFrame):
 
 
 def _render_pro_signal_cards(df_filtered: pd.DataFrame):
-    """Vista Pro enriquecida: cada senal como card premium con indicadores de confianza.
-
-    Cada card tiene borde lateral coloreado segun nivel de senal,
-    badges de chain/confianza, barra de probabilidad, y links a DEX.
-    """
+    """Vista Pro: cada senal como trading card premium con indicadores de confianza."""
 
     for idx, row in df_filtered.iterrows():
         name = row.get("name", "")
         symbol = row.get("symbol", "")
-        token_label = f"{name} ({symbol})" if name and symbol else (symbol or name or str(row.get("token_id", ""))[:12])
 
         chain = row.get("chain", "")
         probability = row.get("probability", 0.0)
@@ -510,38 +556,33 @@ def _render_pro_signal_cards(df_filtered: pd.DataFrame):
             else:
                 mc_str = f"${market_cap:,.0f}"
 
-        # Links
+        # Links con estilo premium
         dex_link = ""
         gecko_link = ""
         if pool_addr and chain:
             dex_link = _dexscreener_url(chain, pool_addr)
             gecko_link = _geckoterminal_url(chain, pool_addr)
 
-        # Glow para STRONG
-        glow = f"box-shadow: 0 0 18px {signal_color}20;" if signal == "STRONG" else ""
-
-        # Barra de score visual (HTML)
-        score_pct = int(probability * 100)
-        score_bar = (
-            f"<div style='background: rgba(255,255,255,0.05); border-radius: 4px; "
-            f"height: 6px; margin: 6px 0;'>"
-            f"<div style='background: {signal_color}; width: {score_pct}%; "
-            f"height: 100%; border-radius: 4px;'></div></div>"
-        )
-
-        # Links HTML
         links_html = ""
         if dex_link:
             links_html += (
                 f"<a href='{dex_link}' target='_blank' "
-                f"style='color: {TEXT_MUTED}; text-decoration: none; font-size: 0.8rem; "
-                f"margin-right: 12px;'>DexScreener &rarr;</a>"
+                f"style='color: {TEXT_MUTED}; text-decoration: none; font-size: 0.75rem; "
+                f"margin-right: 12px; padding: 3px 10px; "
+                f"background: rgba(255,255,255,0.03); border-radius: 6px; "
+                f"border: 1px solid rgba(255,255,255,0.05); "
+                f"transition: all 0.2s;'>"
+                f"DexScreener &nearr;</a>"
             )
         if gecko_link:
             links_html += (
                 f"<a href='{gecko_link}' target='_blank' "
-                f"style='color: {TEXT_MUTED}; text-decoration: none; font-size: 0.8rem;'>"
-                f"GeckoTerminal &rarr;</a>"
+                f"style='color: {TEXT_MUTED}; text-decoration: none; font-size: 0.75rem; "
+                f"padding: 3px 10px; "
+                f"background: rgba(255,255,255,0.03); border-radius: 6px; "
+                f"border: 1px solid rgba(255,255,255,0.05); "
+                f"transition: all 0.2s;'>"
+                f"GeckoTerminal &nearr;</a>"
             )
 
         # Info secundaria (MC, tiempo, scored)
@@ -554,42 +595,27 @@ def _render_pro_signal_cards(df_filtered: pd.DataFrame):
             meta_parts.append(scored_str)
         meta_html = " &middot; ".join(meta_parts)
 
-        # Renderizar card como HTML
+        # Renderizar trading card premium
         st.markdown(
-            f"<div style='background: {BG_CARD}; border: 1px solid {BORDER}; "
-            f"border-left: 3px solid {signal_color}; border-radius: 10px; "
-            f"padding: 16px 20px; margin-bottom: 10px; {glow}' "
-            f"aria-label='{token_label}: senal {signal}, {probability:.0%}'>"
-            # Fila 1: nombre + badges
-            f"<div style='display: flex; align-items: center; flex-wrap: wrap; gap: 8px; "
-            f"margin-bottom: 6px;'>"
-            f"<strong style='font-size: 1.05rem;'>{token_label}</strong>"
-            f"{signal_badge_html(signal, 'small')}"
-            f"{chain_badge_html(chain)}"
-            f"<span style='background: {conf_color}20; color: {conf_color}; "
-            f"padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; "
-            f"font-weight: 600; border: 1px solid {conf_color}30;'>"
-            f"Confianza: {conf_badge}</span>"
-            f"</div>"
-            # Fila 2: barra de score + porcentaje
-            f"<div style='display: flex; align-items: center; gap: 10px;'>"
-            f"<div style='flex: 1;'>{score_bar}</div>"
-            f"<span style='color: {signal_color}; font-weight: 700; "
-            f"font-size: 0.95rem; min-width: 40px;'>{probability:.0%}</span>"
-            f"</div>"
-            # Fila 3: metadata + links
-            f"<div style='display: flex; justify-content: space-between; "
-            f"align-items: center; margin-top: 8px;'>"
-            f"<span style='color: {TEXT_MUTED}; font-size: 0.8rem;'>{meta_html}</span>"
-            f"<div>{links_html}</div>"
-            f"</div>"
-            f"</div>",
+            signal_card_html(
+                symbol=symbol,
+                name=name,
+                chain=chain,
+                signal=signal,
+                probability=probability,
+                signal_color=signal_color,
+                meta_html=meta_html,
+                links_html=links_html,
+                conf_badge=conf_badge,
+                conf_color=conf_color,
+                mc_str=mc_str,
+            ),
             unsafe_allow_html=True,
         )
 
 
 def _render_export_csv(df: pd.DataFrame):
-    """Boton de exportar señales a CSV (solo Pro/Admin)."""
+    """Boton de exportar senales a CSV (solo Pro/Admin)."""
     # Preparar datos para exportar
     export_data = []
     for _, row in df.iterrows():
@@ -627,17 +653,21 @@ def _render_export_csv(df: pd.DataFrame):
         file_name="senales_memedetector.csv",
         mime="text/csv",
         help=t("pro.export_csv_help",
-               "Descarga las señales actuales como archivo CSV."),
+               "Descarga las senales actuales como archivo CSV."),
     )
 
 
 def _render_signal_distribution(df: pd.DataFrame):
-    """Donut chart con distribucion de señales (STRONG/MEDIUM/WEAK)."""
+    """Donut chart premium con distribucion de senales (STRONG/MEDIUM/WEAK)."""
 
-    st.subheader(t("pro.dist_title", "Distribucion de señales"))
+    st.markdown(
+        f"<h4 style='font-weight: 700; margin-bottom: 4px;'>"
+        f"{t('pro.dist_title', 'Distribucion de senales')}</h4>",
+        unsafe_allow_html=True,
+    )
 
     if "signal" not in df.columns:
-        st.info(t("pro.no_signal_data", "Sin datos de señales."))
+        st.info(t("pro.no_signal_data", "Sin datos de senales."))
         return
 
     # Contar por tipo de senal
@@ -657,22 +687,19 @@ def _render_signal_distribution(df: pd.DataFrame):
         values="Cantidad",
         color="Senal",
         color_discrete_map=SIGNAL_COLORS,
-        hole=0.5,
+        hole=0.55,
     )
 
     fig.update_traces(
         textposition="inside",
         textinfo="percent+label",
-        textfont_size=12,
+        textfont_size=13,
+        marker=dict(line=dict(color='rgba(0,0,0,0.3)', width=1)),
     )
     fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
+        **_PLOTLY_LAYOUT,
         showlegend=False,
-        margin=dict(t=20, b=20, l=20, r=20),
         height=350,
-        font=dict(color="#e0e0e0"),
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -681,9 +708,13 @@ def _render_signal_distribution(df: pd.DataFrame):
 
 
 def _render_chain_distribution(df: pd.DataFrame):
-    """Bar chart horizontal con distribucion por blockchain."""
+    """Bar chart horizontal premium con distribucion por blockchain."""
 
-    st.subheader(t("pro.chain_dist_title", "Señales por blockchain"))
+    st.markdown(
+        f"<h4 style='font-weight: 700; margin-bottom: 4px;'>"
+        f"{t('pro.chain_dist_title', 'Senales por blockchain')}</h4>",
+        unsafe_allow_html=True,
+    )
 
     if "chain" not in df.columns:
         st.info(t("pro.no_chain_data", "Sin datos de cadena."))
@@ -708,18 +739,14 @@ def _render_chain_distribution(df: pd.DataFrame):
     fig.update_traces(
         textposition="outside",
         textfont_size=13,
+        marker_line_width=0,
     )
     fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
+        **_PLOTLY_LAYOUT,
         showlegend=False,
-        margin=dict(t=20, b=20, l=20, r=20),
         height=350,
         xaxis_title=t("pro.chart_signals_count", "Numero de senales"),
         yaxis_title="",
-        font=dict(color="#e0e0e0"),
-        xaxis=dict(gridcolor="rgba(255,255,255,0.04)"),
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -728,12 +755,18 @@ def _render_chain_distribution(df: pd.DataFrame):
 
 
 def _render_disclaimer():
-    """Disclaimer legal al pie de la pagina."""
+    """Disclaimer legal al pie de la pagina con estilo premium."""
 
-    st.warning(
-        t("pro.disclaimer",
-          ":warning: **Esto NO es consejo financiero.**\n\n"
-          "Los memecoins son extremadamente volatiles y la gran mayoria pierde todo su valor. "
-          "Las señales de este modelo son herramientas de analisis, no recomendaciones de inversion. "
-          "Haz tu propia investigacion (DYOR) y nunca inviertas mas de lo que puedas permitirte perder.")
+    st.markdown(
+        f"<div style='"
+        f"background: linear-gradient(135deg, rgba(239,68,68,0.04), rgba(239,68,68,0.02)); "
+        f"border: 1px solid rgba(239,68,68,0.12); "
+        f"border-left: 3px solid rgba(239,68,68,0.4); "
+        f"border-radius: 12px; padding: 16px 20px; margin-top: 8px;'>"
+        f"<strong style='color: #ef4444; font-size: 0.85rem;'>"
+        f"&#9888; Esto NO es consejo financiero.</strong>"
+        f"<p style='color: {TEXT_MUTED}; font-size: 0.8rem; margin: 8px 0 0 0; line-height: 1.5;'>"
+        f"{t('pro.disclaimer_text', 'Los memecoins son extremadamente volatiles y la gran mayoria pierde todo su valor. Las senales de este modelo son herramientas de analisis, no recomendaciones de inversion. Haz tu propia investigacion (DYOR) y nunca inviertas mas de lo que puedas permitirte perder.')}"
+        f"</p></div>",
+        unsafe_allow_html=True,
     )

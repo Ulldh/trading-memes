@@ -1,14 +1,14 @@
 """
-auth.py - Autenticación y gestión de sesiones con Supabase Auth.
+auth.py - Autenticacion y gestion de sesiones con Supabase Auth.
 
-Provee funciones para login, registro, verificación de sesión,
+Provee funciones para login, registro, verificacion de sesion,
 y control de acceso basado en roles (admin/pro/free).
 
 Usa SUPABASE_ANON_KEY (no service_role) porque Supabase Auth
-requiere la anon key para operaciones de autenticación.
+requiere la anon key para operaciones de autenticacion.
 
 NOTA: Los emails de confirmacion y reset se configuran en:
-Supabase Dashboard → Authentication → Email Templates
+Supabase Dashboard -> Authentication -> Email Templates
 URL: https://supabase.com/dashboard/project/xayfwuqbbqtyerxzjbec/auth/templates
 """
 import logging
@@ -39,7 +39,7 @@ def get_supabase_client() -> Client:
 
 
 def init_session_state():
-    """Inicializa variables de sesión para auth.
+    """Inicializa variables de sesion para auth.
 
     Se llama al principio de cada request de Streamlit
     para asegurar que todas las keys existan en session_state.
@@ -106,10 +106,10 @@ def login(email: str, password: str) -> bool:
 
         error_msg = str(e)
         if "Invalid login" in error_msg or "invalid" in error_msg.lower():
-            st.error(t("auth.error_invalid_credentials", "Email o contraseña incorrectos."))
+            st.error(t("auth.error_invalid_credentials", "Email o contrasena incorrectos."))
         else:
             logger.exception("Error de autenticacion en login")
-            st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
+            st.error("Se produjo un error inesperado. Intentalo de nuevo.")
         return False
 
 
@@ -118,7 +118,7 @@ def register(email: str, password: str) -> bool:
 
     Crea un nuevo usuario en auth.users. Supabase puede enviar
     un email de confirmacion dependiendo de la config del proyecto.
-    El perfil en 'profiles' se crea automáticamente via trigger SQL.
+    El perfil en 'profiles' se crea automaticamente via trigger SQL.
     """
     client = get_supabase_client()
     if not client:
@@ -131,22 +131,22 @@ def register(email: str, password: str) -> bool:
         if response.user:
             st.success(t("auth.register_success",
                          "Cuenta creada. Revisa tu email para confirmar "
-                         "y luego ya puedes iniciar sesión."))
+                         "y luego ya puedes iniciar sesion."))
             return True
         return False
     except Exception as e:
         error_msg = str(e)
         if "already registered" in error_msg.lower():
             st.error(t("auth.error_already_registered",
-                        "Este email ya esta registrado. Intenta iniciar sesión."))
+                        "Este email ya esta registrado. Intenta iniciar sesion."))
         else:
             logger.exception("Error en registro de usuario")
-            st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
+            st.error("Se produjo un error inesperado. Intentalo de nuevo.")
         return False
 
 
 def logout():
-    """Cierra sesión limpiando todo el session_state de auth."""
+    """Cierra sesion limpiando todo el session_state de auth."""
     st.session_state.authenticated = False
     st.session_state.user = None
     st.session_state.role = "free"
@@ -251,7 +251,7 @@ def require_auth():
         if payment_status == "success":
             st.success(t(
                 "auth.payment_success",
-                "¡Pago completado! Tu plan se activará en breves instantes."
+                "Pago completado! Tu plan se activara en breves instantes."
             ))
         elif payment_status == "cancelled":
             st.info(t(
@@ -269,19 +269,19 @@ def require_auth():
 def require_admin():
     """Verifica que el usuario sea admin. Redirige a overview si no.
 
-    Primero verifica autenticación, luego verifica rol.
-    Si el usuario no es admin, muestra las páginas públicas disponibles.
+    Primero verifica autenticacion, luego verifica rol.
+    Si el usuario no es admin, muestra las paginas publicas disponibles.
     """
     require_auth()
     if not is_admin():
-        st.info(t("access.admin_required", "Bienvenido. Usa el menú lateral para navegar por las secciones disponibles."))
-        st.markdown("### Páginas disponibles")
+        st.info(t("access.admin_required", "Bienvenido. Usa el menu lateral para navegar por las secciones disponibles."))
+        st.markdown("### Paginas disponibles")
         st.markdown("""
-        - 📊 **Resumen** — Estadísticas del mercado
-        - 📈 **Señales** — Tokens con mayor potencial
-        - 🔍 **Buscar Token** — Analizar cualquier token
-        - ⭐ **Watchlist** — Tus tokens favoritos
-        - 🎓 **Academia** — Aprende sobre memecoins
+        - **Resumen** — Estadisticas del mercado
+        - **Senales** — Tokens con mayor potencial
+        - **Buscar Token** — Analizar cualquier token
+        - **Watchlist** — Tus tokens favoritos
+        - **Academia** — Aprende sobre memecoins
         """)
         st.stop()
 
@@ -289,18 +289,18 @@ def require_admin():
 def require_pro():
     """Verifica que el usuario sea pro o admin.
 
-    Muestra un mensaje con link de suscripción si el usuario
+    Muestra un mensaje con link de suscripcion si el usuario
     no tiene el plan adecuado.
     """
     require_auth()
     if not is_pro():
-        st.warning(t("paywall.requires_pro_generic", "Esta función requiere suscripción Pro."))
+        st.warning(t("paywall.requires_pro_generic", "Esta funcion requiere suscripcion Pro."))
         st.info(t('paywall.subscribe_link', 'Visita la seccion Planes para suscribirte.'))
         st.stop()
 
 
 def reset_password(email: str) -> bool:
-    """Envia email de restablecimiento de contraseña via Supabase Auth.
+    """Envia email de restablecimiento de contrasena via Supabase Auth.
 
     Retorna True si el email se envio correctamente (o si Supabase
     no reporta error, por seguridad no revela si el email existe).
@@ -316,7 +316,7 @@ def reset_password(email: str) -> bool:
         return True
     except Exception as e:
         logger.exception("Error al enviar email de recuperacion de contrasena")
-        st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
+        st.error("Se produjo un error inesperado. Intentalo de nuevo.")
         return False
 
 
@@ -332,8 +332,8 @@ def _handle_payment_query_params():
     if payment_status == "success":
         st.success(t(
             "auth.payment_success",
-            "¡Pago completado! Tu plan se activará en breves instantes. "
-            "Inicia sesión para continuar."
+            "Pago completado! Tu plan se activara en breves instantes. "
+            "Inicia sesion para continuar."
         ))
     elif payment_status == "cancelled":
         st.info(t(
@@ -382,11 +382,11 @@ def _maybe_redirect_to_stripe():
 
 
 def render_login_page():
-    """Renderiza la pagina de login/registro con tabs.
+    """Renderiza la pagina de login/registro con estilo premium trading terminal.
 
-    Incluye validacion de campos, confirmacion de contraseña
-    en registro, longitud minima de contraseña (8 chars),
-    recuperacion de contraseña, aviso de terminos de servicio,
+    Incluye validacion de campos, confirmacion de contrasena
+    en registro, longitud minima de contrasena (8 chars),
+    recuperacion de contrasena, aviso de terminos de servicio,
     y flujo de redireccion a Stripe para planes de pago.
 
     Query params soportados:
@@ -394,12 +394,25 @@ def render_login_page():
       - ?plan=free|pro|enterprise — plan seleccionado desde la landing
       - ?payment=success|cancelled — retorno de Stripe Checkout
     """
-    # --- Branding centrado ---
+    # --- Branding centrado premium con estilo terminal ---
     st.markdown(
-        "<div style='text-align: center; padding: 40px 0 10px 0;'>"
-        "<h1 style='font-size: 2.2rem; margin-bottom: 4px;'>"
-        "<span style='color: #00ff41;'>Meme</span> Detector</h1>"
-        "<p style='color: #6b7280; font-size: 0.95rem; margin: 0;'>"
+        "<div style='text-align: center; padding: 60px 0 20px 0;'>"
+        # Logo/titulo con glow
+        "<h1 style='font-size: 2.8rem; margin-bottom: 6px; font-weight: 900; "
+        "letter-spacing: -1px;'>"
+        "<span style='color: #00ff41; text-shadow: 0 0 40px rgba(0,255,65,0.4), "
+        "0 0 80px rgba(0,255,65,0.15);'>Meme</span>"
+        "<span style='color: #ffffff;'> Detector</span></h1>"
+        # Indicador de terminal
+        "<div style='display: inline-block; background: rgba(0,255,65,0.06); "
+        "border: 1px solid rgba(0,255,65,0.12); border-radius: 20px; "
+        "padding: 4px 16px; margin-bottom: 8px;'>"
+        "<span style='color: #00ff41; font-size: 0.65rem; font-weight: 700; "
+        "letter-spacing: 2px; text-transform: uppercase;'>"
+        "&#9679; TRADING TERMINAL</span></div>"
+        # Subtitulo
+        "<p style='color: #6b7280; font-size: 0.9rem; margin: 8px 0 0 0; "
+        "max-width: 400px; margin-left: auto; margin-right: auto;'>"
         f"{t('auth.login_subtitle', 'Detector de Gems en Memecoins con Machine Learning')}"
         "</p></div>",
         unsafe_allow_html=True,
@@ -416,8 +429,8 @@ def render_login_page():
     if plan_from_url and plan_from_url in ("free", "pro", "enterprise"):
         st.session_state["pending_plan"] = plan_from_url
 
-    # --- Layout centrado: columnas para simular tarjeta centrada ---
-    _spacer_l, col_form, _spacer_r = st.columns([1, 2, 1])
+    # --- Layout centrado: columnas estrechas para simular tarjeta ---
+    _spacer_l, col_form, _spacer_r = st.columns([1.2, 1.6, 1.2])
 
     with col_form:
         tab_labels = [
@@ -432,7 +445,7 @@ def render_login_page():
             tab_login, tab_register = st.tabs(tab_labels)
 
         with tab_login:
-            st.markdown("")  # Espaciado visual
+            st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
             # --- Formulario de login ---
             email = st.text_input(
                 t("auth.email", "Email"), key="login_email",
@@ -442,7 +455,7 @@ def render_login_page():
                 t("auth.password", "Contrasena"), type="password", key="login_password",
                 placeholder="Tu contrasena",
             )
-            st.markdown("")  # Espaciado antes del boton
+            st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
             if st.button(
                 t("auth.login_btn", "Acceder"),
                 type="primary", key="btn_login",
@@ -457,7 +470,7 @@ def render_login_page():
                     st.warning(t("auth.error_empty_fields", "Introduce email y contrasena."))
 
             # --- Recuperar contrasena ---
-            st.markdown("")
+            st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
             with st.expander(t("auth.forgot_password", "Olvidaste tu contrasena?")):
                 reset_email = st.text_input(
                     t("auth.reset_email_label",
@@ -478,21 +491,31 @@ def render_login_page():
                         st.warning(t("auth.error_empty_email", "Introduce tu email."))
 
         with tab_register:
-            # Mostrar plan seleccionado si viene de la landing
+            # Mostrar plan seleccionado si viene de la landing — estilo premium
             pending = st.session_state.get("pending_plan", "")
             if pending and pending != "free":
                 st.markdown(
-                    f"<div style='background: rgba(0,255,65,0.05); "
-                    f"border: 1px solid rgba(0,255,65,0.2); border-radius: 8px; "
-                    f"padding: 12px 16px; margin: 8px 0;'>"
-                    f"Plan seleccionado: <strong style='color:#00ff41;'>"
-                    f"{pending.upper()}</strong>. "
-                    f"Crea tu cuenta y tras iniciar sesion seras redirigido al pago."
+                    f"<div style='"
+                    f"background: linear-gradient(135deg, rgba(0,255,65,0.04), rgba(0,255,65,0.02)); "
+                    f"border: 1px solid rgba(0,255,65,0.15); border-radius: 12px; "
+                    f"padding: 14px 18px; margin: 8px 0;'>"
+                    f"<div style='display: flex; align-items: center; gap: 8px;'>"
+                    f"<span style='color: #00ff41; font-size: 1.1rem;'>&#9889;</span>"
+                    f"<div>"
+                    f"<div style='font-size: 0.7rem; color: #6b7280; "
+                    f"text-transform: uppercase; letter-spacing: 1px; font-weight: 600;'>"
+                    f"Plan seleccionado</div>"
+                    f"<strong style='color: #00ff41; font-size: 1.1rem; "
+                    f"text-shadow: 0 0 10px rgba(0,255,65,0.2);'>"
+                    f"{pending.upper()}</strong>"
+                    f"</div></div>"
+                    f"<p style='color: #9ca3af; font-size: 0.8rem; margin: 8px 0 0 0;'>"
+                    f"Crea tu cuenta y tras iniciar sesion seras redirigido al pago.</p>"
                     f"</div>",
                     unsafe_allow_html=True,
                 )
 
-            st.markdown("")  # Espaciado visual
+            st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
             reg_email = st.text_input(
                 t("auth.email", "Email"), key="reg_email",
                 placeholder="tu@email.com",
@@ -510,7 +533,7 @@ def render_login_page():
                 type="password", key="reg_password2",
                 placeholder="Repite tu contrasena",
             )
-            st.markdown("")  # Espaciado antes del boton
+            st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
             if st.button(
                 t("auth.register_btn", "Crear cuenta"),
                 type="primary", key="btn_register",
@@ -540,9 +563,9 @@ def render_login_page():
 def render_sidebar_user_info():
     """Muestra info del usuario en el sidebar + boton logout.
 
-    Incluye avatar con iniciales, email, badge del plan (Admin/Pro/Free),
+    Incluye avatar con iniciales y glow, email, badge del plan premium,
     Pro member since + dias hasta renovacion,
-    y boton para cerrar sesion. Estilo premium con paleta terminal.
+    y boton para cerrar sesion. Estilo trading terminal.
     """
     if is_authenticated():
         user = st.session_state.get("user", {})
@@ -561,41 +584,44 @@ def render_sidebar_user_info():
         else:
             initials = "U"
 
-        # Colores segun rol
+        # Colores segun rol — con glow
         role_config = {
-            "admin": {"color": "#ef4444", "label": t('roles.admin', 'Admin')},
-            "pro": {"color": "#00ff41", "label": t('roles.pro', 'Pro')},
-            "free": {"color": "#6b7280", "label": t('roles.free', 'Free')},
+            "admin": {"color": "#ef4444", "label": t('roles.admin', 'ADMIN'), "glow": "0 0 15px rgba(239,68,68,0.2)"},
+            "pro": {"color": "#00ff41", "label": t('roles.pro', 'PRO'), "glow": "0 0 15px rgba(0,255,65,0.2)"},
+            "free": {"color": "#6b7280", "label": t('roles.free', 'FREE'), "glow": "none"},
         }
         rc = role_config.get(role, role_config["free"])
 
-        # --- Avatar + nombre + badge en bloque visual ---
+        # --- Avatar + nombre + badge en bloque visual premium ---
         st.sidebar.markdown(
             f"<div style='text-align: center; margin: 0 0 12px 0;'>"
-            # Avatar circular con iniciales
-            f"<div style='width: 48px; height: 48px; border-radius: 50%; "
-            f"background: {rc['color']}20; border: 2px solid {rc['color']}40; "
+            # Avatar circular con glow
+            f"<div style='width: 52px; height: 52px; border-radius: 50%; "
+            f"background: linear-gradient(135deg, {rc['color']}15, {rc['color']}08); "
+            f"border: 2px solid {rc['color']}35; "
             f"display: inline-flex; align-items: center; justify-content: center; "
-            f"margin-bottom: 8px;'>"
-            f"<span style='color: {rc['color']}; font-weight: 700; "
+            f"margin-bottom: 8px; box-shadow: {rc['glow']};'>"
+            f"<span style='color: {rc['color']}; font-weight: 800; "
             f"font-size: 1.1rem;'>{initials}</span>"
             f"</div><br>"
             # Nombre o email
-            f"<span style='font-weight: 600; font-size: 0.9rem;'>"
+            f"<span style='font-weight: 700; font-size: 0.9rem; color: #ffffff;'>"
             f"{display_name or email.split('@')[0] if email else 'User'}</span><br>"
-            f"<span style='color: #6b7280; font-size: 0.75rem;'>{email}</span>"
+            f"<span style='color: #6b7280; font-size: 0.7rem;'>{email}</span>"
             f"</div>",
             unsafe_allow_html=True,
         )
 
-        # Badge de plan (siempre visible)
+        # Badge de plan — pastilla premium
         st.sidebar.markdown(
             f"<div role='status' aria-label='Plan: {rc['label']}' "
-            f"style='background: {rc['color']}15; color: {rc['color']}; "
-            f"padding: 6px 16px; border-radius: 8px; text-align: center; "
-            f"font-weight: 700; font-size: 0.8rem; "
-            f"border: 1px solid {rc['color']}30; "
-            f"margin: 0 0 8px 0; letter-spacing: 0.5px;'>"
+            f"style='background: linear-gradient(135deg, {rc['color']}10, {rc['color']}05); "
+            f"color: {rc['color']}; "
+            f"padding: 6px 16px; border-radius: 20px; text-align: center; "
+            f"font-weight: 800; font-size: 0.7rem; "
+            f"border: 1px solid {rc['color']}20; "
+            f"margin: 0 0 8px 0; letter-spacing: 1.5px; "
+            f"text-transform: uppercase;'>"
             f"{rc['label']}</div>",
             unsafe_allow_html=True,
         )

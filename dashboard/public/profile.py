@@ -1,9 +1,9 @@
 """
 profile.py — Perfil de usuario: gestionar cuenta y suscripcion.
 
-Muestra informacion de la cuenta, permite editar el display name,
-ver el estado de suscripcion, la conexion con Telegram, y eliminar
-la cuenta (zona de peligro).
+Muestra informacion de la cuenta con estilo premium de trading terminal.
+Permite editar el display name, ver el estado de suscripcion,
+la conexion con Telegram, y eliminar la cuenta (zona de peligro).
 
 Estilo premium coherente con la paleta terminal (#00ff41).
 """
@@ -13,7 +13,8 @@ import streamlit as st
 
 from src.data.supabase_storage import get_storage as _get_storage
 from dashboard.theme import (
-    role_badge_html, ACCENT, GOLD, BG_CARD, BORDER, TEXT_MUTED, DANGER,
+    role_badge_html, card_container,
+    ACCENT, GOLD, BG_CARD, BG_SURFACE, BORDER, TEXT_MUTED, DANGER,
 )
 
 # Importar stripe_client con try/except (las keys pueden no estar configuradas)
@@ -80,7 +81,7 @@ def _update_display_name(user_id: str, new_name: str) -> bool:
         return True
     except Exception as e:
         logger.exception("Error al guardar display_name en perfil")
-        st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
+        st.error("Se produjo un error inesperado. Intentalo de nuevo.")
         return False
 
 
@@ -113,7 +114,7 @@ def _cancel_stripe_subscriptions(stripe_customer_id: str) -> None:
 def _delete_user_account(user_id: str) -> bool:
     """Elimina la cuenta del usuario.
 
-    Borra el perfil de la tabla profiles. La eliminación de auth.users
+    Borra el perfil de la tabla profiles. La eliminacion de auth.users
     debe hacerse via Supabase Admin o un edge function con service_role.
     Cancela suscripciones activas en Stripe antes de eliminar.
     Retorna True si la operacion fue exitosa.
@@ -143,7 +144,7 @@ def _delete_user_account(user_id: str) -> bool:
         return True
     except Exception as e:
         logger.exception("Error al eliminar la cuenta del usuario")
-        st.error("Se produjo un error inesperado. Inténtalo de nuevo.")
+        st.error("Se produjo un error inesperado. Intentalo de nuevo.")
         return False
 
 
@@ -169,7 +170,7 @@ _PLAN_LABELS = {
 # ============================================================
 
 def render():
-    """Perfil de usuario — gestionar cuenta y suscripcion."""
+    """Perfil de usuario — gestionar cuenta y suscripcion con estilo premium."""
 
     # Obtener datos del usuario de session_state
     user = st.session_state.get("user", {})
@@ -198,30 +199,44 @@ def render():
     rc = role_colors.get(role, TEXT_MUTED)
 
     # -----------------------------------------------------------------
-    # 1. Header con avatar y datos principales
+    # 1. Header con avatar premium y datos principales
     # -----------------------------------------------------------------
+    user_display = display_name or (email.split('@')[0] if email else 'User')
+
     st.markdown(
-        f"<div style='display: flex; align-items: center; gap: 20px; "
-        f"margin-bottom: 24px;'>"
-        # Avatar circular
-        f"<div style='width: 72px; height: 72px; border-radius: 50%; "
-        f"background: {rc}15; border: 2px solid {rc}40; "
+        f"<div style='display: flex; align-items: center; gap: 24px; "
+        f"margin-bottom: 28px; padding: 28px; "
+        f"background: linear-gradient(135deg, rgba(13,17,23,0.95), rgba(22,27,34,0.95)); "
+        f"border: 1px solid rgba(0,255,65,0.06); border-radius: 20px; "
+        f"backdrop-filter: blur(10px); "
+        f"box-shadow: 0 4px 30px rgba(0,0,0,0.2);'>"
+        # Avatar circular con gradient border y glow
+        f"<div style='width: 80px; height: 80px; border-radius: 50%; "
+        f"background: linear-gradient(135deg, {rc}20, {rc}08); "
+        f"border: 3px solid {rc}40; "
         f"display: flex; align-items: center; justify-content: center; "
-        f"flex-shrink: 0;'>"
-        f"<span style='color: {rc}; font-weight: 700; "
-        f"font-size: 1.5rem;'>{initials}</span>"
+        f"flex-shrink: 0; box-shadow: 0 0 25px {rc}15;'>"
+        f"<span style='color: {rc}; font-weight: 800; "
+        f"font-size: 1.6rem;'>{initials}</span>"
         f"</div>"
         # Info
+        f"<div style='flex: 1;'>"
+        f"<h2 style='margin: 0 0 6px 0; font-weight: 800; font-size: 1.6rem; "
+        f"color: #ffffff; letter-spacing: -0.3px;'>{user_display}</h2>"
+        f"<span style='color: {TEXT_MUTED}; font-size: 0.85rem;'>{email}</span>"
+        f"</div>"
+        # Role badge
         f"<div>"
-        f"<h2 style='margin: 0 0 4px 0;'>{display_name or email.split('@')[0] if email else 'User'}</h2>"
-        f"<span style='color: {TEXT_MUTED}; font-size: 0.9rem;'>{email}</span>"
+        f"<span style='background: linear-gradient(135deg, {rc}12, {rc}06); "
+        f"color: {rc}; padding: 6px 20px; border-radius: 20px; "
+        f"font-weight: 800; font-size: 0.75rem; "
+        f"border: 1px solid {rc}25; letter-spacing: 1.5px; "
+        f"text-transform: uppercase;'>"
+        f"{role.upper()}</span>"
         f"</div>"
         f"</div>",
         unsafe_allow_html=True,
     )
-
-    # Plan badge
-    st.markdown(role_badge_html(role), unsafe_allow_html=True)
 
     # Fecha de miembro
     created_at = profile.get("created_at", "")
@@ -229,12 +244,18 @@ def render():
         fecha = str(created_at)[:10]
         st.caption(f"Miembro desde: {fecha}")
 
-    st.divider()
-
     # -----------------------------------------------------------------
-    # 2. Editar nombre de visualizacion
+    # 2. Editar nombre de visualizacion — seccion con card
     # -----------------------------------------------------------------
-    st.subheader("Nombre de visualizacion")
+    st.markdown(
+        f"<div style='display: flex; align-items: center; gap: 8px; "
+        f"margin: 20px 0 8px 0;'>"
+        f"<div style='width: 6px; height: 6px; border-radius: 50%; "
+        f"background: {ACCENT}; box-shadow: 0 0 8px {ACCENT}60;'></div>"
+        f"<h4 style='margin: 0; font-weight: 700;'>Nombre de visualizacion</h4>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
     st.caption("Este nombre se mostrara en tu perfil y en el dashboard.")
 
     current_name = profile.get("display_name", "")
@@ -256,12 +277,20 @@ def render():
         else:
             st.warning("El nombre no puede estar vacio.")
 
-    st.divider()
+    st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
     # -----------------------------------------------------------------
-    # 3. Estado de suscripcion
+    # 3. Estado de suscripcion — card premium
     # -----------------------------------------------------------------
-    st.subheader("Suscripcion")
+    st.markdown(
+        f"<div style='display: flex; align-items: center; gap: 8px; "
+        f"margin: 12px 0 8px 0;'>"
+        f"<div style='width: 6px; height: 6px; border-radius: 50%; "
+        f"background: {ACCENT}; box-shadow: 0 0 8px {ACCENT}60;'></div>"
+        f"<h4 style='margin: 0; font-weight: 700;'>Suscripcion</h4>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
 
     plan = profile.get("subscription_plan", "free")
     status = profile.get("subscription_status", "inactive")
@@ -269,17 +298,45 @@ def render():
 
     plan_label = _PLAN_LABELS.get(plan, plan)
     status_label = "Activa" if status == "active" else "Inactiva"
-    status_color = "green" if status == "active" else "gray"
+    status_color = ACCENT if status == "active" else TEXT_MUTED
 
-    col_sub1, col_sub2 = st.columns(2)
-    with col_sub1:
-        st.markdown(f"**Plan:** {plan_label}")
-        st.markdown(f"**Estado:** :{status_color}[{status_label}]")
-    with col_sub2:
-        if end_date:
-            st.markdown(f"**Fecha de renovacion:** {str(end_date)[:10]}")
-        else:
-            st.markdown("**Fecha de renovacion:** —")
+    # Card de suscripcion
+    st.markdown(
+        f"<div style='"
+        f"background: linear-gradient(135deg, rgba(13,17,23,0.95), rgba(22,27,34,0.95)); "
+        f"border: 1px solid rgba(0,255,65,0.06); border-radius: 16px; "
+        f"padding: 24px; margin: 8px 0;'>"
+        f"<div style='display: flex; justify-content: space-between; align-items: flex-start; "
+        f"flex-wrap: wrap; gap: 16px;'>"
+        # Plan
+        f"<div>"
+        f"<div style='color: {TEXT_MUTED}; font-size: 0.7rem; "
+        f"text-transform: uppercase; letter-spacing: 1px; font-weight: 600; "
+        f"margin-bottom: 4px;'>Plan</div>"
+        f"<div style='color: #ffffff; font-size: 1.2rem; font-weight: 800;'>"
+        f"{plan_label}</div>"
+        f"</div>"
+        # Estado
+        f"<div>"
+        f"<div style='color: {TEXT_MUTED}; font-size: 0.7rem; "
+        f"text-transform: uppercase; letter-spacing: 1px; font-weight: 600; "
+        f"margin-bottom: 4px;'>Estado</div>"
+        f"<div style='display: flex; align-items: center; gap: 6px;'>"
+        f"<div style='width: 8px; height: 8px; border-radius: 50%; "
+        f"background: {status_color}; box-shadow: 0 0 8px {status_color}40;'></div>"
+        f"<span style='color: {status_color}; font-weight: 700;'>{status_label}</span>"
+        f"</div></div>"
+        # Renovacion
+        f"<div>"
+        f"<div style='color: {TEXT_MUTED}; font-size: 0.7rem; "
+        f"text-transform: uppercase; letter-spacing: 1px; font-weight: 600; "
+        f"margin-bottom: 4px;'>Renovacion</div>"
+        f"<div style='color: #ffffff; font-weight: 700;'>"
+        f"{str(end_date)[:10] if end_date else '&#8212;'}</div>"
+        f"</div>"
+        f"</div></div>",
+        unsafe_allow_html=True,
+    )
 
     st.write("")
 
@@ -289,7 +346,7 @@ def render():
     if plan == "free":
         st.info(
             "Estas en el plan gratuito. Suscribete a **Pro** para desbloquear "
-            "todas las señales, busqueda de tokens, alertas Telegram y mas."
+            "todas las senales, busqueda de tokens, alertas Telegram y mas."
         )
         if _stripe_ok and _create_checkout is not None:
             try:
@@ -304,13 +361,13 @@ def render():
                 )
             else:
                 st.info(
-                    "💳 Pagos próximamente. Contacta info@memedetector.es "
-                    "para más información."
+                    "Pagos proximamente. Contacta info@memedetector.es "
+                    "para mas informacion."
                 )
         else:
             st.info(
-                "💳 Pagos próximamente. Contacta info@memedetector.es "
-                "para más información."
+                "Pagos proximamente. Contacta info@memedetector.es "
+                "para mas informacion."
             )
     elif plan in ("pro", "enterprise"):
         st.success(f"Tienes el plan **{plan_label}** activo.")
@@ -322,37 +379,70 @@ def render():
                 portal_url = ""
             if portal_url:
                 st.link_button(
-                    "Gestiónar suscripción (Stripe)",
+                    "Gestionar suscripcion (Stripe)",
                     portal_url,
                 )
             else:
                 st.caption("No se pudo generar el enlace al portal de Stripe.")
         else:
             st.caption(
-                "Gestión de suscripción no disponible. "
+                "Gestion de suscripcion no disponible. "
                 "Contacta info@memedetector.es."
             )
 
-    st.divider()
+    st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
     # -----------------------------------------------------------------
-    # 4. Conexion con Telegram
+    # 4. Conexion con Telegram — seccion premium
     # -----------------------------------------------------------------
-    st.subheader("Telegram")
+    st.markdown(
+        f"<div style='display: flex; align-items: center; gap: 8px; "
+        f"margin: 12px 0 8px 0;'>"
+        f"<div style='width: 6px; height: 6px; border-radius: 50%; "
+        f"background: {ACCENT}; box-shadow: 0 0 8px {ACCENT}60;'></div>"
+        f"<h4 style='margin: 0; font-weight: 700;'>Telegram</h4>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
 
     telegram_chat_id = profile.get("telegram_chat_id")
 
     if telegram_chat_id:
-        st.success(f"Telegram conectado (Chat ID: `{telegram_chat_id}`)")
+        st.markdown(
+            f"<div style='"
+            f"background: linear-gradient(135deg, rgba(0,255,65,0.04), rgba(0,255,65,0.02)); "
+            f"border: 1px solid rgba(0,255,65,0.1); border-radius: 12px; "
+            f"padding: 14px 18px; margin: 8px 0;'>"
+            f"<div style='display: flex; align-items: center; gap: 8px;'>"
+            f"<div style='width: 8px; height: 8px; border-radius: 50%; "
+            f"background: {ACCENT}; box-shadow: 0 0 8px {ACCENT}60;'></div>"
+            f"<span style='color: {ACCENT}; font-weight: 700;'>Conectado</span>"
+            f"<span style='color: {TEXT_MUTED}; font-size: 0.8rem; margin-left: 8px;'>"
+            f"Chat ID: {telegram_chat_id}</span>"
+            f"</div></div>",
+            unsafe_allow_html=True,
+        )
         st.page_link(
             "alerts",
             label="Configurar alertas de Telegram",
             icon=":material/notifications:",
         )
     else:
-        st.warning(
-            "Telegram no conectado. Conecta tu cuenta de Telegram para "
-            "recibir señales y alertas directamente en tu móvil."
+        st.markdown(
+            f"<div style='"
+            f"background: linear-gradient(135deg, rgba(251,191,36,0.04), rgba(251,191,36,0.02)); "
+            f"border: 1px solid rgba(251,191,36,0.1); border-radius: 12px; "
+            f"padding: 14px 18px; margin: 8px 0;'>"
+            f"<div style='display: flex; align-items: center; gap: 8px;'>"
+            f"<div style='width: 8px; height: 8px; border-radius: 50%; "
+            f"background: {GOLD}; box-shadow: 0 0 8px {GOLD}60;'></div>"
+            f"<span style='color: {GOLD}; font-weight: 700;'>No conectado</span>"
+            f"</div>"
+            f"<p style='color: {TEXT_MUTED}; font-size: 0.8rem; margin: 8px 0 0 0;'>"
+            f"Conecta tu cuenta de Telegram para recibir senales y alertas "
+            f"directamente en tu movil.</p>"
+            f"</div>",
+            unsafe_allow_html=True,
         )
         st.page_link(
             "alerts",
@@ -360,14 +450,15 @@ def render():
             icon=":material/link:",
         )
 
-    st.divider()
+    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
     # -----------------------------------------------------------------
-    # 5. Zona de peligro — estilo rojo con borde de advertencia
+    # 5. Zona de peligro — estilo rojo premium con borde de advertencia
     # -----------------------------------------------------------------
     st.markdown(
-        f"<div style='border: 1px solid {DANGER}30; border-radius: 12px; "
-        f"padding: 2px; margin-top: 8px;'>",
+        f"<div style='border: 1px solid rgba(239,68,68,0.15); border-radius: 16px; "
+        f"padding: 2px; margin-top: 8px; "
+        f"background: linear-gradient(135deg, rgba(239,68,68,0.02), transparent);'>",
         unsafe_allow_html=True,
     )
     with st.expander(":material/warning: Zona de peligro", expanded=False):

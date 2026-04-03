@@ -180,9 +180,9 @@ pg = st.navigation(nav_config, position="sidebar")
 # Sidebar: descripcion de la herramienta
 # =============================================================================
 
-st.sidebar.divider()
+st.sidebar.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
 
-# --- Countdown hasta proximo pipeline scan (estilo terminal) ---
+# --- Countdown hasta proximo pipeline scan (estilo trading terminal premium) ---
 _now_utc = datetime.datetime.now(datetime.timezone.utc)
 _next_runs = []
 for _hour in [6, 18]:
@@ -196,25 +196,44 @@ _hours, _remainder = divmod(int(_delta.total_seconds()), 3600)
 _minutes, _seconds = divmod(_remainder, 60)
 
 st.sidebar.markdown(
-    f"<div style='background: rgba(0,255,65,0.05); border: 1px solid rgba(0,255,65,0.15); "
-    f"border-radius: 8px; padding: 10px 14px; margin: 4px 0 12px 0; text-align: center;'>"
-    f"<span style='color: #6b7280; font-size: 0.7rem; text-transform: uppercase; "
-    f"letter-spacing: 1px;'>Proximo scan</span><br>"
-    f"<span style='color: #00ff41; font-size: 1.3rem; font-weight: 700; "
-    f"font-family: monospace; letter-spacing: 2px;'>"
-    f"{_hours:02d}:{_minutes:02d}:{_seconds:02d}</span></div>",
+    f"<div style='"
+    f"background: linear-gradient(135deg, rgba(0,255,65,0.04), rgba(0,255,65,0.01)); "
+    f"border: 1px solid rgba(0,255,65,0.1); "
+    f"border-radius: 12px; padding: 14px 16px; margin: 4px 0 12px 0; text-align: center; "
+    f"position: relative; overflow: hidden;'>"
+    # Linea decorativa superior
+    f"<div style='position: absolute; top: 0; left: 0; right: 0; height: 1px; "
+    f"background: linear-gradient(90deg, transparent, rgba(0,255,65,0.25), transparent);'></div>"
+    # Indicador de estado vivo
+    f"<div style='display: flex; align-items: center; justify-content: center; "
+    f"gap: 6px; margin-bottom: 6px;'>"
+    f"<div style='width: 6px; height: 6px; border-radius: 50%; "
+    f"background: #00ff41; box-shadow: 0 0 8px rgba(0,255,65,0.5);'></div>"
+    f"<span style='color: #6b7280; font-size: 0.6rem; text-transform: uppercase; "
+    f"letter-spacing: 1.5px; font-weight: 700;'>Proximo scan</span></div>"
+    # Timer grande
+    f"<span style='color: #00ff41; font-size: 1.5rem; font-weight: 800; "
+    f"font-family: monospace; letter-spacing: 3px; "
+    f"text-shadow: 0 0 20px rgba(0,255,65,0.3);'>"
+    f"{_hours:02d}:{_minutes:02d}:{_seconds:02d}</span>"
+    f"</div>",
     unsafe_allow_html=True,
 )
 
-st.sidebar.caption(
-    "**Gem Detector** - ML para analizar memecoins "
-    "y detectar gems (10x+)."
+st.sidebar.markdown(
+    "<div style='text-align: center; margin: 0 0 8px 0;'>"
+    "<span style='color: #374151; font-size: 0.7rem; font-weight: 600;'>"
+    "Gem Detector</span>"
+    "<span style='color: #1a1a2e;'> &middot; </span>"
+    "<span style='color: #374151; font-size: 0.65rem;'>"
+    "ML para detectar memecoins 10x+</span></div>",
+    unsafe_allow_html=True,
 )
 
-# --- Version footer ---
+# --- Version footer premium ---
 st.sidebar.markdown(
-    "<div style='position: fixed; bottom: 12px; color: #374151; "
-    "font-size: 0.65rem; letter-spacing: 0.5px;'>"
+    "<div style='position: fixed; bottom: 12px; color: #2a2a3e; "
+    "font-size: 0.6rem; letter-spacing: 1px; font-weight: 600;'>"
     "v2.3 &middot; memedetector.es</div>",
     unsafe_allow_html=True,
 )
