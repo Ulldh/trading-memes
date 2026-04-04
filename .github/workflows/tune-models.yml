@@ -151,7 +151,7 @@ jobs:
       # Subir artefactos del tuning (para descarga manual o debugging)
       - name: Upload tuning artifacts
         if: steps.tune.outputs.tuning_done == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tuning-results-${{ github.run_number }}
           path: |
