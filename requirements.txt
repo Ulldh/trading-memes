@@ -19,6 +19,7 @@ seaborn>=0.12
 
 # --- Dashboard ---
 streamlit>=1.28,<2.0
+streamlit-autorefresh>=1.0.1
 
 # --- HTTP & APIs ---
 requests>=2.33.0

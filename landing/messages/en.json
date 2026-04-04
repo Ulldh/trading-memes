@@ -2,7 +2,14 @@
   "meta": {
     "title": "Meme Detector — Spot the Next 10x Memecoin Gems",
     "description": "Machine Learning scans 11,000+ memecoins daily across Solana, Ethereum, and Base to spot the next gems before anyone else.",
-    "keywords": ["memecoin", "gem detector", "crypto", "solana", "machine learning", "trading signals"],
+    "keywords": [
+      "memecoin",
+      "gem detector",
+      "crypto",
+      "solana",
+      "machine learning",
+      "trading signals"
+    ],
     "og_title": "Meme Detector — 10x Memecoin Gems",
     "og_description": "ML scans 11,000+ memecoins daily. AI-powered trading signals.",
     "twitter_title": "Meme Detector — Spot 10x Gems",
@@ -56,25 +63,41 @@
       {
         "title": "DATA",
         "icon": "{ }",
-        "stats": ["11,000+ tokens", "3 blockchains", "11 active APIs"],
+        "stats": [
+          "11,000+ tokens",
+          "3 blockchains",
+          "11 active APIs"
+        ],
         "detail": "We collect data from Solana, Ethereum, and Base every day from 11 different sources."
       },
       {
         "title": "FEATURES",
         "icon": "f(x)",
-        "stats": ["94 characteristics", "Holders, liquidity", "Volume, momentum"],
+        "stats": [
+          "94 characteristics",
+          "Holders, liquidity",
+          "Volume, momentum"
+        ],
         "detail": "Each token is described with 94 numeric variables: holder concentration, LP depth, volume, volatility, and more."
       },
       {
         "title": "MODEL",
         "icon": "ML",
-        "stats": ["RF + XGB + LGB", "ML Ensemble", "STRONG hit rate: 52%"],
+        "stats": [
+          "RF + XGB + LGB",
+          "ML Ensemble",
+          "STRONG hit rate: 52%"
+        ],
         "detail": "Three algorithms vote together. Only signals with consensus pass the filter."
       },
       {
         "title": "SIGNAL",
         "icon": ">>",
-        "stats": ["STRONG / MEDIUM", "Daily at 07:30", "Telegram + Web"],
+        "stats": [
+          "STRONG / MEDIUM",
+          "Daily at 07:30",
+          "Telegram + Web"
+        ],
         "detail": "You receive signals classified by confidence directly on your Telegram."
       }
     ]
@@ -83,14 +106,30 @@
     "section_title": "Numbers that speak",
     "section_subtitle": "Live data pulled from the database in real time",
     "items": [
-      { "label": "tokens analyzed" },
-      { "label": "OHLCV candles" },
-      { "label": "features / token" },
-      { "label": "hit rate" },
-      { "label": "blockchains" },
-      { "label": "daily signals (UTC)" },
-      { "label": "scoring time" },
-      { "label": "monitoring" }
+      {
+        "label": "tokens analyzed"
+      },
+      {
+        "label": "OHLCV candles"
+      },
+      {
+        "label": "features / token"
+      },
+      {
+        "label": "hit rate"
+      },
+      {
+        "label": "blockchains"
+      },
+      {
+        "label": "daily signals (UTC)"
+      },
+      {
+        "label": "scoring time"
+      },
+      {
+        "label": "monitoring"
+      }
     ]
   },
   "backtesting": {
@@ -135,11 +174,26 @@
         "price": "$0",
         "period": "/mo",
         "features": [
-          { "text": "3 signals/day", "included": true },
-          { "text": "Watchlist (3)", "included": true },
-          { "text": "Token search", "included": false },
-          { "text": "Telegram alerts", "included": false },
-          { "text": "Backtesting", "included": false }
+          {
+            "text": "3 signals/day",
+            "included": true
+          },
+          {
+            "text": "Watchlist (3)",
+            "included": true
+          },
+          {
+            "text": "Token search",
+            "included": false
+          },
+          {
+            "text": "Telegram alerts",
+            "included": false
+          },
+          {
+            "text": "Backtesting",
+            "included": false
+          }
         ],
         "cta": "Create account"
       },
@@ -148,12 +202,30 @@
         "price": "$29",
         "period": "/mo",
         "features": [
-          { "text": "All signals", "included": true },
-          { "text": "Token search", "included": true },
-          { "text": "Telegram alerts", "included": true },
-          { "text": "Watchlist (10)", "included": true },
-          { "text": "SHAP analysis", "included": true },
-          { "text": "Track record", "included": true }
+          {
+            "text": "All signals",
+            "included": true
+          },
+          {
+            "text": "Token search",
+            "included": true
+          },
+          {
+            "text": "Telegram alerts",
+            "included": true
+          },
+          {
+            "text": "Watchlist (10)",
+            "included": true
+          },
+          {
+            "text": "SHAP analysis",
+            "included": true
+          },
+          {
+            "text": "Track record",
+            "included": true
+          }
         ],
         "cta": "Get started →"
       },
@@ -162,17 +234,37 @@
         "price": "$99",
         "period": "/mo",
         "features": [
-          { "text": "Everything in Pro", "included": true },
-          { "text": "API access", "included": true },
-          { "text": "Unlimited watchlist", "included": true },
-          { "text": "Priority support", "included": true },
-          { "text": "Data export", "included": true }
+          {
+            "text": "Everything in Pro",
+            "included": true
+          },
+          {
+            "text": "API access",
+            "included": true
+          },
+          {
+            "text": "Unlimited watchlist",
+            "included": true
+          },
+          {
+            "text": "Priority support",
+            "included": true
+          },
+          {
+            "text": "Data export",
+            "included": true
+          }
         ],
         "cta": "Get started →"
       }
     ],
     "email_note": "Use the same email as your Meme Detector account",
-    "pro_anchor": "Less than one bad trade commission"
+    "pro_anchor": "Less than one bad trade commission",
+    "billing_monthly": "Monthly",
+    "billing_annual": "Annual",
+    "billing_toggle_label": "Toggle annual billing",
+    "billing_save": "-20%",
+    "pro_trial_cta": "Start 14-day free trial"
   },
   "faq": {
     "terminal_prompt": "$ man meme-detector",

@@ -38,6 +38,7 @@ from src.features.price_action import compute_price_action_features
 from src.features.social import compute_social_features, compute_temporal_social_features
 from src.features.contract import compute_contract_features, compute_contract_risk_features
 from src.features.market_context import compute_market_context_features
+from src.features.market_regime import compute_market_regime_features
 from src.features.temporal import extract_temporal_features
 from src.features.volatility_advanced import compute_volatility_advanced_features
 from src.features.sentiment import compute_sentiment_features
@@ -336,6 +337,24 @@ class FeatureBuilder:
             modules_ok += 1
         except Exception as e:
             logger.error(f"Error en market_context para {token_id}: {e}")
+            modules_fail += 1
+
+        # ============================================================
+        # 7b. FEATURES DE REGIMEN DE MERCADO (bull/bear/crab)
+        # ============================================================
+        try:
+            # Reutilizamos el cache de precios de mercado del paso 7
+            # para calcular el regimen (no hace queries adicionales)
+            regime = compute_market_regime_features(
+                launch_time=created_at,
+                btc_prices=btc_prices,
+                eth_prices=eth_prices,
+                sol_prices=sol_prices,
+            )
+            all_features.update(regime)
+            modules_ok += 1
+        except Exception as e:
+            logger.error(f"Error en market_regime para {token_id}: {e}")
             modules_fail += 1
 
         # ============================================================

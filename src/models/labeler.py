@@ -213,6 +213,14 @@ class Labeler:
         else:
             return_7d = final_multiple  # fallback si no hay 7 dias exactos
 
+        # --- Paso 5c: Calcular picos multi-horizonte (3d, 7d, 14d, 30d) ---
+        # Estos picos miden el retorno maximo alcanzado en diferentes ventanas
+        # temporales. Son ADICIONALES — no reemplazan la label principal.
+        # Sirven para analisis futuro y modelos multi-horizonte.
+        multi_horizon = self._compute_multi_horizon_peaks(
+            ohlcv_df, initial_price
+        )
+
         # --- Paso 6: Obtener closes diarios para checks de sustain ---
         daily_closes = ohlcv_df["close"].tolist()
 
@@ -248,6 +256,9 @@ class Labeler:
             "final_multiple": round(final_multiple, 4),
             "return_7d": round(return_7d, 4),
             "notes": notes,
+            # Multi-horizonte: picos y labels binarias adicionales
+            # Estos campos son ADICIONALES — no afectan el label principal.
+            **multi_horizon,
         }
 
         # --- Paso 10: Guardar en la base de datos ---
@@ -575,6 +586,78 @@ class Labeler:
                 current_streak = 0
 
         return max_consecutive
+
+    # ============================================================
+    # MULTI-HORIZONTE: Picos en diferentes ventanas temporales
+    # ============================================================
+
+    def _compute_multi_horizon_peaks(
+        self,
+        ohlcv_df: pd.DataFrame,
+        initial_price: float,
+    ) -> dict:
+        """
+        Calcula el pico maximo (max high / precio inicial) en ventanas de 3, 7, 14 y 30 dias.
+
+        Estos valores son ADICIONALES al label principal (que usa 7d).
+        Permiten analisis y modelos multi-horizonte: un token puede ser
+        malo a 3 dias pero gem a 14 dias.
+
+        El peak_7d calculado aqui usa max(high), a diferencia de return_7d
+        que usa close del dia 7. Ambos capturan cosas diferentes:
+        - peak_7d = pico maximo incluyendo wicks en 7 dias
+        - return_7d = precio de cierre exacto del dia 7
+
+        Args:
+            ohlcv_df: DataFrame OHLCV con columnas [high, close], ya limitado
+                a LABEL_WINDOW_DAYS y con columnas convertidas a float.
+            initial_price: Precio close de la primera vela (> 0).
+
+        Returns:
+            Dict con peak_3d, peak_7d, peak_14d, peak_30d,
+            label_binary_14d y label_binary_30d.
+            Los valores son None si no hay datos suficientes para esa ventana.
+        """
+        result = {
+            "peak_3d": None,
+            "peak_7d": None,
+            "peak_14d": None,
+            "peak_30d": None,
+            "label_binary_14d": None,
+            "label_binary_30d": None,
+        }
+
+        if ohlcv_df.empty or initial_price <= 0:
+            return result
+
+        # Calcular pico para cada ventana temporal
+        # peak_Nd = max(high en primeros N dias) / precio_inicial
+        horizons = {
+            "peak_3d": 3,
+            "peak_7d": 7,
+            "peak_14d": 14,
+            "peak_30d": 30,
+        }
+
+        for key, days in horizons.items():
+            if len(ohlcv_df) >= days:
+                # Tomar los primeros N dias
+                window_df = ohlcv_df.head(days)
+                max_high = window_df["high"].max()
+                peak = safe_divide(max_high, initial_price, default=0.0)
+                result[key] = round(peak, 4)
+
+        # Labels binarias adicionales: 1 si el pico >= umbral (2x por defecto)
+        # Usamos LABEL_RETURN_7D_THRESHOLD (2.0) como umbral consistente
+        threshold = LABEL_RETURN_7D_THRESHOLD
+
+        if result["peak_14d"] is not None:
+            result["label_binary_14d"] = 1 if result["peak_14d"] >= threshold else 0
+
+        if result["peak_30d"] is not None:
+            result["label_binary_30d"] = 1 if result["peak_30d"] >= threshold else 0
+
+        return result
 
     # ============================================================
     # DETECCION TEMPRANA DE RUG PULL (M1)

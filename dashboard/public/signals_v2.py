@@ -44,6 +44,9 @@ try:
 except ImportError:
     SIGNAL_THRESHOLDS = {"STRONG": 0.60, "MEDIUM": 0.40, "WEAK": 0.30}
 
+# Numero maximo de senales STRONG para las que se calcula SHAP (costoso)
+_MAX_SHAP_SIGNALS = 5
+
 
 # ============================================================
 # Helpers
@@ -53,6 +56,30 @@ except ImportError:
 def get_storage():
     """Instancia de Storage cacheada (evita reconexion por cada render)."""
     return _get_storage()
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _load_current_prices() -> dict:
+    """Carga precios actuales de los tokens desde la tabla ohlcv mas reciente.
+
+    Devuelve dict {token_id: precio_actual} para calcular P&L.
+    Solo carga tokens que tienen scores recientes para no traer todo.
+    """
+    storage = get_storage()
+    try:
+        # Obtener precio mas reciente de cada token scored
+        df = storage.query(
+            "SELECT DISTINCT ON (o.token_id) o.token_id, o.close as price "
+            "FROM ohlcv o "
+            "INNER JOIN scores s ON s.token_id = o.token_id "
+            "ORDER BY o.token_id, o.timestamp DESC"
+        )
+        if not df.empty:
+            return dict(zip(df["token_id"], df["price"]))
+    except Exception:
+        # Puede fallar si la query DISTINCT ON no es soportada o la tabla no existe
+        pass
+    return {}
 
 
 @st.cache_data(ttl=300)
@@ -225,6 +252,149 @@ def _is_pro_or_admin() -> bool:
 
 
 # ============================================================
+# SHAP per-signal (Pro only) — cacheado para evitar recalculos
+# ============================================================
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _compute_shap_for_token(token_id: str) -> dict:
+    """Calcula SHAP values para un token especifico.
+
+    Carga el modelo y features desde disco/Supabase, calcula SHAP,
+    y devuelve top 5 positivos y top 3 negativos.
+
+    Returns:
+        Dict con 'positive' y 'negative' (listas de dicts con feature, shap_value)
+        o dict vacio si no se puede calcular.
+    """
+    try:
+        import joblib
+        import numpy as np
+        from pathlib import Path
+
+        # Cargar modelo entrenado
+        models_dir = Path(__file__).parent.parent.parent / "data" / "models"
+        model_path = models_dir / "best_model.joblib"
+        if not model_path.exists():
+            return {}
+
+        model = joblib.load(model_path)
+
+        # Cargar features del token desde Supabase
+        storage = get_storage()
+        df_feat = storage.query(
+            "SELECT * FROM features WHERE token_id = ?", (token_id,)
+        )
+        if df_feat.empty:
+            return {}
+
+        # Columnas que NO son features (metadatos)
+        meta_cols = {"token_id", "created_at", "updated_at", "id"}
+        feature_cols = [c for c in df_feat.columns if c not in meta_cols]
+
+        # Filtrar solo columnas numericas que el modelo espera
+        X = df_feat[feature_cols].select_dtypes(include=[np.number])
+        if X.empty or X.shape[1] == 0:
+            return {}
+
+        # Alinear con las features del modelo (por nombre)
+        if hasattr(model, "feature_names_in_"):
+            expected = list(model.feature_names_in_)
+            # Solo usar features que existen en ambos
+            common = [f for f in expected if f in X.columns]
+            if len(common) < len(expected) * 0.5:
+                return {}  # Demasiadas features faltantes
+            # Rellenar faltantes con 0
+            for f in expected:
+                if f not in X.columns:
+                    X[f] = 0.0
+            X = X[expected]
+
+        # Calcular SHAP con TreeExplainer
+        import shap
+        from sklearn.calibration import CalibratedClassifierCV
+        base_model = model
+        if isinstance(model, CalibratedClassifierCV):
+            base_model = model.calibrated_classifiers_[0].estimator
+
+        explainer = shap.TreeExplainer(base_model)
+        shap_values = explainer.shap_values(X)
+
+        # Extraer clase positiva (gem)
+        if isinstance(shap_values, list) and len(shap_values) == 2:
+            shap_vals = shap_values[1][0]
+        elif isinstance(shap_values, np.ndarray):
+            if shap_values.ndim == 3 and shap_values.shape[2] == 2:
+                shap_vals = shap_values[0, :, 1]
+            else:
+                shap_vals = shap_values[0]
+        else:
+            return {}
+
+        # Crear ranking de contribuciones
+        contributions = sorted(
+            zip(X.columns.tolist(), shap_vals.tolist()),
+            key=lambda x: abs(x[1]),
+            reverse=True,
+        )
+
+        positive = [
+            {"feature": f, "shap_value": round(v, 4)}
+            for f, v in contributions if v > 0
+        ][:5]
+        negative = [
+            {"feature": f, "shap_value": round(v, 4)}
+            for f, v in contributions if v < 0
+        ][:3]
+
+        return {"positive": positive, "negative": negative}
+
+    except Exception:
+        return {}
+
+
+def _render_shap_inline(token_id: str):
+    """Renderiza la explicacion SHAP inline debajo de una signal card Pro."""
+    shap_data = _compute_shap_for_token(token_id)
+    if not shap_data or (not shap_data.get("positive") and not shap_data.get("negative")):
+        return
+
+    lines = []
+    for item in shap_data.get("positive", []):
+        feat = item["feature"].replace("_", " ")
+        val = item["shap_value"]
+        lines.append(
+            f"<div style='padding: 2px 0;'>"
+            f"<span style='color: {ACCENT};'>&#8593;</span> "
+            f"<span style='color: #e0e0e0; font-size: 0.8rem;'>{feat}</span>"
+            f"<span style='color: {ACCENT}; font-weight: 600; margin-left: 6px;'>"
+            f"+{val:.3f}</span></div>"
+        )
+    for item in shap_data.get("negative", []):
+        feat = item["feature"].replace("_", " ")
+        val = item["shap_value"]
+        lines.append(
+            f"<div style='padding: 2px 0;'>"
+            f"<span style='color: #ef4444;'>&#8595;</span> "
+            f"<span style='color: #e0e0e0; font-size: 0.8rem;'>{feat}</span>"
+            f"<span style='color: #ef4444; font-weight: 600; margin-left: 6px;'>"
+            f"{val:.3f}</span></div>"
+        )
+
+    content = "".join(lines)
+    st.markdown(
+        f"<div style='background: rgba(0,255,65,0.02); "
+        f"border: 1px solid rgba(0,255,65,0.06); border-radius: 10px; "
+        f"padding: 10px 16px; margin: -8px 0 12px 0;'>"
+        f"<div style='color: {TEXT_MUTED}; font-size: 0.7rem; "
+        f"text-transform: uppercase; letter-spacing: 1px; font-weight: 600; "
+        f"margin-bottom: 4px;'>"
+        f"{t('pro.shap_why', 'Por que esta senal?')}</div>"
+        f"{content}</div>",
+        unsafe_allow_html=True,
+    )
+
+
+# ============================================================
 # Plotly layout premium
 # ============================================================
 
@@ -247,17 +417,42 @@ def render():
     """Senales del dia — pagina principal del producto."""
 
     # Header premium con indicador de estado
-    st.markdown(
-        f"<div style='display: flex; align-items: center; gap: 10px; "
-        f"margin-bottom: 4px;'>"
-        f"<div style='width: 8px; height: 8px; border-radius: 50%; "
-        f"background: {ACCENT}; box-shadow: 0 0 10px {ACCENT}60;'></div>"
-        f"<h2 style='margin: 0; font-weight: 800; letter-spacing: -0.5px;'>"
-        f"<span style='color: {ACCENT}; text-shadow: 0 0 20px rgba(0,255,65,0.2);'>"
-        f"Senales</span> del Dia</h2>"
-        f"</div>",
-        unsafe_allow_html=True,
-    )
+    col_header, col_refresh = st.columns([4, 1])
+    with col_header:
+        st.markdown(
+            f"<div style='display: flex; align-items: center; gap: 10px; "
+            f"margin-bottom: 4px;'>"
+            f"<div style='width: 8px; height: 8px; border-radius: 50%; "
+            f"background: {ACCENT}; box-shadow: 0 0 10px {ACCENT}60;'></div>"
+            f"<h2 style='margin: 0; font-weight: 800; letter-spacing: -0.5px;'>"
+            f"<span style='color: {ACCENT}; text-shadow: 0 0 20px rgba(0,255,65,0.2);'>"
+            f"Senales</span> del Dia</h2>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+    # Auto-refresh toggle (Pro feature)
+    with col_refresh:
+        if "auto_refresh" not in st.session_state:
+            st.session_state.auto_refresh = False
+        st.session_state.auto_refresh = st.toggle(
+            "Auto-refresh",
+            value=st.session_state.auto_refresh,
+            help=t("pro.auto_refresh_help",
+                    "Actualiza las senales automaticamente cada 60 segundos."),
+        )
+
+    if st.session_state.auto_refresh:
+        # Usar streamlit-autorefresh si esta disponible, sino meta refresh
+        try:
+            from streamlit_autorefresh import st_autorefresh
+            st_autorefresh(interval=60000, key="signals_refresh")
+        except ImportError:
+            st.markdown(
+                '<meta http-equiv="refresh" content="60">',
+                unsafe_allow_html=True,
+            )
+
     st.caption(
         t("pro.signals_subtitle",
           "Tokens con mayor probabilidad de ser gems, detectados por nuestro modelo ML. "
@@ -546,10 +741,21 @@ def _render_basic_signals_table(df_filtered: pd.DataFrame):
 
 
 def _render_pro_signal_cards(df_filtered: pd.DataFrame):
-    """Vista Pro: cada senal como trading card premium con indicadores de confianza."""
+    """Vista Pro: cada senal como trading card premium con indicadores de confianza.
+
+    Incluye:
+    - SHAP inline para las primeras _MAX_SHAP_SIGNALS senales STRONG (Pro only)
+    - P&L estimado desde la senal (Pro only)
+    """
 
     # Cargar labels peligrosos para mostrar rug badges
     rug_labels = _load_rug_labels()
+
+    # Cargar precios actuales para P&L (cacheado)
+    current_prices = _load_current_prices()
+
+    # Contador de SHAP renderizados (limitar a _MAX_SHAP_SIGNALS)
+    shap_count = 0
 
     for idx, row in df_filtered.iterrows():
         name = row.get("name", "")
@@ -562,6 +768,7 @@ def _render_pro_signal_cards(df_filtered: pd.DataFrame):
         first_seen = row.get("first_seen", None)
         scored_at = row.get("scored_at", None)
         market_cap = row.get("market_cap", None)
+        token_id = row.get("token_id", "")
 
         # Colores y badges
         conf_badge = _confidence_badge(probability)
@@ -579,6 +786,22 @@ def _render_pro_signal_cards(df_filtered: pd.DataFrame):
                 mc_str = f"${market_cap / 1_000:.0f}K"
             else:
                 mc_str = f"${market_cap:,.0f}"
+
+        # P&L desde la senal (Pro feature)
+        pnl_html = ""
+        signal_price = row.get("price_at_score", None) or row.get("price_usd", None)
+        current_price = current_prices.get(token_id)
+        if signal_price and current_price and signal_price > 0:
+            pnl = (current_price - signal_price) / signal_price * 100
+            pnl_color = "#00ff41" if pnl > 0 else "#ef4444"
+            pnl_text = f"+{pnl:.1f}%" if pnl > 0 else f"{pnl:.1f}%"
+            pnl_html = (
+                f"<span style='color: {pnl_color}; font-weight: 700; "
+                f"font-size: 0.8rem; margin-left: 8px; "
+                f"padding: 2px 8px; border-radius: 6px; "
+                f"background: {pnl_color}10; border: 1px solid {pnl_color}20;'>"
+                f"P&amp;L: {pnl_text}</span>"
+            )
 
         # Links con estilo premium
         dex_link = ""
@@ -620,9 +843,11 @@ def _render_pro_signal_cards(df_filtered: pd.DataFrame):
         meta_html = " &middot; ".join(meta_parts)
 
         # Badge de rug/pump_and_dump si aplica
-        token_id = row.get("token_id", "")
         token_rug_label = rug_labels.get(token_id, "")
         rug_html = rug_badge_html(token_rug_label) if token_rug_label else ""
+
+        # Anadir P&L al extra_badges
+        extra_badges = rug_html + pnl_html
 
         # Renderizar trading card premium
         st.markdown(
@@ -638,10 +863,15 @@ def _render_pro_signal_cards(df_filtered: pd.DataFrame):
                 conf_badge=conf_badge,
                 conf_color=conf_color,
                 mc_str=mc_str,
-                extra_badges=rug_html,
+                extra_badges=extra_badges,
             ),
             unsafe_allow_html=True,
         )
+
+        # SHAP inline para senales STRONG (solo primeras _MAX_SHAP_SIGNALS)
+        if signal == "STRONG" and shap_count < _MAX_SHAP_SIGNALS and token_id:
+            _render_shap_inline(token_id)
+            shap_count += 1
 
 
 def _render_export_csv(df: pd.DataFrame):

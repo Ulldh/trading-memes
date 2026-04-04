@@ -1,8 +1,15 @@
 {
   "meta": {
-    "title": "Meme Detector — Detecte as pr\u00f3ximas gems 10x em memecoins",
-    "description": "Machine Learning analisa +11.000 memecoins diariamente em Solana, Ethereum e Base para detectar as pr\u00f3ximas gems antes de todo mundo.",
-    "keywords": ["memecoin", "gem detector", "crypto", "solana", "machine learning", "trading signals"],
+    "title": "Meme Detector — Detecte as próximas gems 10x em memecoins",
+    "description": "Machine Learning analisa +11.000 memecoins diariamente em Solana, Ethereum e Base para detectar as próximas gems antes de todo mundo.",
+    "keywords": [
+      "memecoin",
+      "gem detector",
+      "crypto",
+      "solana",
+      "machine learning",
+      "trading signals"
+    ],
     "og_title": "Meme Detector — Gems 10x em Memecoins",
     "og_description": "ML analisa +11.000 memecoins diariamente. Sinais de trading com IA.",
     "twitter_title": "Meme Detector — Detecte Gems 10x",
@@ -10,8 +17,8 @@
   },
   "nav": {
     "brand": "MEME DETECTOR",
-    "pipeline": "A M\u00e1quina",
-    "stats": "N\u00fameros",
+    "pipeline": "A Máquina",
+    "stats": "Números",
     "backtesting": "Backtesting",
     "pricing": "Planos",
     "faq": "FAQ",
@@ -29,8 +36,8 @@
     "subtitle_suffix": "memecoins diariamente em Solana, Ethereum e Base",
     "stat_gems": "gems detectados",
     "stat_hit_rate": "hit rate Top-20",
-    "stat_vs_random": "vs aleat\u00f3rio",
-    "cta_signup": "Criar conta gr\u00e1tis \u2192",
+    "stat_vs_random": "vs aleatório",
+    "cta_signup": "Criar conta grátis →",
     "cta_login": "Entrar",
     "status_label": "STATUS:",
     "status_value": "ONLINE",
@@ -40,7 +47,7 @@
     "f1_value": "0.914",
     "precision_label": "RECALL:",
     "precision_value": "69%",
-    "disclaimer_text": "Ferramenta de an\u00e1lise de dados. N\u00e3o \u00e9 assessoria financeira.",
+    "disclaimer_text": "Ferramenta de análise de dados. Não é assessoria financeira.",
     "disclaimer_link": "Ver aviso legal completo"
   },
   "ticker": {
@@ -49,59 +56,91 @@
   },
   "pipeline": {
     "section_title": "Como detectamos as gems",
-    "section_badge": "A M\u00e1quina",
-    "section_subtitle": "De dados brutos a sinais acion\u00e1veis",
+    "section_badge": "A Máquina",
+    "section_subtitle": "De dados brutos a sinais acionáveis",
     "cta_text": "Receba os sinais de hoje",
     "steps": [
       {
         "title": "DADOS",
         "icon": "{ }",
-        "stats": ["11.000+ tokens", "3 blockchains", "11 APIs ativas"],
+        "stats": [
+          "11.000+ tokens",
+          "3 blockchains",
+          "11 APIs ativas"
+        ],
         "detail": "Coletamos dados de Solana, Ethereum e Base todos os dias a partir de 11 fontes diferentes."
       },
       {
         "title": "FEATURES",
         "icon": "f(x)",
-        "stats": ["94 caracter\u00edsticas", "Holders, liquidez", "Volume, momentum"],
-        "detail": "Cada token \u00e9 descrito com 94 vari\u00e1veis num\u00e9ricas: concentra\u00e7\u00e3o de holders, profundidade de LP, volume, volatilidade e mais."
+        "stats": [
+          "94 características",
+          "Holders, liquidez",
+          "Volume, momentum"
+        ],
+        "detail": "Cada token é descrito com 94 variáveis numéricas: concentração de holders, profundidade de LP, volume, volatilidade e mais."
       },
       {
         "title": "MODELO",
         "icon": "ML",
-        "stats": ["RF + XGB + LGB", "Ensemble ML", "STRONG hit rate: 52%"],
-        "detail": "Tr\u00eas algoritmos votam em conjunto. Apenas os sinais com consenso passam pelo filtro."
+        "stats": [
+          "RF + XGB + LGB",
+          "Ensemble ML",
+          "STRONG hit rate: 52%"
+        ],
+        "detail": "Três algoritmos votam em conjunto. Apenas os sinais com consenso passam pelo filtro."
       },
       {
         "title": "SINAL",
         "icon": ">>",
-        "stats": ["STRONG / MEDIUM", "Todo dia 07:30", "Telegram + Web"],
-        "detail": "Voc\u00ea recebe o sinal classificado por confian\u00e7a diretamente no seu Telegram."
+        "stats": [
+          "STRONG / MEDIUM",
+          "Todo dia 07:30",
+          "Telegram + Web"
+        ],
+        "detail": "Você recebe o sinal classificado por confiança diretamente no seu Telegram."
       }
     ]
   },
   "stats": {
-    "section_title": "N\u00fameros que falam",
+    "section_title": "Números que falam",
     "section_subtitle": "Dados em tempo real direto do banco de dados",
     "items": [
-      { "label": "tokens analisados" },
-      { "label": "candles OHLCV" },
-      { "label": "features / token" },
-      { "label": "hit rate" },
-      { "label": "blockchains" },
-      { "label": "sinais di\u00e1rios (UTC)" },
-      { "label": "scoring time" },
-      { "label": "monitoramento" }
+      {
+        "label": "tokens analisados"
+      },
+      {
+        "label": "candles OHLCV"
+      },
+      {
+        "label": "features / token"
+      },
+      {
+        "label": "hit rate"
+      },
+      {
+        "label": "blockchains"
+      },
+      {
+        "label": "sinais diários (UTC)"
+      },
+      {
+        "label": "scoring time"
+      },
+      {
+        "label": "monitoramento"
+      }
     ]
   },
   "backtesting": {
-    "section_title": "Simulador de Estrat\u00e9gia",
-    "simulation_badge": "SIMULA\u00c7\u00c3O",
+    "section_title": "Simulador de Estratégia",
+    "simulation_badge": "SIMULAÇÃO",
     "section_subtitle": "Baseado em dados reais do modelo atual: STRONG gem rate 52%, win rate 71% (2x+). Não é desempenho passado real.",
     "investment_label": "Investimento inicial",
-    "period_label": "Per\u00edodo",
-    "strategy_label": "Estrat\u00e9gia",
+    "period_label": "Período",
+    "strategy_label": "Estratégia",
     "period_options": {
-      "1m": "1 m\u00eas",
+      "1m": "1 mês",
       "3m": "3 meses",
       "6m": "6 meses"
     },
@@ -121,10 +160,10 @@
     "chart_ref_label": "Investimento",
     "tooltip_day": "Dia",
     "transparency_note": "Esta simulação usa dados reais do modelo atual: STRONG 52% gem rate (mediana 3.71x), STRONG+MEDIUM 25% gem rate, win rates baseados em tokens que atingem 2x+. Não representa desempenho real passado.",
-    "track_record_note": "Track record real dispon\u00edvel no dashboard.",
-    "track_record_link": "Ver hist\u00f3rico \u2192",
-    "disclaimer": "AVISO: Simula\u00e7\u00e3o estimada baseada nas m\u00e9tricas do modelo atual. Track record verific\u00e1vel com dados reais dispon\u00edvel em breve (estamos acumulando dados desde mar\u00e7o de 2026). Desempenho passado n\u00e3o garante resultados futuros.",
-    "start_label": "In\u00edcio"
+    "track_record_note": "Track record real disponível no dashboard.",
+    "track_record_link": "Ver histórico →",
+    "disclaimer": "AVISO: Simulação estimada baseada nas métricas do modelo atual. Track record verificável com dados reais disponível em breve (estamos acumulando dados desde março de 2026). Desempenho passado não garante resultados futuros.",
+    "start_label": "Início"
   },
   "pricing": {
     "terminal_prompt": "$ cat /plans",
@@ -133,107 +172,160 @@
       {
         "name": "FREE",
         "price": "$0",
-        "period": "/m\u00eas",
+        "period": "/mês",
         "features": [
-          { "text": "3 sinais/dia", "included": true },
-          { "text": "Watchlist (3)", "included": true },
-          { "text": "Token search", "included": false },
-          { "text": "Telegram alerts", "included": false },
-          { "text": "Backtesting", "included": false }
+          {
+            "text": "3 sinais/dia",
+            "included": true
+          },
+          {
+            "text": "Watchlist (3)",
+            "included": true
+          },
+          {
+            "text": "Token search",
+            "included": false
+          },
+          {
+            "text": "Telegram alerts",
+            "included": false
+          },
+          {
+            "text": "Backtesting",
+            "included": false
+          }
         ],
         "cta": "Criar conta"
       },
       {
         "name": "PRO",
         "price": "$29",
-        "period": "/m\u00eas",
+        "period": "/mês",
         "features": [
-          { "text": "Todos os sinais", "included": true },
-          { "text": "Token search", "included": true },
-          { "text": "Telegram alerts", "included": true },
-          { "text": "Watchlist (10)", "included": true },
-          { "text": "SHAP analysis", "included": true },
-          { "text": "Track record", "included": true }
+          {
+            "text": "Todos os sinais",
+            "included": true
+          },
+          {
+            "text": "Token search",
+            "included": true
+          },
+          {
+            "text": "Telegram alerts",
+            "included": true
+          },
+          {
+            "text": "Watchlist (10)",
+            "included": true
+          },
+          {
+            "text": "SHAP analysis",
+            "included": true
+          },
+          {
+            "text": "Track record",
+            "included": true
+          }
         ],
-        "cta": "Come\u00e7ar \u2192"
+        "cta": "Começar →"
       },
       {
         "name": "ENTERPRISE",
         "price": "$99",
-        "period": "/m\u00eas",
+        "period": "/mês",
         "features": [
-          { "text": "Tudo do Pro", "included": true },
-          { "text": "API access", "included": true },
-          { "text": "Watchlist \u221e", "included": true },
-          { "text": "Suporte priorit\u00e1rio", "included": true },
-          { "text": "Exporta\u00e7\u00e3o de dados", "included": true }
+          {
+            "text": "Tudo do Pro",
+            "included": true
+          },
+          {
+            "text": "API access",
+            "included": true
+          },
+          {
+            "text": "Watchlist ∞",
+            "included": true
+          },
+          {
+            "text": "Suporte prioritário",
+            "included": true
+          },
+          {
+            "text": "Exportação de dados",
+            "included": true
+          }
         ],
-        "cta": "Come\u00e7ar \u2192"
+        "cta": "Começar →"
       }
     ],
     "email_note": "Use o mesmo email da sua conta Meme Detector",
-    "pro_anchor": "Menos que uma comiss\u00e3o de um trade ruim"
+    "pro_anchor": "Menos que uma comissão de um trade ruim",
+    "billing_monthly": "Mensal",
+    "billing_annual": "Anual",
+    "billing_toggle_label": "Alternar faturamento anual",
+    "billing_save": "-20%",
+    "pro_trial_cta": "Teste grátis 14 dias"
   },
   "faq": {
     "terminal_prompt": "$ man meme-detector",
     "section_title": "Perguntas frequentes",
     "items": [
       {
-        "question": "O que \u00e9 um gem?",
-        "answer": "Um token que sobe 10x ou mais desde o pre\u00e7o inicial. Nosso modelo classifica tokens em 5 categorias: rug (perda total), loss (>50% de queda), neutral, winner (2-10x) e gem (10x+)."
+        "question": "O que é um gem?",
+        "answer": "Um token que sobe 10x ou mais desde o preço inicial. Nosso modelo classifica tokens em 5 categorias: rug (perda total), loss (>50% de queda), neutral, winner (2-10x) e gem (10x+)."
       },
       {
-        "question": "Por que n\u00e3o \u00e9 gr\u00e1tis?",
-        "answer": "Bots de Telegram gratuitos usam alertas baseados em volume ou men\u00e7\u00f5es. Nosso modelo analisa 22 vari\u00e1veis por token, incluindo concentra\u00e7\u00e3o de holders, profundidade de liquidez e momentum. Essa diferen\u00e7a \u00e9 a raz\u00e3o pela qual 52% dos nossos sinais STRONG s\u00e3o gems reais."
+        "question": "Por que não é grátis?",
+        "answer": "Bots de Telegram gratuitos usam alertas baseados em volume ou menções. Nosso modelo analisa 22 variáveis por token, incluindo concentração de holders, profundidade de liquidez e momentum. Essa diferença é a razão pela qual 52% dos nossos sinais STRONG são gems reais."
       },
       {
         "question": "Como funciona o modelo de ML?",
-        "answer": "Ensemble de Random Forest + XGBoost. Treinado com 22 features extra\u00eddas de mais de 11.000 tokens. M\u00e9tricas atuais: AUC 0,914, Recall 69%. O modelo analisa tokenomics, liquidez, price action, concentra\u00e7\u00e3o de holders e contexto de mercado."
+        "answer": "Ensemble de Random Forest + XGBoost. Treinado com 22 features extraídas de mais de 11.000 tokens. Métricas atuais: AUC 0,914, Recall 69%. O modelo analisa tokenomics, liquidez, price action, concentração de holders e contexto de mercado."
       },
       {
-        "question": "Quais blockchains s\u00e3o suportadas?",
-        "answer": "Solana, Ethereum e Base. Dados coletados do GeckoTerminal (pre\u00e7o/volume), DexScreener (buyers/sellers), Helius RPC (holders Solana), Etherscan (verifica\u00e7\u00e3o de contratos) e Birdeye (dados complementares)."
+        "question": "Quais blockchains são suportadas?",
+        "answer": "Solana, Ethereum e Base. Dados coletados do GeckoTerminal (preço/volume), DexScreener (buyers/sellers), Helius RPC (holders Solana), Etherscan (verificação de contratos) e Birdeye (dados complementares)."
       },
       {
         "question": "Posso cancelar a qualquer momento?",
-        "answer": "Sim. Sem perman\u00eancia nem compromisso. Cancele pelo seu perfil ou diretamente pelo portal do Stripe. Seu acesso continua at\u00e9 o final do per\u00edodo faturado."
+        "answer": "Sim. Sem permanência nem compromisso. Cancele pelo seu perfil ou diretamente pelo portal do Stripe. Seu acesso continua até o final do período faturado."
       },
       {
         "question": "Posso perder dinheiro?",
-        "answer": "Sim. Memecoins s\u00e3o extremamente vol\u00e1teis. Nosso modelo tem um Recall de 69% \u2014 detecta a maioria das gems reais, mas nem todo sinal vira uma gem. Isto N\u00c3O \u00e9 conselho financeiro. DYOR (Do Your Own Research). Nunca invista mais do que pode se dar ao luxo de perder."
+        "answer": "Sim. Memecoins são extremamente voláteis. Nosso modelo tem um Recall de 69% — detecta a maioria das gems reais, mas nem todo sinal vira uma gem. Isto NÃO é conselho financeiro. DYOR (Do Your Own Research). Nunca invista mais do que pode se dar ao luxo de perder."
       },
       {
-        "question": "Quais dados voc\u00eas coletam?",
-        "answer": "E-mail e Telegram ID (opcional para alertas). N\u00e3o vendemos dados a terceiros. Conformidade total com LGPD/RGPD. Voc\u00ea pode solicitar a exclus\u00e3o dos seus dados a qualquer momento. Veja nossa Pol\u00edtica de Privacidade."
+        "question": "Quais dados vocês coletam?",
+        "answer": "E-mail e Telegram ID (opcional para alertas). Não vendemos dados a terceiros. Conformidade total com LGPD/RGPD. Você pode solicitar a exclusão dos seus dados a qualquer momento. Veja nossa Política de Privacidade."
       }
     ]
   },
   "countdown": {
-    "next_scan": "Pr\u00f3ximo scan em",
+    "next_scan": "Próximo scan em",
     "running": "Escaneando agora..."
   },
   "changelog": {
-    "title": "Evolu\u00e7\u00e3o do Modelo",
-    "subtitle": "Cada vers\u00e3o aprende com mais dados e melhora sua precis\u00e3o",
+    "title": "Evolução do Modelo",
+    "subtitle": "Cada versão aprende com mais dados e melhora sua precisão",
     "gems": "gems",
     "features": "features",
-    "current": "Produ\u00e7\u00e3o"
+    "current": "Produção"
   },
   "social_proof": {
     "stat_signals": "sinais emitidos",
     "stat_gems": "gems detectados",
     "stat_tokens": "tokens analisados",
-    "stat_since": "em produ\u00e7\u00e3o",
+    "stat_since": "em produção",
     "stat_since_value": "Mar 2026",
-    "tagline": "Dados reais. Sem simula\u00e7\u00f5es."
+    "tagline": "Dados reais. Sem simulações."
   },
   "final_cta": {
-    "headline": "Quantas gems voc\u00ea vai continuar vendo de fora?",
-    "cta_button": "Criar conta gr\u00e1tis \u2192",
-    "subtext": "Sem cart\u00e3o de cr\u00e9dito. Cancele quando quiser."
+    "headline": "Quantas gems você vai continuar vendo de fora?",
+    "cta_button": "Criar conta grátis →",
+    "subtext": "Sem cartão de crédito. Cancele quando quiser."
   },
   "footer": {
-    "disclaimer": "Meme Detector \u00e9 uma ferramenta de an\u00e1lise automatizada. N\u00e3o constitui assessoria financeira. Memecoins s\u00e3o ativos altamente especulativos e voc\u00ea pode perder a totalidade do seu investimento. DYOR.",
+    "disclaimer": "Meme Detector é uma ferramenta de análise automatizada. Não constitui assessoria financeira. Memecoins são ativos altamente especulativos e você pode perder a totalidade do seu investimento. DYOR.",
     "brand": "Meme Detector",
     "link_disclaimer": "Disclaimer",
     "link_legal": "Legal",

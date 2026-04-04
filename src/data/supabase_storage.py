@@ -556,6 +556,8 @@ class SupabaseStorage:
         Inserta o actualiza un label para un token.
 
         Soporta campos nuevos de tier (M2): tier y tier_numeric.
+        Soporta campos multi-horizonte: peak_3d, peak_7d, peak_14d, peak_30d,
+        label_binary_14d, label_binary_30d.
         Los campos None se filtran para no sobreescribir valores existentes
         en un upsert parcial (ej: actualizar solo tier sin borrar label_multi).
         """
@@ -570,6 +572,13 @@ class SupabaseStorage:
             # Campos de tier (M2) — se agregan si existen en el dict
             "tier": label.get("tier"),
             "tier_numeric": label.get("tier_numeric"),
+            # Campos multi-horizonte — picos en diferentes ventanas temporales
+            "peak_3d": label.get("peak_3d"),
+            "peak_7d": label.get("peak_7d"),
+            "peak_14d": label.get("peak_14d"),
+            "peak_30d": label.get("peak_30d"),
+            "label_binary_14d": label.get("label_binary_14d"),
+            "label_binary_30d": label.get("label_binary_30d"),
         }
         # Filtrar None para preservar valores existentes en ON CONFLICT
         # (permite upserts parciales: solo tier, o solo label_multi, etc.)

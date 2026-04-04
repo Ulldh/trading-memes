@@ -1,19 +1,26 @@
 {
   "meta": {
-    "title": "Meme Detector — Erkennen Sie die n\u00e4chsten 10x Gems bei Memecoins",
-    "description": "Machine Learning analysiert t\u00e4glich \u00fcber 11.000 Memecoins auf Solana, Ethereum und Base, um die n\u00e4chsten Gems vor allen anderen zu erkennen.",
-    "keywords": ["memecoin", "gem detector", "crypto", "solana", "machine learning", "trading signals"],
+    "title": "Meme Detector — Erkennen Sie die nächsten 10x Gems bei Memecoins",
+    "description": "Machine Learning analysiert täglich über 11.000 Memecoins auf Solana, Ethereum und Base, um die nächsten Gems vor allen anderen zu erkennen.",
+    "keywords": [
+      "memecoin",
+      "gem detector",
+      "crypto",
+      "solana",
+      "machine learning",
+      "trading signals"
+    ],
     "og_title": "Meme Detector — 10x Gems bei Memecoins",
-    "og_description": "ML analysiert t\u00e4glich \u00fcber 11.000 Memecoins. Trading-Signale mit KI.",
+    "og_description": "ML analysiert täglich über 11.000 Memecoins. Trading-Signale mit KI.",
     "twitter_title": "Meme Detector — Erkennen Sie 10x Gems",
-    "twitter_description": "ML analysiert t\u00e4glich \u00fcber 11.000 Memecoins."
+    "twitter_description": "ML analysiert täglich über 11.000 Memecoins."
   },
   "nav": {
     "brand": "MEME DETECTOR",
     "pipeline": "Die Maschine",
     "stats": "Zahlen",
     "backtesting": "Backtesting",
-    "pricing": "Pl\u00e4ne",
+    "pricing": "Pläne",
     "faq": "FAQ",
     "academy": "Akademie",
     "disclaimer": "Haftungsausschluss",
@@ -26,11 +33,11 @@
     "title_highlight": "Gems",
     "title_line2": "vor allen anderen",
     "subtitle_prefix": "Machine Learning analysiert",
-    "subtitle_suffix": "Memecoins t\u00e4glich auf Solana, Ethereum und Base",
+    "subtitle_suffix": "Memecoins täglich auf Solana, Ethereum und Base",
     "stat_gems": "Gems erkannt",
     "stat_hit_rate": "Hit Rate Top-20",
     "stat_vs_random": "vs. Zufall",
-    "cta_signup": "Kostenloses Konto erstellen \u2192",
+    "cta_signup": "Kostenloses Konto erstellen →",
     "cta_login": "Anmelden",
     "status_label": "STATUS:",
     "status_value": "ONLINE",
@@ -41,7 +48,7 @@
     "precision_label": "RECALL:",
     "precision_value": "69%",
     "disclaimer_text": "Datenanalyse-Tool. Keine Finanzberatung.",
-    "disclaimer_link": "Vollst\u00e4ndigen Haftungsausschluss lesen"
+    "disclaimer_link": "Vollständigen Haftungsausschluss lesen"
   },
   "ticker": {
     "demo_label": "DEMO",
@@ -56,25 +63,41 @@
       {
         "title": "DATEN",
         "icon": "{ }",
-        "stats": ["11.000+ Tokens", "3 Blockchains", "11 aktive APIs"],
-        "detail": "Wir sammeln t\u00e4glich Daten von Solana, Ethereum und Base aus 11 verschiedenen Quellen."
+        "stats": [
+          "11.000+ Tokens",
+          "3 Blockchains",
+          "11 aktive APIs"
+        ],
+        "detail": "Wir sammeln täglich Daten von Solana, Ethereum und Base aus 11 verschiedenen Quellen."
       },
       {
         "title": "FEATURES",
         "icon": "f(x)",
-        "stats": ["94 Merkmale", "Holder, Liquidit\u00e4t", "Volumen, Momentum"],
-        "detail": "Jeder Token wird mit 94 numerischen Variablen beschrieben: Holder-Konzentration, LP-Tiefe, Volumen, Volatilit\u00e4t und mehr."
+        "stats": [
+          "94 Merkmale",
+          "Holder, Liquidität",
+          "Volumen, Momentum"
+        ],
+        "detail": "Jeder Token wird mit 94 numerischen Variablen beschrieben: Holder-Konzentration, LP-Tiefe, Volumen, Volatilität und mehr."
       },
       {
         "title": "MODELL",
         "icon": "ML",
-        "stats": ["RF + XGB + LGB", "Ensemble ML", "STRONG Hit Rate: 52%"],
+        "stats": [
+          "RF + XGB + LGB",
+          "Ensemble ML",
+          "STRONG Hit Rate: 52%"
+        ],
         "detail": "Drei Algorithmen stimmen gemeinsam ab. Nur Signale mit Konsens bestehen den Filter."
       },
       {
         "title": "SIGNAL",
         "icon": ">>",
-        "stats": ["STRONG / MEDIUM", "T\u00e4glich um 07:30", "Telegram + Web"],
+        "stats": [
+          "STRONG / MEDIUM",
+          "Täglich um 07:30",
+          "Telegram + Web"
+        ],
         "detail": "Sie erhalten das nach Konfidenz klassifizierte Signal direkt in Ihrem Telegram."
       }
     ]
@@ -83,14 +106,30 @@
     "section_title": "Zahlen, die sprechen",
     "section_subtitle": "Live-Daten direkt aus der Datenbank",
     "items": [
-      { "label": "analysierte Tokens" },
-      { "label": "OHLCV-Kerzen" },
-      { "label": "Features / Token" },
-      { "label": "Hit Rate" },
-      { "label": "Blockchains" },
-      { "label": "t\u00e4gliche Signale (UTC)" },
-      { "label": "Scoring-Zeit" },
-      { "label": "\u00dcberwachung" }
+      {
+        "label": "analysierte Tokens"
+      },
+      {
+        "label": "OHLCV-Kerzen"
+      },
+      {
+        "label": "Features / Token"
+      },
+      {
+        "label": "Hit Rate"
+      },
+      {
+        "label": "Blockchains"
+      },
+      {
+        "label": "tägliche Signale (UTC)"
+      },
+      {
+        "label": "Scoring-Zeit"
+      },
+      {
+        "label": "Überwachung"
+      }
     ]
   },
   "backtesting": {
@@ -121,9 +160,9 @@
     "chart_ref_label": "Investition",
     "tooltip_day": "Tag",
     "transparency_note": "Diese Simulation verwendet reale aktuellen Modelldaten: STRONG 52% Gem Rate (Median 3.71x), STRONG+MEDIUM 25% Gem Rate, Win Rates basierend auf Tokens, die 2x+ erreichen. Keine tatsächliche vergangene Performance.",
-    "track_record_note": "Echter Track Record im Dashboard verf\u00fcgbar.",
-    "track_record_link": "Verlauf ansehen \u2192",
-    "disclaimer": "HINWEIS: Gesch\u00e4tzte Simulation basierend auf den Metriken des aktuellen Modells. Nachweisbarer Track Record mit realen Daten demn\u00e4chst verf\u00fcgbar (wir sammeln Daten seit M\u00e4rz 2026). Vergangene Renditen garantieren keine zuk\u00fcnftigen Ergebnisse.",
+    "track_record_note": "Echter Track Record im Dashboard verfügbar.",
+    "track_record_link": "Verlauf ansehen →",
+    "disclaimer": "HINWEIS: Geschätzte Simulation basierend auf den Metriken des aktuellen Modells. Nachweisbarer Track Record mit realen Daten demnächst verfügbar (wir sammeln Daten seit März 2026). Vergangene Renditen garantieren keine zukünftigen Ergebnisse.",
     "start_label": "Start"
   },
   "pricing": {
@@ -135,11 +174,26 @@
         "price": "$0",
         "period": "/Monat",
         "features": [
-          { "text": "3 Signale/Tag", "included": true },
-          { "text": "Watchlist (3)", "included": true },
-          { "text": "Token-Suche", "included": false },
-          { "text": "Telegram-Benachrichtigungen", "included": false },
-          { "text": "Backtesting", "included": false }
+          {
+            "text": "3 Signale/Tag",
+            "included": true
+          },
+          {
+            "text": "Watchlist (3)",
+            "included": true
+          },
+          {
+            "text": "Token-Suche",
+            "included": false
+          },
+          {
+            "text": "Telegram-Benachrichtigungen",
+            "included": false
+          },
+          {
+            "text": "Backtesting",
+            "included": false
+          }
         ],
         "cta": "Konto erstellen"
       },
@@ -148,69 +202,107 @@
         "price": "$29",
         "period": "/Monat",
         "features": [
-          { "text": "Alle Signale", "included": true },
-          { "text": "Token-Suche", "included": true },
-          { "text": "Telegram-Benachrichtigungen", "included": true },
-          { "text": "Watchlist (10)", "included": true },
-          { "text": "SHAP-Analyse", "included": true },
-          { "text": "Track Record", "included": true }
+          {
+            "text": "Alle Signale",
+            "included": true
+          },
+          {
+            "text": "Token-Suche",
+            "included": true
+          },
+          {
+            "text": "Telegram-Benachrichtigungen",
+            "included": true
+          },
+          {
+            "text": "Watchlist (10)",
+            "included": true
+          },
+          {
+            "text": "SHAP-Analyse",
+            "included": true
+          },
+          {
+            "text": "Track Record",
+            "included": true
+          }
         ],
-        "cta": "Jetzt starten \u2192"
+        "cta": "Jetzt starten →"
       },
       {
         "name": "ENTERPRISE",
         "price": "$99",
         "period": "/Monat",
         "features": [
-          { "text": "Alles aus Pro", "included": true },
-          { "text": "API-Zugang", "included": true },
-          { "text": "Watchlist \u221e", "included": true },
-          { "text": "Priorit\u00e4ts-Support", "included": true },
-          { "text": "Datenexport", "included": true }
+          {
+            "text": "Alles aus Pro",
+            "included": true
+          },
+          {
+            "text": "API-Zugang",
+            "included": true
+          },
+          {
+            "text": "Watchlist ∞",
+            "included": true
+          },
+          {
+            "text": "Prioritäts-Support",
+            "included": true
+          },
+          {
+            "text": "Datenexport",
+            "included": true
+          }
         ],
-        "cta": "Jetzt starten \u2192"
+        "cta": "Jetzt starten →"
       }
     ],
     "email_note": "Verwenden Sie dieselbe E-Mail wie Ihr Meme Detector Konto",
-    "pro_anchor": "Weniger als eine schlechte Trade-Geb\u00fchr"
+    "pro_anchor": "Weniger als eine schlechte Trade-Gebühr",
+    "billing_monthly": "Monatlich",
+    "billing_annual": "Jährlich",
+    "billing_toggle_label": "Jährliche Abrechnung umschalten",
+    "billing_save": "-20%",
+    "pro_trial_cta": "14 Tage kostenlos testen"
   },
   "faq": {
     "terminal_prompt": "$ man meme-detector",
-    "section_title": "H\u00e4ufig gestellte Fragen",
+    "section_title": "Häufig gestellte Fragen",
     "items": [
       {
         "question": "Was ist ein Gem?",
-        "answer": "Ein Token, der 10x oder mehr gegen\u00fcber seinem Anfangspreis steigt. Unser Modell klassifiziert Tokens in 5 Kategorien: Rug (Totalverlust), Loss (>50% R\u00fcckgang), Neutral, Winner (2-10x) und Gem (10x+)."
+        "answer": "Ein Token, der 10x oder mehr gegenüber seinem Anfangspreis steigt. Unser Modell klassifiziert Tokens in 5 Kategorien: Rug (Totalverlust), Loss (>50% Rückgang), Neutral, Winner (2-10x) und Gem (10x+)."
       },
       {
         "question": "Warum ist es nicht kostenlos?",
-        "answer": "Kostenlose Telegram-Bots nutzen volumen- oder erw\u00e4hnungsbasierte Signale. Unser Modell analysiert 22 Variablen pro Token, darunter Holder-Konzentration, Liquidit\u00e4tstiefe und Momentum. Genau das ist der Grund, warum 52% unserer STRONG-Signale echte Gems sind."
+        "answer": "Kostenlose Telegram-Bots nutzen volumen- oder erwähnungsbasierte Signale. Unser Modell analysiert 22 Variablen pro Token, darunter Holder-Konzentration, Liquiditätstiefe und Momentum. Genau das ist der Grund, warum 52% unserer STRONG-Signale echte Gems sind."
       },
       {
         "question": "Wie funktioniert das ML-Modell?",
-        "answer": "Ensemble aus Random Forest + XGBoost. Trainiert mit 22 Features, extrahiert aus \u00fcber 11.000 Tokens. Aktuelle Metriken: AUC 0,914, Recall 69%. Das Modell analysiert Tokenomics, Liquidit\u00e4t, Price Action, Holder-Konzentration und Marktkontext."
+        "answer": "Ensemble aus Random Forest + XGBoost. Trainiert mit 22 Features, extrahiert aus über 11.000 Tokens. Aktuelle Metriken: AUC 0,914, Recall 69%. Das Modell analysiert Tokenomics, Liquidität, Price Action, Holder-Konzentration und Marktkontext."
       },
       {
-        "question": "Welche Blockchains werden unterst\u00fctzt?",
-        "answer": "Solana, Ethereum und Base. Daten werden von GeckoTerminal (Preis/Volumen), DexScreener (K\u00e4ufer/Verk\u00e4ufer), Helius RPC (Solana-Holder), Etherscan (Vertragsverifizierung) und Birdeye (erg\u00e4nzende Daten) erfasst."
+        "question": "Welche Blockchains werden unterstützt?",
+        "answer": "Solana, Ethereum und Base. Daten werden von GeckoTerminal (Preis/Volumen), DexScreener (Käufer/Verkäufer), Helius RPC (Solana-Holder), Etherscan (Vertragsverifizierung) und Birdeye (ergänzende Daten) erfasst."
       },
       {
-        "question": "Kann ich jederzeit k\u00fcndigen?",
-        "answer": "Ja. Keine Mindestlaufzeit und keine Verpflichtung. K\u00fcndigen Sie \u00fcber Ihr Profil oder direkt \u00fcber das Stripe-Portal. Ihr Zugang bleibt bis zum Ende des abgerechneten Zeitraums bestehen."
+        "question": "Kann ich jederzeit kündigen?",
+        "answer": "Ja. Keine Mindestlaufzeit und keine Verpflichtung. Kündigen Sie über Ihr Profil oder direkt über das Stripe-Portal. Ihr Zugang bleibt bis zum Ende des abgerechneten Zeitraums bestehen."
       },
       {
         "question": "Kann ich Geld verlieren?",
-        "answer": "Ja. Memecoins sind extrem volatil. Unser Modell hat einen Recall von 69% \u2014 es erkennt die meisten echten Gems, aber nicht jedes Signal wird zum Gem. Dies ist KEINE Finanzberatung. DYOR (Do Your Own Research). Investieren Sie niemals mehr, als Sie sich leisten k\u00f6nnen zu verlieren."
+        "answer": "Ja. Memecoins sind extrem volatil. Unser Modell hat einen Recall von 69% — es erkennt die meisten echten Gems, aber nicht jedes Signal wird zum Gem. Dies ist KEINE Finanzberatung. DYOR (Do Your Own Research). Investieren Sie niemals mehr, als Sie sich leisten können zu verlieren."
       },
       {
         "question": "Welche Daten erfassen Sie?",
-        "answer": "E-Mail und Telegram-ID (optional f\u00fcr Benachrichtigungen). Wir verkaufen keine Daten an Dritte. Vollst\u00e4ndige DSGVO-Konformit\u00e4t. Sie k\u00f6nnen jederzeit die L\u00f6schung Ihrer Daten beantragen. Siehe unsere Datenschutzerkl\u00e4rung."
+        "answer": "E-Mail und Telegram-ID (optional für Benachrichtigungen). Wir verkaufen keine Daten an Dritte. Vollständige DSGVO-Konformität. Sie können jederzeit die Löschung Ihrer Daten beantragen. Siehe unsere Datenschutzerklärung."
       }
     ]
   },
   "countdown": {
-    "next_scan": "N\u00e4chster Scan in",
-    "running": "Scan l\u00e4uft..."
+    "next_scan": "Nächster Scan in",
+    "running": "Scan läuft..."
   },
   "changelog": {
     "title": "Modell-Evolution",
@@ -224,16 +316,16 @@
     "stat_gems": "Gems erkannt",
     "stat_tokens": "Tokens analysiert",
     "stat_since": "in Produktion",
-    "stat_since_value": "M\u00e4rz 2026",
+    "stat_since_value": "März 2026",
     "tagline": "Echte Daten. Keine Simulationen."
   },
   "final_cta": {
     "headline": "Wie viele Gems wollen Sie noch von der Seitenlinie aus beobachten?",
-    "cta_button": "Kostenloses Konto erstellen \u2192",
-    "subtext": "Keine Kreditkarte erforderlich. Jederzeit k\u00fcndbar."
+    "cta_button": "Kostenloses Konto erstellen →",
+    "subtext": "Keine Kreditkarte erforderlich. Jederzeit kündbar."
   },
   "footer": {
-    "disclaimer": "Meme Detector ist ein automatisiertes Analysetool. Es stellt keine Finanzberatung dar. Memecoins sind hochspekulative Verm\u00f6genswerte und Sie k\u00f6nnen Ihre gesamte Investition verlieren. DYOR.",
+    "disclaimer": "Meme Detector ist ein automatisiertes Analysetool. Es stellt keine Finanzberatung dar. Memecoins sind hochspekulative Vermögenswerte und Sie können Ihre gesamte Investition verlieren. DYOR.",
     "brand": "Meme Detector",
     "link_disclaimer": "Disclaimer",
     "link_legal": "Rechtliches",

@@ -51,6 +51,7 @@ def init_session_state():
         "profile": None,       # dict completo del profile
         "access_token": None,
         "login_time": 0,       # timestamp del ultimo login/refresh
+        "billing_period": "monthly",  # 'monthly' o 'annual'
     }
     for key, val in defaults.items():
         if key not in st.session_state:
@@ -246,6 +247,10 @@ def require_auth():
         plan_from_url = qp.get("plan", "")
         if plan_from_url in ("pro", "enterprise"):
             st.session_state["pending_plan"] = plan_from_url
+        # Guardar periodo de facturacion si viene en la URL (?billing=annual)
+        billing_from_url = qp.get("billing", "")
+        if billing_from_url in ("annual", "monthly"):
+            st.session_state["billing_period"] = billing_from_url
         # Mostrar mensaje de retorno de Stripe si aplica
         payment_status = qp.get("payment", "")
         if payment_status == "success":
@@ -358,10 +363,16 @@ def _maybe_redirect_to_stripe():
             from src.billing.stripe_client import create_checkout_session, is_configured
             if is_configured():
                 user = st.session_state.get("user", {}) or {}
+                billing_period = st.session_state.get("billing_period", "monthly")
+                # Detectar si es la primera suscripcion (no tiene stripe_customer_id)
+                profile = st.session_state.get("profile", {}) or {}
+                is_first = not profile.get("stripe_customer_id")
                 checkout_url = create_checkout_session(
                     user_email=user.get("email", ""),
                     plan=plan_requested,
+                    billing_period=billing_period,
                     user_id=user.get("id", ""),
+                    is_first_subscription=is_first,
                 )
                 if checkout_url:
                     # Limpiar el plan pendiente para que no se repita
@@ -421,13 +432,17 @@ def render_login_page():
     # --- Procesar retorno de Stripe (success/cancelled) ---
     _handle_payment_query_params()
 
-    # --- Leer query params: tab y plan ---
+    # --- Leer query params: tab, plan y billing ---
     qp = st.query_params
     default_tab = qp.get("tab", "login")
     # Guardar plan solicitado desde la landing (free/pro/enterprise)
     plan_from_url = qp.get("plan", "")
     if plan_from_url and plan_from_url in ("free", "pro", "enterprise"):
         st.session_state["pending_plan"] = plan_from_url
+    # Guardar periodo de facturacion desde la landing (?billing=annual)
+    billing_from_url = qp.get("billing", "")
+    if billing_from_url in ("annual", "monthly"):
+        st.session_state["billing_period"] = billing_from_url
 
     # --- Layout centrado: columnas estrechas para simular tarjeta ---
     _spacer_l, col_form, _spacer_r = st.columns([1.2, 1.6, 1.2])

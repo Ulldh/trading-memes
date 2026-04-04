@@ -121,6 +121,12 @@ CREATE TABLE IF NOT EXISTS labels (
     return_7d       REAL,                       -- close_day7 / close_day1
     tier            TEXT,                       -- mega_gem, standard_gem, mini_gem, micro_gem, neutral, failure, rug
     tier_numeric    INTEGER,                    -- 6=mega_gem, 5=standard, 4=mini, 3=micro, 2=neutral, 1=failure, 0=rug
+    peak_3d         REAL,                       -- max(high) / initial_price en primeros 3 dias
+    peak_7d         REAL,                       -- max(high) / initial_price en primeros 7 dias
+    peak_14d        REAL,                       -- max(high) / initial_price en primeros 14 dias
+    peak_30d        REAL,                       -- max(high) / initial_price en primeros 30 dias
+    label_binary_14d INTEGER,                   -- 1 si peak_14d >= threshold (2x)
+    label_binary_30d INTEGER,                   -- 1 si peak_30d >= threshold (2x)
     labeled_at      TEXT DEFAULT CURRENT_TIMESTAMP,
     notes           TEXT,
     FOREIGN KEY (token_id) REFERENCES tokens(token_id)
@@ -508,14 +514,18 @@ class Storage:
         Inserta o actualiza un label para un token.
 
         Soporta campos nuevos de tier (M2): tier y tier_numeric.
+        Soporta campos multi-horizonte: peak_3d, peak_7d, peak_14d, peak_30d,
+        label_binary_14d, label_binary_30d.
         Usa COALESCE para no sobreescribir campos existentes con NULL
         en upserts parciales (ej: actualizar solo tier sin borrar label_multi).
         """
         sql = """
             INSERT INTO labels
                 (token_id, label_multi, label_binary, max_multiple,
-                 final_multiple, return_7d, notes, tier, tier_numeric)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 final_multiple, return_7d, notes, tier, tier_numeric,
+                 peak_3d, peak_7d, peak_14d, peak_30d,
+                 label_binary_14d, label_binary_30d)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(token_id) DO UPDATE SET
                 label_multi = COALESCE(excluded.label_multi, labels.label_multi),
                 label_binary = COALESCE(excluded.label_binary, labels.label_binary),
@@ -525,6 +535,12 @@ class Storage:
                 notes = COALESCE(excluded.notes, labels.notes),
                 tier = COALESCE(excluded.tier, labels.tier),
                 tier_numeric = COALESCE(excluded.tier_numeric, labels.tier_numeric),
+                peak_3d = COALESCE(excluded.peak_3d, labels.peak_3d),
+                peak_7d = COALESCE(excluded.peak_7d, labels.peak_7d),
+                peak_14d = COALESCE(excluded.peak_14d, labels.peak_14d),
+                peak_30d = COALESCE(excluded.peak_30d, labels.peak_30d),
+                label_binary_14d = COALESCE(excluded.label_binary_14d, labels.label_binary_14d),
+                label_binary_30d = COALESCE(excluded.label_binary_30d, labels.label_binary_30d),
                 labeled_at = CURRENT_TIMESTAMP
         """
         self.execute(sql, (
@@ -537,6 +553,12 @@ class Storage:
             label.get("notes"),
             label.get("tier"),
             label.get("tier_numeric"),
+            label.get("peak_3d"),
+            label.get("peak_7d"),
+            label.get("peak_14d"),
+            label.get("peak_30d"),
+            label.get("label_binary_14d"),
+            label.get("label_binary_30d"),
         ))
 
     # ============================================================

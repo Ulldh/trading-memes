@@ -148,6 +148,158 @@ def _delete_user_account(user_id: str) -> bool:
         return False
 
 
+def _render_2fa_section(user_id: str, email: str):
+    """Renderiza la seccion de 2FA (TOTP) usando Supabase Auth MFA.
+
+    Verifica si MFA esta habilitado en el proyecto. Si lo esta,
+    permite al usuario enrollar un factor TOTP (Google Authenticator, Authy).
+    Si no esta habilitado, muestra un mensaje informativo.
+    """
+    try:
+        from dashboard.auth import get_supabase_client
+
+        client = get_supabase_client()
+        if not client:
+            st.info("2FA estara disponible proximamente.")
+            return
+
+        access_token = st.session_state.get("access_token")
+        if not access_token:
+            st.info("Inicia sesion de nuevo para configurar 2FA.")
+            return
+
+        # Verificar estado actual de MFA enrollment
+        try:
+            # Intentar listar factores MFA del usuario
+            factors_response = client.auth.mfa.list_factors()
+            totp_factors = [
+                f for f in (factors_response or [])
+                if getattr(f, "factor_type", None) == "totp"
+                and getattr(f, "status", None) == "verified"
+            ]
+
+            if totp_factors:
+                # 2FA ya esta activo — mostrar estado
+                st.markdown(
+                    f"<div style='"
+                    f"background: linear-gradient(135deg, rgba(0,255,65,0.04), rgba(0,255,65,0.02)); "
+                    f"border: 1px solid rgba(0,255,65,0.1); border-radius: 12px; "
+                    f"padding: 14px 18px; margin: 8px 0;'>"
+                    f"<div style='display: flex; align-items: center; gap: 8px;'>"
+                    f"<div style='width: 8px; height: 8px; border-radius: 50%; "
+                    f"background: {ACCENT}; box-shadow: 0 0 8px {ACCENT}60;'></div>"
+                    f"<span style='color: {ACCENT}; font-weight: 700;'>2FA activo</span>"
+                    f"</div>"
+                    f"<p style='color: {TEXT_MUTED}; font-size: 0.8rem; margin: 8px 0 0 0;'>"
+                    f"Tu cuenta esta protegida con autenticacion de dos factores.</p>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+
+                # Opcion de desactivar (usa el portal de Supabase)
+                st.caption(
+                    "Para desactivar 2FA, contacta soporte: info@memedetector.es"
+                )
+                return
+
+            # 2FA no esta activo — ofrecer activacion
+            st.markdown(
+                f"<div style='"
+                f"background: linear-gradient(135deg, rgba(251,191,36,0.04), rgba(251,191,36,0.02)); "
+                f"border: 1px solid rgba(251,191,36,0.1); border-radius: 12px; "
+                f"padding: 14px 18px; margin: 8px 0;'>"
+                f"<div style='display: flex; align-items: center; gap: 8px;'>"
+                f"<div style='width: 8px; height: 8px; border-radius: 50%; "
+                f"background: {GOLD}; box-shadow: 0 0 8px {GOLD}60;'></div>"
+                f"<span style='color: {GOLD}; font-weight: 700;'>2FA no activado</span>"
+                f"</div>"
+                f"<p style='color: {TEXT_MUTED}; font-size: 0.8rem; margin: 8px 0 0 0;'>"
+                f"Anade una capa extra de seguridad usando Google Authenticator o Authy.</p>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+            # Boton de activacion
+            if st.button("Activar 2FA", key="btn_activate_2fa", type="primary"):
+                try:
+                    # Enrollar nuevo factor TOTP
+                    enroll_response = client.auth.mfa.enroll({
+                        "factor_type": "totp",
+                        "friendly_name": f"MemeDetector-{email.split('@')[0]}",
+                    })
+                    if enroll_response:
+                        st.session_state["mfa_enroll"] = {
+                            "factor_id": enroll_response.id,
+                            "totp_uri": enroll_response.totp.uri,
+                            "qr_code": enroll_response.totp.qr_code,
+                        }
+                        st.rerun()
+                except Exception as e:
+                    error_msg = str(e)
+                    if "mfa" in error_msg.lower() or "not" in error_msg.lower():
+                        st.info(
+                            "2FA no esta habilitado en la configuracion del proyecto. "
+                            "Contacta info@memedetector.es para activarlo."
+                        )
+                    else:
+                        logger.exception("Error al enrollar MFA")
+                        st.error("Se produjo un error inesperado. Intentalo de nuevo.")
+
+            # Si hay un enroll en progreso, mostrar QR + campo de verificacion
+            mfa_enroll = st.session_state.get("mfa_enroll")
+            if mfa_enroll:
+                st.markdown("---")
+                st.markdown("**Escanea este codigo QR con tu app de autenticacion:**")
+
+                # Mostrar QR code (data URI de la imagen)
+                qr_code = mfa_enroll.get("qr_code", "")
+                if qr_code:
+                    st.image(qr_code, width=200)
+                else:
+                    totp_uri = mfa_enroll.get("totp_uri", "")
+                    st.code(totp_uri, language=None)
+                    st.caption("Copia este URI en tu app de autenticacion si no puedes escanear el QR.")
+
+                # Campo para verificar el codigo
+                verify_code = st.text_input(
+                    "Introduce el codigo de 6 digitos de tu app:",
+                    max_chars=6,
+                    key="mfa_verify_code",
+                    placeholder="123456",
+                )
+
+                if st.button("Verificar y activar", key="btn_verify_2fa", type="primary"):
+                    if verify_code and len(verify_code) == 6:
+                        try:
+                            challenge = client.auth.mfa.challenge({
+                                "factor_id": mfa_enroll["factor_id"],
+                            })
+                            client.auth.mfa.verify({
+                                "factor_id": mfa_enroll["factor_id"],
+                                "challenge_id": challenge.id,
+                                "code": verify_code,
+                            })
+                            st.success("2FA activado correctamente! Tu cuenta esta protegida.")
+                            st.session_state.pop("mfa_enroll", None)
+                            st.rerun()
+                        except Exception as e:
+                            st.error("Codigo incorrecto. Intentalo de nuevo.")
+                    else:
+                        st.warning("Introduce un codigo de 6 digitos.")
+
+        except Exception as e:
+            error_msg = str(e)
+            if "mfa" in error_msg.lower() or "factor" in error_msg.lower():
+                st.info("2FA estara disponible proximamente.")
+            else:
+                st.info("2FA estara disponible proximamente.")
+
+    except ImportError:
+        st.info("2FA estara disponible proximamente.")
+    except Exception:
+        st.info("2FA estara disponible proximamente.")
+
+
 # ============================================================
 # BADGES Y MAPEOS
 # ============================================================
@@ -162,6 +314,11 @@ _PLAN_LABELS = {
     "free": "Gratuito",
     "pro": "Pro ($29/mes)",
     "enterprise": "Enterprise ($99/mes)",
+}
+
+_PLAN_LABELS_ANNUAL = {
+    "pro": "Pro Anual ($279/ano — ahorra 20%)",
+    "enterprise": "Enterprise Anual ($949/ano — ahorra 20%)",
 }
 
 
@@ -349,21 +506,70 @@ def render():
             "todas las senales, busqueda de tokens, alertas Telegram y mas."
         )
         if _stripe_ok and _create_checkout is not None:
-            try:
-                checkout_url = _create_checkout(user_email=email, plan="pro", user_id=user_id or "")
-            except Exception:
-                checkout_url = ""
-            if checkout_url:
-                st.link_button(
-                    "Mejorar a Pro — $29/mes",
-                    checkout_url,
-                    type="primary",
+            # Toggle de facturacion mensual/anual
+            col_toggle_l, col_toggle_r = st.columns([2, 1])
+            with col_toggle_r:
+                is_annual = st.toggle(
+                    "Pago anual (ahorra 20%)",
+                    value=False,
+                    key="billing_toggle_profile",
                 )
-            else:
-                st.info(
-                    "Pagos proximamente. Contacta info@memedetector.es "
-                    "para mas informacion."
+            billing_period = "annual" if is_annual else "monthly"
+
+            if is_annual:
+                st.markdown(
+                    f"<div style='background: rgba(0,255,65,0.04); "
+                    f"border: 1px solid rgba(0,255,65,0.1); border-radius: 10px; "
+                    f"padding: 10px 16px; margin-bottom: 12px;'>"
+                    f"<span style='color: {ACCENT}; font-weight: 700;'>"
+                    f"Ahorra 20% con el plan anual</span>"
+                    f"<span style='color: {TEXT_MUTED}; font-size: 0.85rem;'> — "
+                    f"Pro: $279/ano (vs $348) &middot; Enterprise: $949/ano (vs $1,188)"
+                    f"</span></div>",
+                    unsafe_allow_html=True,
                 )
+
+            # Detectar si es primera suscripcion (para trial 14 dias)
+            is_first = not profile.get("stripe_customer_id")
+
+            # Botones de suscripcion Pro y Enterprise
+            col_pro, col_ent = st.columns(2)
+            with col_pro:
+                try:
+                    checkout_url_pro = _create_checkout(
+                        user_email=email, plan="pro",
+                        billing_period=billing_period,
+                        user_id=user_id or "",
+                        is_first_subscription=is_first,
+                    )
+                except Exception:
+                    checkout_url_pro = ""
+                if checkout_url_pro:
+                    pro_price = "$279/ano" if is_annual else "$29/mes"
+                    pro_label = (
+                        f"Prueba gratis 14 dias — Pro"
+                        if is_first and not is_annual
+                        else f"Mejorar a Pro — {pro_price}"
+                    )
+                    st.link_button(pro_label, checkout_url_pro, type="primary")
+                else:
+                    st.info("Pagos proximamente.")
+
+            with col_ent:
+                try:
+                    checkout_url_ent = _create_checkout(
+                        user_email=email, plan="enterprise",
+                        billing_period=billing_period,
+                        user_id=user_id or "",
+                    )
+                except Exception:
+                    checkout_url_ent = ""
+                if checkout_url_ent:
+                    ent_price = "$949/ano" if is_annual else "$99/mes"
+                    st.link_button(
+                        f"Enterprise — {ent_price}",
+                        checkout_url_ent,
+                    )
         else:
             st.info(
                 "Pagos proximamente. Contacta info@memedetector.es "
@@ -453,7 +659,25 @@ def render():
     st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
     # -----------------------------------------------------------------
-    # 5. Zona de peligro — estilo rojo premium con borde de advertencia
+    # 5. Autenticacion de dos factores (2FA) — seccion premium
+    # -----------------------------------------------------------------
+    st.markdown(
+        f"<div style='display: flex; align-items: center; gap: 8px; "
+        f"margin: 12px 0 8px 0;'>"
+        f"<div style='width: 6px; height: 6px; border-radius: 50%; "
+        f"background: {ACCENT}; box-shadow: 0 0 8px {ACCENT}60;'></div>"
+        f"<h4 style='margin: 0; font-weight: 700;'>Autenticacion de dos factores (2FA)</h4>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
+    # Verificar si Supabase MFA esta disponible
+    _render_2fa_section(user_id, email)
+
+    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+
+    # -----------------------------------------------------------------
+    # 6. Zona de peligro — estilo rojo premium con borde de advertencia
     # -----------------------------------------------------------------
     st.markdown(
         f"<div style='border: 1px solid rgba(239,68,68,0.15); border-radius: 16px; "

@@ -53,6 +53,28 @@ _PLOTLY_LAYOUT = dict(
 def render():
     """Renderiza la pagina de Trading Dashboard — estilo premium."""
 
+    # Auto-refresh toggle (parte superior derecha)
+    col_spacer, col_refresh_toggle = st.columns([5, 1])
+    with col_refresh_toggle:
+        if "auto_refresh_overview" not in st.session_state:
+            st.session_state.auto_refresh_overview = False
+        st.session_state.auto_refresh_overview = st.toggle(
+            "Auto-refresh",
+            value=st.session_state.auto_refresh_overview,
+            help="Actualiza el dashboard automaticamente cada 60 segundos.",
+            key="overview_auto_refresh",
+        )
+
+    if st.session_state.auto_refresh_overview:
+        try:
+            from streamlit_autorefresh import st_autorefresh
+            st_autorefresh(interval=60000, key="overview_refresh")
+        except ImportError:
+            st.markdown(
+                '<meta http-equiv="refresh" content="60">',
+                unsafe_allow_html=True,
+            )
+
     # --- Welcome experience para nuevos usuarios Free ---
     _render_welcome_message()
 

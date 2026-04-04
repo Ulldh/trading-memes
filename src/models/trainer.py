@@ -102,6 +102,77 @@ except ImportError:
 logger = get_logger(__name__)
 
 
+# ============================================================
+# FOCAL LOSS — Funcion de perdida para desbalanceo extremo
+# ============================================================
+
+def _focal_loss_objective(y_pred, dtrain, gamma=2.0, alpha=0.25):
+    """
+    Objetivo custom de focal loss para XGBoost.
+
+    La focal loss es una variante de la cross-entropy que reduce la
+    contribucion de ejemplos "faciles" (ya clasificados correctamente
+    con alta confianza) y enfoca el entrenamiento en los dificiles.
+
+    Esto es mejor que la log loss estandar cuando hay desbalanceo extremo
+    (ej: 2.2% de positivos) porque evita que la mayoria de negativos
+    dominen los gradientes.
+
+    Formula:
+        FL(p) = -alpha * (1-p)^gamma * log(p)        si y=1
+        FL(p) = -(1-alpha) * p^gamma * log(1-p)      si y=0
+
+    Donde:
+        p = probabilidad predicha (sigmoid de y_pred)
+        gamma = factor de enfoque (2.0 = enfoque fuerte en dificiles)
+        alpha = peso de la clase positiva (0.25 para desbalanceo)
+
+    Args:
+        y_pred: Predicciones sin sigmoid (log-odds / raw scores).
+        dtrain: DMatrix de XGBoost con los labels reales.
+        gamma: Factor de enfoque (default 2.0).
+            gamma=0 equivale a cross-entropy estandar.
+            gamma>0 reduce peso de ejemplos faciles.
+        alpha: Peso de la clase positiva (default 0.25).
+            Valores bajos cuando positivos son raros.
+
+    Returns:
+        Tupla (gradiente, hessiana) para optimizacion de XGBoost.
+
+    Referencia:
+        Lin et al. "Focal Loss for Dense Object Detection" (2017)
+    """
+    y_true = dtrain.get_label()
+    # Convertir log-odds a probabilidad con sigmoid
+    p = 1.0 / (1.0 + np.exp(-y_pred))
+    # Clip para estabilidad numerica (evitar log(0))
+    p = np.clip(p, 1e-7, 1.0 - 1e-7)
+
+    # Gradiente (derivada primera de la focal loss)
+    # Para y=1: grad = alpha * (1-p)^gamma * (gamma*p*log(p) + p - 1)
+    # Para y=0: grad = (1-alpha) * p^gamma * (-gamma*(1-p)*log(1-p) - (1-p) + 1)
+    # Forma compacta combinando ambos casos:
+    grad = (
+        alpha * y_true * (1 - p) ** gamma * (gamma * p * np.log(p) + p - 1)
+        + (1 - alpha) * (1 - y_true) * p ** gamma
+        * (-gamma * (1 - p) * np.log(1 - p) + p)
+    )
+
+    # Hessiana (derivada segunda, aproximada)
+    # XGBoost necesita la hessiana para calcular el paso de Newton.
+    # Usamos una aproximacion estable de la derivada segunda.
+    hess = (
+        alpha * y_true * (1 - p) ** gamma * p * (1 - p)
+        * (gamma * np.log(p) + gamma + 1)
+        + (1 - alpha) * (1 - y_true) * p ** gamma * p * (1 - p)
+        * (-gamma * np.log(1 - p) + gamma + 1)
+    )
+    # Asegurar que la hessiana sea positiva para estabilidad numerica
+    hess = np.maximum(hess, 1e-7)
+
+    return grad, hess
+
+
 class ModelTrainer:
     """
     Orquesta el entrenamiento de modelos de clasificacion para detectar memecoins "gem".
@@ -374,6 +445,9 @@ class ModelTrainer:
             "labeled_at", "computed_at",
             # Data leakage: columnas de labels que codifican directamente el resultado
             "tier", "tier_numeric", "close_max_multiple",
+            # Multi-horizonte: columnas de labels adicionales (NO son features)
+            "peak_3d", "peak_7d", "peak_14d", "peak_30d",
+            "label_binary_14d", "label_binary_30d",
             # Columnas de texto/metadata que pueden venir del storage
             "chain", "symbol", "name", "dex_id", "pool_address",
             "first_seen", "last_updated",
@@ -665,6 +739,7 @@ class ModelTrainer:
         X_val: pd.DataFrame,
         y_val: pd.Series,
         xgb_params_override: dict | None = None,
+        use_focal_loss: bool = False,
     ) -> XGBClassifier:
         """
         Entrena un XGBoost con early stopping y scale_pos_weight.
@@ -678,12 +753,20 @@ class ModelTrainer:
         Early stopping: Detiene el entrenamiento si no mejora en N rondas,
         evitando overfitting.
 
+        Focal loss (opcional): Una funcion de perdida alternativa que reduce
+        la contribucion de ejemplos "faciles" y se enfoca en los dificiles.
+        Util para desbalanceo extremo (ej: 2.2% tasa de positivos).
+        Cuando use_focal_loss=True, reemplaza binary:logistic con una
+        implementacion custom de focal loss (gamma=2.0, alpha=0.25).
+
         Args:
             X_train: Features de entrenamiento.
             y_train: Labels de entrenamiento.
             X_val: Features de validacion (usado para early stopping).
             y_val: Labels de validacion.
             xgb_params_override: Hiperparametros personalizados (override de regularizados).
+            use_focal_loss: Si True, usa focal loss en vez de binary:logistic.
+                Por defecto False (usa objective estandar con scale_pos_weight).
 
         Returns:
             Modelo XGBClassifier entrenado.
@@ -717,6 +800,22 @@ class ModelTrainer:
 
         # early_stopping_rounds es parametro del constructor en XGBoost >= 2.0
         xgb_params.setdefault("early_stopping_rounds", 50)
+
+        # --- Focal loss (opcional) ---
+        # Focal loss reduce la contribucion de ejemplos "faciles" al entrenamiento,
+        # haciendo que el modelo se enfoque en los casos dificiles de clasificar.
+        # Es especialmente util con desbalanceo extremo (2.2% positivos).
+        # Cuando esta activo, reemplaza binary:logistic y scale_pos_weight.
+        if use_focal_loss:
+            logger.info(
+                "Usando focal loss (gamma=2.0, alpha=0.25) en vez de binary:logistic"
+            )
+            # Focal loss no es compatible con scale_pos_weight (ambos modifican
+            # los gradientes), asi que lo eliminamos.
+            xgb_params.pop("scale_pos_weight", None)
+            # Usar objective custom: XGBoost acepta un callable como objective
+            xgb_params["objective"] = _focal_loss_objective
+            xgb_params["eval_metric"] = "logloss"
 
         model = XGBClassifier(**xgb_params)
 
@@ -785,6 +884,7 @@ class ModelTrainer:
             "val_f1": float(val_f1),
             "val_accuracy": float(val_acc),
             "scale_pos_weight": float(scale_pos_weight),
+            "use_focal_loss": use_focal_loss,
         }
 
         return model
@@ -900,6 +1000,7 @@ class ModelTrainer:
         xgb_params: dict | None = None,
         lgb_params: dict | None = None,
         tuned_params_file: str | None = None,
+        use_focal_loss: bool = False,
     ) -> dict:
         """
         Pipeline completo: prepara datos, selecciona features, entrena modelos, evalua ensembles.
@@ -936,6 +1037,9 @@ class ModelTrainer:
             tuned_params_file: Ruta a archivo JSON con hiperparametros optimizados
                                (estructura: {"random_forest": {...}, "xgboost": {...},
                                "lightgbm": {...}}).
+            use_focal_loss: Si True, XGBoost usa focal loss en vez de binary:logistic.
+                            Focal loss enfoca el entrenamiento en ejemplos dificiles,
+                            util para desbalanceo extremo. Default False.
 
         Returns:
             Diccionario con estructura:
@@ -956,6 +1060,7 @@ class ModelTrainer:
         logger.info("=" * 60)
         logger.info("INICIO DEL PIPELINE DE ENTRENAMIENTO (v2 - Fase 5)")
         logger.info(f"  temporal_cv={'ACTIVO (TimeSeriesSplit)' if temporal_cv else 'DESACTIVADO (StratifiedKFold)'}")
+        logger.info(f"  focal_loss={'ACTIVO (gamma=2.0, alpha=0.25)' if use_focal_loss else 'DESACTIVADO (binary:logistic + scale_pos_weight)'}")
         logger.info("=" * 60)
 
         # --- Paso 1: Preparar datos ---
@@ -1028,6 +1133,7 @@ class ModelTrainer:
             self.train_xgboost(
                 X_train, y_train, X_test, y_test,
                 xgb_params_override=_xgb_params,
+                use_focal_loss=use_focal_loss,
             )
         except Exception as e:
             logger.error(f"Error entrenando XGBoost: {e}")
