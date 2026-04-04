@@ -31,7 +31,8 @@ from src.data.supabase_storage import get_storage as _get_storage
 from src.utils.helpers import detect_chain
 from config import MODELS_DIR, SUPPORTED_CHAINS
 from dashboard.constants import LABEL_COLORS
-from dashboard.theme import ACCENT, BG_CARD, BORDER, TEXT_MUTED, GOLD
+from dashboard.theme import ACCENT, BG_CARD, BORDER, TEXT_MUTED, GOLD, rug_warning_card_html, rug_badge_html
+from dashboard.constants import RUG_LABELS
 
 
 @st.cache_resource
@@ -641,6 +642,11 @@ def render():
             f"{safe_label_multi.upper()}</span>",
             unsafe_allow_html=True,
         )
+
+        # Tarjeta de advertencia prominente si es rug o pump_and_dump
+        rug_card = rug_warning_card_html(label_multi)
+        if rug_card:
+            st.markdown(rug_card, unsafe_allow_html=True)
 
     st.divider()
 

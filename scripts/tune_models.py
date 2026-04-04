@@ -9,6 +9,11 @@ Uso:
     python scripts/tune_models.py --n-trials 100
     python scripts/tune_models.py --n-trials 50 --model xgboost
     python scripts/tune_models.py --n-trials 100 --use-v12-features
+    python scripts/tune_models.py --n-trials 50 --models rf  # alias --models = --model
+
+Por defecto usa TimeSeriesSplit (split temporal) para que los hiperparametros
+se optimicen para la misma distribucion que el entrenamiento en produccion.
+Usar --no-temporal-cv solo para comparacion (no recomendado para produccion).
 """
 
 import argparse
@@ -133,6 +138,7 @@ def _prepare_data(
     labels_df: pd.DataFrame,
     v12_features: list[str] | None = None,
     seed: int = 42,
+    temporal_cv: bool = True,
 ) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series, list[str]]:
     """
     Prepara datos para tuning: merge, limpieza, filtrado de features, split.
@@ -145,6 +151,8 @@ def _prepare_data(
         labels_df: DataFrame con labels.
         v12_features: Si se proporciona, solo usa estas features (filtro v12).
         seed: Semilla para el split.
+        temporal_cv: Si True (default), usa split temporal (80% antiguos = train).
+                     Si False, usa split aleatorio estratificado.
 
     Returns:
         Tupla de (X_train, y_train, X_val, y_val, feature_names).
@@ -235,22 +243,77 @@ def _prepare_data(
     X = merged_df[feature_cols].copy()
     y = merged_df[target].copy()
 
-    # Split train/val con estratificacion
     try:
         from config import ML_CONFIG
         test_size = ML_CONFIG.get("test_size", 0.2)
     except ImportError:
         test_size = 0.2
 
-    min_class_count = y.value_counts().min()
-    stratify = y if min_class_count >= 2 else None
+    if temporal_cv:
+        # --- Split temporal: ordenar por tiempo, primeros 80% = train ---
+        # Buscar columna de timestamp para ordenar cronologicamente
+        temporal_col = None
+        for col_candidate in ["created_at", "first_seen", "labeled_at", "computed_at"]:
+            if col_candidate in merged_df.columns:
+                temporal_col = col_candidate
+                break
 
-    X_train, X_val, y_train, y_val = train_test_split(
-        X, y,
-        test_size=test_size,
-        random_state=seed,
-        stratify=stratify,
-    )
+        if temporal_col is not None:
+            merged_df[temporal_col] = pd.to_datetime(
+                merged_df[temporal_col], errors="coerce"
+            )
+            n_valid = merged_df[temporal_col].notna().sum()
+            if n_valid > len(merged_df) * 0.5:
+                merged_df = merged_df.sort_values(temporal_col).reset_index(drop=True)
+                logger.info(
+                    f"Split temporal: ordenado por '{temporal_col}' "
+                    f"({n_valid}/{len(merged_df)} timestamps validos)"
+                )
+            else:
+                logger.info(
+                    f"Split temporal: '{temporal_col}' con pocos valores validos "
+                    f"({n_valid}/{len(merged_df)}). Usando orden de indice."
+                )
+                merged_df = merged_df.reset_index(drop=True)
+        else:
+            logger.info(
+                "Split temporal: sin columna de timestamp. "
+                "Usando orden de indice (insercion cronologica)."
+            )
+            merged_df = merged_df.reset_index(drop=True)
+
+        # Recalcular X e y con el orden actualizado
+        X = merged_df[feature_cols].copy()
+        y = merged_df[target].copy()
+
+        n_total = len(X)
+        n_train = int(n_total * (1 - test_size))
+
+        X_train = X.iloc[:n_train].copy()
+        X_val = X.iloc[n_train:].copy()
+        y_train = y.iloc[:n_train].copy()
+        y_val = y.iloc[n_train:].copy()
+
+        logger.info(
+            f"Split temporal: train={len(X_train)} (mas antiguos), "
+            f"val={len(X_val)} (mas nuevos)"
+        )
+    else:
+        # --- Split aleatorio estratificado (comportamiento anterior) ---
+        min_class_count = y.value_counts().min()
+        stratify = y if min_class_count >= 2 else None
+
+        X_train, X_val, y_train, y_val = train_test_split(
+            X, y,
+            test_size=test_size,
+            random_state=seed,
+            stratify=stratify,
+        )
+
+        logger.info(
+            f"Split aleatorio: train={len(X_train)} ({(1 - test_size) * 100:.0f}%), "
+            f"val={len(X_val)} ({test_size * 100:.0f}%)"
+        )
 
     # Reemplazar infinitos y rellenar NaN con mediana de train
     X_train = X_train.replace([np.inf, -np.inf], np.nan)
@@ -259,10 +322,6 @@ def _prepare_data(
     X_train = X_train.fillna(train_medians).fillna(0)
     X_val = X_val.fillna(train_medians).fillna(0)
 
-    logger.info(
-        f"Split: train={len(X_train)} ({(1 - test_size) * 100:.0f}%), "
-        f"val={len(X_val)} ({test_size * 100:.0f}%)"
-    )
     logger.info(f"Distribucion train:\n{y_train.value_counts().to_string()}")
     logger.info(f"Distribucion val:\n{y_val.value_counts().to_string()}")
 
@@ -303,6 +362,7 @@ def run_tuning(
     model: str = "all",
     use_v12_features: bool = False,
     seed: int = 42,
+    temporal_cv: bool = True,
 ) -> dict:
     """
     Ejecuta el pipeline completo de tuning con Optuna.
@@ -310,9 +370,9 @@ def run_tuning(
     Pasos:
       1. Cargar datos de Supabase/SQLite.
       2. Filtrar features si se pide v12.
-      3. Preparar datos (merge, split).
-      4. Ejecutar tuning con HyperparamTuner.
-      5. Guardar resultados en JSON.
+      3. Preparar datos (merge, split temporal o aleatorio).
+      4. Ejecutar tuning con HyperparamTuner (TimeSeriesSplit o StratifiedKFold).
+      5. Guardar resultados en JSON (tuning_results.json + tuned_params.json).
       6. Imprimir resumen.
 
     Args:
@@ -320,6 +380,9 @@ def run_tuning(
         model: Modelo a optimizar ('rf', 'xgboost', 'lightgbm', 'all').
         use_v12_features: Si True, solo usa features del set v12.
         seed: Semilla para reproducibilidad.
+        temporal_cv: Si True (default), usa split temporal + TimeSeriesSplit
+                     para que el tuning optimice para la misma distribucion
+                     que el entrenamiento en produccion.
 
     Returns:
         Dict con resultados del tuning.
@@ -355,10 +418,14 @@ def run_tuning(
     logger.info("PASO 3: Preparando datos (merge, split)")
     logger.info("=" * 60)
 
+    cv_label = "temporal (TimeSeriesSplit)" if temporal_cv else "aleatorio (StratifiedKFold)"
+    logger.info(f"  Estrategia CV: {cv_label}")
+
     X_train, y_train, X_val, y_val, feature_names = _prepare_data(
         features_df, labels_df,
         v12_features=v12_features,
         seed=seed,
+        temporal_cv=temporal_cv,
     )
 
     logger.info(f"  Features finales: {len(feature_names)}")
@@ -381,6 +448,7 @@ def run_tuning(
         X_train, y_train, X_val, y_val,
         n_trials=n_trials,
         random_seed=seed,
+        temporal_cv=temporal_cv,
     )
 
     t0 = time.time()
@@ -409,6 +477,10 @@ def run_tuning(
         MODELS_DIR = Path("data/models")
 
     output_path = MODELS_DIR / "tuning_results.json"
+    # tuned_params.json: formato que retrain_pipeline.py acepta directamente
+    tuned_params_path = MODELS_DIR / "tuned_params.json"
+
+    cv_strategy = "TimeSeriesSplit" if temporal_cv else "StratifiedKFold"
 
     # Construir resultado enriquecido con metadata de reproducibilidad
     output = {}
@@ -419,6 +491,7 @@ def run_tuning(
             "best_f1_cv": float(study.best_value) if study else None,
             "n_trials": n_trials,
             "cv_folds": tuner.cv_folds,
+            "cv_strategy": cv_strategy,
             "random_seed": seed,
         }
 
@@ -427,6 +500,8 @@ def run_tuning(
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "n_trials": n_trials,
         "seed": seed,
+        "temporal_cv": temporal_cv,
+        "cv_strategy": cv_strategy,
         "use_v12_features": use_v12_features,
         "feature_count": len(feature_names),
         "feature_names": feature_names,
@@ -441,7 +516,12 @@ def run_tuning(
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
 
+    # Guardar copia como tuned_params.json (formato directo para retrain_pipeline)
+    with open(tuned_params_path, "w", encoding="utf-8") as f:
+        json.dump(output, f, indent=2, ensure_ascii=False)
+
     logger.info(f"Resultados guardados en: {output_path}")
+    logger.info(f"Params para retrain en:  {tuned_params_path}")
 
     # ================================================================
     # Paso 6: Resumen
@@ -473,7 +553,7 @@ def run_tuning(
     )
     logger.info(
         f"  python scripts/retrain_pipeline.py "
-        f"--tuned-params {output_path}"
+        f"--tuned-params {tuned_params_path}"
     )
     logger.info("=" * 60)
 
@@ -515,7 +595,7 @@ def main():
         help="Numero de trials de Optuna por modelo (default: 100)"
     )
     parser.add_argument(
-        "--model", type=str, default="all",
+        "--model", "--models", type=str, default="all",
         choices=VALID_MODELS,
         help="Modelo a optimizar: rf, xgboost, lightgbm, all (default: all)"
     )
@@ -527,14 +607,22 @@ def main():
         "--seed", type=int, default=42,
         help="Semilla para reproducibilidad (default: 42)"
     )
+    parser.add_argument(
+        "--no-temporal-cv", action="store_true",
+        help="Usar StratifiedKFold en vez de TimeSeriesSplit (no recomendado)"
+    )
 
     args = parser.parse_args()
+
+    temporal_cv = not args.no_temporal_cv
+    cv_label = "TimeSeriesSplit (temporal)" if temporal_cv else "StratifiedKFold (aleatorio)"
 
     logger.info("=" * 60)
     logger.info("tune_models.py - Optimizacion de hiperparametros con Optuna")
     logger.info("=" * 60)
     logger.info(f"  Trials:          {args.n_trials}")
     logger.info(f"  Modelo(s):       {args.model}")
+    logger.info(f"  CV:              {cv_label}")
     logger.info(f"  Features v12:    {'Si' if args.use_v12_features else 'No (todos)'}")
     logger.info(f"  Seed:            {args.seed}")
     logger.info("")
@@ -545,6 +633,7 @@ def main():
             model=args.model,
             use_v12_features=args.use_v12_features,
             seed=args.seed,
+            temporal_cv=temporal_cv,
         )
         print(f"\nResultado: {json.dumps({k: v for k, v in results.items() if k != '_metadata'}, indent=2)}")
         return 0

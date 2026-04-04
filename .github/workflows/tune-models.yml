@@ -1,0 +1,194 @@
+# Tune Models - Optimizacion de hiperparametros con Optuna
+# Busca los mejores hiperparametros para RF, XGBoost y LightGBM usando
+# optimizacion bayesiana (TPE). Guarda resultados en tuned_params.json
+# para que el retrain pipeline los use automaticamente.
+#
+# Uso manual:
+#   gh workflow run tune-models.yml -f n_trials=50 -f models=rf
+#   gh workflow run tune-models.yml -f n_trials=100 -f models=all
+#
+# Los params optimizados se guardan como artefacto y se suben a Supabase Storage.
+# Para re-entrenar con los params tuneados:
+#   python scripts/retrain_pipeline.py --tuned-params data/models/tuned_params.json
+name: Tune Models (Optuna)
+
+on:
+  workflow_dispatch:
+    inputs:
+      n_trials:
+        description: "Numero de trials de Optuna por modelo"
+        required: false
+        default: "50"
+      models:
+        description: "Modelos a tunear: rf, xgboost, lightgbm, all"
+        required: false
+        default: "rf"
+
+concurrency:
+  group: database-writes
+  cancel-in-progress: false
+
+jobs:
+  tune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    env:
+      STORAGE_BACKEND: supabase
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create data directories
+        run: mkdir -p data/raw data/processed data/models .cache
+
+      # Ejecutar tuning con Optuna (usa TimeSeriesSplit por defecto)
+      - name: Run Optuna tuning
+        id: tune
+        env:
+          INPUT_N_TRIALS: ${{ inputs.n_trials }}
+          INPUT_MODELS: ${{ inputs.models }}
+        run: |
+          echo "Ejecutando: python scripts/tune_models.py --n-trials ${INPUT_N_TRIALS} --model ${INPUT_MODELS}"
+
+          python scripts/tune_models.py \
+            --n-trials "${INPUT_N_TRIALS}" \
+            --model "${INPUT_MODELS}" \
+            2>&1 | tee /tmp/tune_output.txt
+
+          # Extraer metricas del resultado para el summary
+          python3 << 'PYEOF'
+          import json, os
+
+          # Leer tuning_results.json si existe
+          results_path = "data/models/tuning_results.json"
+          try:
+              with open(results_path) as f:
+                  results = json.load(f)
+
+              summary_lines = []
+              for model_name in ["random_forest", "xgboost", "lightgbm"]:
+                  if model_name in results and model_name != "_metadata":
+                      f1 = results[model_name].get("best_f1_cv", 0)
+                      cv = results[model_name].get("cv_strategy", "unknown")
+                      summary_lines.append(f"{model_name}: F1={f1:.4f} ({cv})")
+
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write(f"summary={' | '.join(summary_lines)}\n")
+                  f.write(f"tuning_done=true\n")
+
+          except Exception as e:
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write(f"summary=Error: {e}\n")
+                  f.write(f"tuning_done=false\n")
+          PYEOF
+
+      # Subir tuned_params.json a Supabase Storage para que el retrain lo use
+      - name: Upload tuned params to Supabase Storage
+        if: steps.tune.outputs.tuning_done == 'true'
+        run: |
+          python3 << 'PYEOF'
+          import json, os, ssl, urllib.request
+
+          supa_url = os.getenv("SUPABASE_URL", "")
+          supa_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+
+          if not supa_url or not supa_key:
+              print("SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY no configurados, saltando upload")
+              exit(0)
+
+          params_path = "data/models/tuned_params.json"
+          if not os.path.exists(params_path):
+              print(f"{params_path} no encontrado, saltando upload")
+              exit(0)
+
+          with open(params_path, "rb") as f:
+              data = f.read()
+
+          # Subir a Supabase Storage bucket ml-models
+          # Usar upsert para sobrescribir si ya existe
+          url = f"{supa_url}/storage/v1/object/ml-models/tuned_params.json"
+          ctx = ssl.create_default_context()
+
+          req = urllib.request.Request(
+              url,
+              data=data,
+              method="PUT",
+              headers={
+                  "apikey": supa_key,
+                  "Authorization": f"Bearer {supa_key}",
+                  "Content-Type": "application/json",
+                  "x-upsert": "true",
+              },
+          )
+
+          try:
+              with urllib.request.urlopen(req, context=ctx) as resp:
+                  print(f"tuned_params.json subido a Supabase Storage: {resp.status}")
+          except urllib.error.HTTPError as e:
+              print(f"Error subiendo a Supabase Storage: {e.code} {e.read().decode()}")
+              # No fallar el workflow por esto
+          PYEOF
+
+      # Subir artefactos del tuning (para descarga manual o debugging)
+      - name: Upload tuning artifacts
+        if: steps.tune.outputs.tuning_done == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tuning-results-${{ github.run_number }}
+          path: |
+            data/models/tuning_results.json
+            data/models/tuned_params.json
+          retention-days: 90
+
+      # Notificacion por Telegram con resultados
+      - name: Notify Telegram on success
+        if: success()
+        env:
+          SUMMARY: ${{ steps.tune.outputs.summary }}
+          INPUT_N_TRIALS: ${{ inputs.n_trials }}
+          INPUT_MODELS: ${{ inputs.models }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          MSG="🔬 Optuna Tuning completado"
+          MSG="${MSG}%0AModelos: ${INPUT_MODELS}, Trials: ${INPUT_N_TRIALS}"
+          MSG="${MSG}%0A${SUMMARY}"
+          MSG="${MSG}%0A%0ASiguiente paso: Manual Retrain con --tuned-params"
+          MSG="${MSG}%0AVer run: ${RUN_URL}"
+
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="${MSG}"
+
+      - name: Notify Telegram on failure
+        if: failure()
+        env:
+          INPUT_N_TRIALS: ${{ inputs.n_trials }}
+          INPUT_MODELS: ${{ inputs.models }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="❌ Optuna Tuning FAILED%0AModelos: ${INPUT_MODELS}, Trials: ${INPUT_N_TRIALS}%0AVer run: ${RUN_URL}"

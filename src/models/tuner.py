@@ -5,8 +5,15 @@ Este modulo automatiza la busqueda de los mejores hiperparametros para
 los modelos de clasificacion (Random Forest, XGBoost, LightGBM) usando
 Optuna, un framework de optimizacion bayesiana.
 
-Cada funcion objetivo usa StratifiedKFold con SMOTE dentro de cada fold
-para evitar data leakage. La metrica objetivo es F1 (binary).
+Cada funcion objetivo usa TimeSeriesSplit (por defecto) o StratifiedKFold
+con SMOTE dentro de cada fold para evitar data leakage.
+La metrica objetivo es F1 (binary).
+
+TimeSeriesSplit es el modo por defecto porque los datos de tokens estan
+ordenados cronologicamente y el modelo debe predecir el futuro, no el
+pasado. Usar StratifiedKFold en tuning pero TimeSeriesSplit en
+entrenamiento optimizaria para una distribucion distinta (data leakage
+temporal).
 
 Clases:
     HyperparamTuner: Busca los mejores hiperparametros para cada modelo.
@@ -33,7 +40,7 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, TimeSeriesSplit
 
 # SMOTE para balanceo de clases dentro de cada fold
 from imblearn.over_sampling import SMOTE
@@ -83,8 +90,8 @@ class HyperparamTuner:
 
     Usa optimizacion bayesiana (TPE sampler) para encontrar los mejores
     hiperparametros para Random Forest, XGBoost y LightGBM. Cada trial
-    evalua una configuracion usando StratifiedKFold con SMOTE aplicado
-    dentro de cada fold (evita data leakage).
+    evalua una configuracion usando TimeSeriesSplit (o StratifiedKFold)
+    con SMOTE aplicado dentro de cada fold (evita data leakage).
 
     Args:
         X_train: Features de entrenamiento (DataFrame o ndarray).
@@ -93,6 +100,8 @@ class HyperparamTuner:
         y_val: Labels de validacion.
         n_trials: Numero de trials de Optuna (por defecto 50).
         random_seed: Semilla para reproducibilidad.
+        temporal_cv: Si True (default), usa TimeSeriesSplit para respetar
+                     el orden cronologico. Si False, usa StratifiedKFold.
 
     Atributos:
         best_params: Diccionario {modelo: mejores_hiperparametros}.
@@ -112,6 +121,7 @@ class HyperparamTuner:
         y_val,
         n_trials: int = 50,
         random_seed: int = None,
+        temporal_cv: bool = True,
     ):
         """
         Inicializa el tuner con datos de entrenamiento y validacion.
@@ -123,6 +133,8 @@ class HyperparamTuner:
             y_val: Labels de validacion.
             n_trials: Numero de trials por modelo (default 50).
             random_seed: Semilla aleatoria (default: ML_CONFIG["random_seed"]).
+            temporal_cv: Si True (default), usa TimeSeriesSplit para CV.
+                         Si False, usa StratifiedKFold (comportamiento anterior).
         """
         if not OPTUNA_AVAILABLE:
             raise ImportError(
@@ -139,14 +151,16 @@ class HyperparamTuner:
         self.random_seed = random_seed or ML_CONFIG.get("random_seed", 42)
         self.smote_ratio = ML_CONFIG.get("smote_sampling", 0.5)
         self.cv_folds = ML_CONFIG.get("cv_folds", 5)
+        self.temporal_cv = temporal_cv
 
         # Almacenar resultados
         self.best_params: dict = {}
         self.studies: dict = {}
 
+        cv_label = "TimeSeriesSplit" if self.temporal_cv else "StratifiedKFold"
         logger.info(
             f"HyperparamTuner inicializado: {self.n_trials} trials, "
-            f"{self.cv_folds}-fold CV, seed={self.random_seed}"
+            f"{self.cv_folds}-fold CV ({cv_label}), seed={self.random_seed}"
         )
 
     # ============================================================
@@ -155,7 +169,13 @@ class HyperparamTuner:
 
     def _cv_score_with_smote(self, model, X, y) -> float:
         """
-        Calcula F1 medio usando StratifiedKFold con SMOTE dentro de cada fold.
+        Calcula F1 medio usando TimeSeriesSplit o StratifiedKFold con SMOTE.
+
+        Si temporal_cv=True (default), usa TimeSeriesSplit para respetar
+        el orden cronologico de los datos. Los tokens estan ordenados por
+        fecha de descubrimiento, y el modelo debe predecir el futuro.
+
+        Si temporal_cv=False, usa StratifiedKFold (comportamiento original).
 
         SMOTE se aplica SOLO en el set de entrenamiento de cada fold,
         nunca en el set de validacion. Esto evita data leakage.
@@ -168,18 +188,24 @@ class HyperparamTuner:
         Returns:
             F1 score medio de los K folds.
         """
-        skf = StratifiedKFold(
-            n_splits=self.cv_folds,
-            shuffle=True,
-            random_state=self.random_seed,
-        )
+        if self.temporal_cv:
+            # TimeSeriesSplit: respeta el orden cronologico.
+            # No usa shuffle porque el orden temporal es fundamental.
+            cv_splitter = TimeSeriesSplit(n_splits=self.cv_folds)
+        else:
+            # StratifiedKFold: aleatorio con estratificacion (modo legacy).
+            cv_splitter = StratifiedKFold(
+                n_splits=self.cv_folds,
+                shuffle=True,
+                random_state=self.random_seed,
+            )
         smote = SMOTE(
             sampling_strategy=self.smote_ratio,
             random_state=self.random_seed,
         )
 
         scores = []
-        for train_idx, val_idx in skf.split(X, y):
+        for train_idx, val_idx in cv_splitter.split(X, y):
             X_fold_train, X_fold_val = X[train_idx], X[val_idx]
             y_fold_train, y_fold_val = y[train_idx], y[val_idx]
 
@@ -217,7 +243,7 @@ class HyperparamTuner:
             - max_features: sqrt, log2, o float 0.3-0.8
             - class_weight: balanced, balanced_subsample
 
-        Objetivo: Maximizar F1 (binary) con StratifiedKFold + SMOTE.
+        Objetivo: Maximizar F1 (binary) con TimeSeriesSplit (o StratifiedKFold) + SMOTE.
 
         Returns:
             dict con los mejores hiperparametros encontrados.
@@ -311,7 +337,7 @@ class HyperparamTuner:
             - reg_lambda: 0.5-3
             - scale_pos_weight: calculado automaticamente
 
-        Objetivo: Maximizar F1 (binary) con StratifiedKFold + SMOTE.
+        Objetivo: Maximizar F1 (binary) con TimeSeriesSplit (o StratifiedKFold) + SMOTE.
 
         Returns:
             dict con los mejores hiperparametros encontrados.
@@ -396,7 +422,7 @@ class HyperparamTuner:
             - reg_lambda: 0-3
             - is_unbalance: True
 
-        Objetivo: Maximizar F1 (binary) con StratifiedKFold + SMOTE.
+        Objetivo: Maximizar F1 (binary) con TimeSeriesSplit (o StratifiedKFold) + SMOTE.
 
         Returns:
             dict con los mejores hiperparametros encontrados.
@@ -525,6 +551,7 @@ class HyperparamTuner:
         Args:
             filepath: Ruta del archivo JSON de salida.
         """
+        cv_strategy = "TimeSeriesSplit" if self.temporal_cv else "StratifiedKFold"
         output = {}
         for model_name, params in self.best_params.items():
             study = self.studies.get(model_name)
@@ -533,6 +560,7 @@ class HyperparamTuner:
                 "best_f1_cv": float(study.best_value) if study else None,
                 "n_trials": self.n_trials,
                 "cv_folds": self.cv_folds,
+                "cv_strategy": cv_strategy,
                 "random_seed": self.random_seed,
             }
 

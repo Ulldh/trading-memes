@@ -20,10 +20,11 @@ from src.data.supabase_storage import get_storage as _get_storage
 from dashboard.constants import LABEL_COLORS, CHAIN_COLORS, SIGNAL_COLORS
 from dashboard.theme import (
     signal_badge_html, chain_badge_html, card_container,
-    kpi_card_html, blurred_signal_card_html,
+    kpi_card_html, blurred_signal_card_html, rug_badge_html,
     ACCENT, ACCENT_DIM, GOLD, BG_CARD, BG_SURFACE,
     BORDER, TEXT_MUTED, DANGER,
 )
+from dashboard.constants import RUG_LABELS
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,13 @@ def render():
     # 1. Market Pulse — resumen del dia (visible para todos)
     # ------------------------------------------------------------------
     _render_market_pulse(storage)
+
+    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+
+    # ------------------------------------------------------------------
+    # 1b. Narrativa del dia — resumen automatico del mercado
+    # ------------------------------------------------------------------
+    _render_daily_narrative()
 
     st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
@@ -352,6 +360,59 @@ def _render_welcome_message():
 # Market Pulse — widget de resumen diario con top senales premium
 # ======================================================================
 
+@st.cache_data(ttl=600)
+def _load_today_narrative() -> str:
+    """Carga la narrativa del dia desde la tabla narratives.
+
+    Busca primero la narrativa de hoy (CURRENT_DATE). Si no existe,
+    devuelve la mas reciente (puede ser de ayer si el pipeline aun no corrio).
+
+    Returns:
+        Texto de la narrativa, o cadena vacia si no hay datos.
+    """
+    storage = get_storage()
+    try:
+        # Intentar narrativa de hoy
+        df = storage.query(
+            "SELECT content FROM narratives "
+            "WHERE date = CURRENT_DATE LIMIT 1"
+        )
+        if not df.empty:
+            return str(df["content"].iloc[0])
+
+        # Fallback: narrativa mas reciente (maximo 3 dias atras)
+        df = storage.query(
+            "SELECT content FROM narratives "
+            "WHERE date >= CURRENT_DATE - INTERVAL '3 days' "
+            "ORDER BY date DESC LIMIT 1"
+        )
+        if not df.empty:
+            return str(df["content"].iloc[0])
+    except Exception:
+        # Tabla puede no existir aun — no es error critico
+        pass
+    return ""
+
+
+@st.cache_data(ttl=300)
+def _load_rug_labels() -> dict:
+    """Carga label_multi para tokens con label rug o pump_and_dump.
+
+    Devuelve un dict {token_id: label_multi} para lookup rapido.
+    """
+    storage = get_storage()
+    try:
+        df = storage.query(
+            "SELECT token_id, label_multi FROM labels "
+            "WHERE label_multi IN ('rug', 'pump_and_dump')"
+        )
+        if not df.empty:
+            return dict(zip(df["token_id"], df["label_multi"]))
+    except Exception:
+        pass
+    return {}
+
+
 @st.cache_data(ttl=300)
 def _load_market_pulse_data():
     """Carga datos para el widget Market Pulse: tokens de hoy, nuevos, top senales."""
@@ -466,6 +527,9 @@ def _render_market_pulse(storage):
         # Ordenar por probabilidad y tomar top 3
         df_top3 = df_signals.sort_values("probability", ascending=False).head(3)
 
+        # Cargar labels peligrosos para rug badges
+        rug_labels = _load_rug_labels()
+
         cols = st.columns(3)
         for i, (_, row) in enumerate(df_top3.iterrows()):
             signal = row.get("signal", "NONE")
@@ -478,6 +542,9 @@ def _render_market_pulse(storage):
                     # Pro/Admin ve todo — card premium
                     symbol = row.get("symbol", "???")
                     chain = row.get("chain", "")
+                    token_id = row.get("token_id", "")
+                    token_rug_label = rug_labels.get(token_id, "")
+                    rug_html = rug_badge_html(token_rug_label) if token_rug_label else ""
 
                     # Links
                     pool_addr = row.get("pool_address", "")
@@ -510,7 +577,10 @@ def _render_market_pulse(storage):
                         f"align-items: center; margin-bottom: 10px;'>"
                         f"<strong style='font-size: 1.1rem; color: #ffffff; "
                         f"font-weight: 800;'>{symbol}</strong>"
+                        f"<div style='display: flex; gap: 4px;'>"
                         f"{chain_badge_html(chain)}"
+                        f"{rug_html}"
+                        f"</div>"
                         f"</div>"
                         # Signal badge + score
                         f"<div style='display: flex; align-items: center; gap: 8px; "
@@ -561,6 +631,36 @@ def _render_market_pulse(storage):
                 st.markdown(
                     ":rocket: **[Ver planes y precios](/pricing)**"
                 )
+
+
+# ======================================================================
+# Narrativa del dia — resumen automatico generado por el pipeline
+# ======================================================================
+
+def _render_daily_narrative():
+    """Muestra la narrativa del dia debajo del Market Pulse.
+
+    La narrativa es un resumen corto (3-4 frases) generado automaticamente
+    por scripts/daily_narrative.py al final del pipeline diario.
+    Si no hay narrativa disponible, no muestra nada (sin errores).
+    """
+    narrative = _load_today_narrative()
+    if not narrative:
+        return
+
+    st.markdown(
+        f"<div style='background: linear-gradient(135deg, #0d1117, #161b22); "
+        f"border-left: 3px solid {ACCENT}; border-radius: 12px; "
+        f"border: 1px solid rgba(0,255,65,0.06); "
+        f"padding: 16px 20px; margin: 4px 0;'>"
+        f"<div style='font-size: 0.75rem; color: {ACCENT}; margin-bottom: 8px; "
+        f"font-weight: 700; letter-spacing: 1px; text-transform: uppercase;'>"
+        f"&#128221; NARRATIVA DEL DIA</div>"
+        f"<div style='color: {TEXT_MUTED}; line-height: 1.6; font-size: 0.88rem;'>"
+        f"{narrative}</div>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
 
 
 # ======================================================================

@@ -33,10 +33,11 @@ from src.data.supabase_storage import get_storage as _get_storage
 from dashboard.constants import SIGNAL_COLORS, CHAIN_COLORS
 from dashboard.i18n import t
 from dashboard.theme import (
-    signal_badge_html, chain_badge_html,
+    signal_badge_html, chain_badge_html, rug_badge_html,
     kpi_card_html, signal_card_html,
     ACCENT, GOLD, BG_CARD, BG_SURFACE, BORDER, TEXT_MUTED,
 )
+from dashboard.constants import RUG_LABELS
 
 try:
     from config import SIGNAL_THRESHOLDS
@@ -79,6 +80,26 @@ def load_todays_signals() -> pd.DataFrame:
             df = df.head(200)
 
     return df
+
+
+@st.cache_data(ttl=300)
+def _load_rug_labels() -> dict:
+    """Carga label_multi para todos los tokens con label rug o pump_and_dump.
+
+    Devuelve un dict {token_id: label_multi} para lookup rapido.
+    Solo trae los labels peligrosos para minimizar transferencia de datos.
+    """
+    storage = get_storage()
+    try:
+        df = storage.query(
+            "SELECT token_id, label_multi FROM labels "
+            "WHERE label_multi IN ('rug', 'pump_and_dump')"
+        )
+        if not df.empty:
+            return dict(zip(df["token_id"], df["label_multi"]))
+    except Exception:
+        pass
+    return {}
 
 
 def _dexscreener_url(chain: str, pool_address: str) -> str:
@@ -527,6 +548,9 @@ def _render_basic_signals_table(df_filtered: pd.DataFrame):
 def _render_pro_signal_cards(df_filtered: pd.DataFrame):
     """Vista Pro: cada senal como trading card premium con indicadores de confianza."""
 
+    # Cargar labels peligrosos para mostrar rug badges
+    rug_labels = _load_rug_labels()
+
     for idx, row in df_filtered.iterrows():
         name = row.get("name", "")
         symbol = row.get("symbol", "")
@@ -595,6 +619,11 @@ def _render_pro_signal_cards(df_filtered: pd.DataFrame):
             meta_parts.append(scored_str)
         meta_html = " &middot; ".join(meta_parts)
 
+        # Badge de rug/pump_and_dump si aplica
+        token_id = row.get("token_id", "")
+        token_rug_label = rug_labels.get(token_id, "")
+        rug_html = rug_badge_html(token_rug_label) if token_rug_label else ""
+
         # Renderizar trading card premium
         st.markdown(
             signal_card_html(
@@ -609,6 +638,7 @@ def _render_pro_signal_cards(df_filtered: pd.DataFrame):
                 conf_badge=conf_badge,
                 conf_color=conf_color,
                 mc_str=mc_str,
+                extra_badges=rug_html,
             ),
             unsafe_allow_html=True,
         )

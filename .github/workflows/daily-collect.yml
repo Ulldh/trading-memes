@@ -38,6 +38,8 @@ jobs:
       BIRDEYE_API_KEY: ${{ secrets.BIRDEYE_API_KEY }}
       JUPITER_API_KEY: ${{ secrets.JUPITER_API_KEY }}
       X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+      # Telegram Bot (para alertas de gems a suscriptores tras scoring)
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       # Limite de tokens para OHLCV update (default 500 — GeckoTerminal es gratis)
       MAX_TOKENS_OHLCV: ${{ inputs.max_tokens_ohlcv || '500' }}
 
@@ -179,6 +181,12 @@ jobs:
       # Si no hay modelos entrenados todavia, skip graceful (exit 0).
       - name: Score tokens with ML models
         run: python scripts/score_tokens.py --model random_forest --min-days 3
+
+      # Generar narrativa diaria (resumen automatico del mercado)
+      # Se guarda en tabla 'narratives' y se muestra en el dashboard overview
+      - name: Generate daily narrative
+        run: python scripts/daily_narrative.py
+        timeout-minutes: 5
 
       # Notificacion por Telegram si falla
       - name: Notify Telegram on failure

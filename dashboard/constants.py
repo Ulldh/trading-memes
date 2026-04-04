@@ -18,8 +18,12 @@ LABEL_COLORS = {
     "neutral": "#6b7280",          # gris
     "failure": "#ef4444",          # rojo
     "rug": "#1a1a1a",              # negro
+    "pump_and_dump": "#ff6b35",    # naranja — subio mucho pero no mantuvo
     "sin_label": "#4b5563",        # gris oscuro
 }
+
+# Labels que indican peligro (rug o pump & dump)
+RUG_LABELS = {"rug", "pump_and_dump"}
 
 # Colores para las cadenas blockchain
 CHAIN_COLORS = {

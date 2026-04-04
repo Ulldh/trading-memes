@@ -7,10 +7,12 @@ Flujo:
   2. Inicializa GemScorer con el modelo descargado.
   3. Califica tokens nuevos y guarda scores en Supabase (tabla scores).
   4. Guarda copia local en CSV y muestra resumen.
+  5. Envia alertas de Telegram a suscriptores con senales STRONG/MEDIUM.
 
 Manejo de errores:
   - Si no hay modelos en Supabase Storage: warning y exit 0 (no falla el workflow).
   - Si no hay tokens nuevos para calificar: info y exit 0.
+  - Si Telegram falla: warning (no afecta el exit code del scoring).
   - Solo falla (exit 1) por errores inesperados de infraestructura.
 
 Uso:
@@ -51,7 +53,7 @@ def main(model_name: str = "random_forest", min_ohlcv_days: int = 3) -> int:
     logger.info("SCORING DE TOKENS - Pipeline diario")
     logger.info("=" * 60)
 
-    logger.info("\n[1/3] Verificando modelos locales / descargando de Supabase...")
+    logger.info("\n[1/4] Verificando modelos locales / descargando de Supabase...")
 
     try:
         from scripts.download_models import download_all
@@ -87,7 +89,7 @@ def main(model_name: str = "random_forest", min_ohlcv_days: int = 3) -> int:
     # ================================================================
     # Paso 2: Inicializar scorer y calificar tokens
     # ================================================================
-    logger.info(f"\n[2/3] Inicializando GemScorer (modelo={model_name})...")
+    logger.info(f"\n[2/4] Inicializando GemScorer (modelo={model_name})...")
 
     try:
         from src.models.scorer import GemScorer
@@ -124,9 +126,31 @@ def main(model_name: str = "random_forest", min_ohlcv_days: int = 3) -> int:
         return 0
 
     # ================================================================
-    # Paso 3: Guardar copia local en CSV y mostrar resumen
+    # Paso 3: Enviar alertas de Telegram para senales STRONG/MEDIUM
     # ================================================================
-    logger.info(f"\n[3/3] Guardando copia local de senales ({len(results_df)} tokens)...")
+    strong_medium = results_df[results_df["signal"].isin(["STRONG", "MEDIUM"])]
+    if not strong_medium.empty:
+        logger.info(
+            f"\n[3/4] Enviando alertas de Telegram "
+            f"({len(strong_medium)} senales STRONG/MEDIUM)..."
+        )
+        try:
+            from src.notifications.telegram_notifier import notify_subscribers
+            alert_stats = notify_subscribers(strong_medium)
+            logger.info(
+                f"Alertas: {alert_stats['total_sent']} enviadas, "
+                f"{alert_stats['users_notified']} usuarios notificados"
+            )
+        except Exception as e:
+            # Las alertas son un add-on: si fallan, el scoring sigue OK
+            logger.warning(f"Error enviando alertas de Telegram (no fatal): {e}")
+    else:
+        logger.info("\n[3/4] Sin senales STRONG/MEDIUM — no se envian alertas")
+
+    # ================================================================
+    # Paso 4: Guardar copia local en CSV y mostrar resumen
+    # ================================================================
+    logger.info(f"\n[4/4] Guardando copia local de senales ({len(results_df)} tokens)...")
 
     try:
         output_path = scorer.save_signals(results_df)

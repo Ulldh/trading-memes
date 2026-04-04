@@ -343,8 +343,29 @@ def run_pipeline(
     logger.info("PASO 3: Entrenando modelos RF + XGBoost + LightGBM")
     logger.info("=" * 60)
 
+    # Auto-detectar tuned_params.json si no se paso explicitamente
     if tuned_params_file:
         logger.info(f"  Usando hiperparametros tuneados de: {tuned_params_file}")
+    else:
+        # Buscar en disco local primero, luego en Supabase Storage
+        try:
+            from config import MODELS_DIR as _models_dir
+        except ImportError:
+            _models_dir = Path("data/models")
+        local_tuned = _models_dir / "tuned_params.json"
+        if local_tuned.exists():
+            tuned_params_file = str(local_tuned)
+            logger.info(f"  Auto-detectado tuned_params.json local: {tuned_params_file}")
+        else:
+            # Intentar descargar de Supabase Storage
+            tuned_bytes = _download_from_supabase_storage("tuned_params.json")
+            if tuned_bytes:
+                local_tuned.parent.mkdir(parents=True, exist_ok=True)
+                local_tuned.write_bytes(tuned_bytes)
+                tuned_params_file = str(local_tuned)
+                logger.info(f"  tuned_params.json descargado de Supabase Storage: {tuned_params_file}")
+            else:
+                logger.info("  Sin tuned_params.json (ni local ni en Supabase). Usando defaults regularizados.")
 
     t0 = time.time()
     trainer = ModelTrainer(random_seed=42)

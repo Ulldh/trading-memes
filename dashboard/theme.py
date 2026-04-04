@@ -707,6 +707,7 @@ def signal_card_html(
     conf_badge: str = "",
     conf_color: str = "",
     mc_str: str = "",
+    extra_badges: str = "",
 ) -> str:
     """Genera HTML para una tarjeta de senal premium estilo trading card.
 
@@ -722,6 +723,7 @@ def signal_card_html(
         conf_badge: Badge de confianza (Alta/Media/Baja)
         conf_color: Color de confianza
         mc_str: Market cap formateado
+        extra_badges: HTML de badges adicionales (ej: rug badge)
 
     Returns:
         String HTML de la tarjeta de senal completa.
@@ -783,6 +785,7 @@ def signal_card_html(
         f"{chain_badge_html(chain)}"
         f"{conf_html}"
         f"{mc_html}"
+        f"{extra_badges}"
         f"</div>"
         # Fila 2: barra de score + porcentaje
         f"<div style='display: flex; align-items: center; gap: 12px;'>"
@@ -803,6 +806,87 @@ def signal_card_html(
         f"<span style='color: {TEXT_MUTED}; font-size: 0.75rem;'>{meta_html}</span>"
         f"<div>{links_html}</div>"
         f"</div>"
+        f"</div>"
+    )
+
+
+def rug_badge_html(label_multi: str) -> str:
+    """Badge de advertencia para tokens clasificados como rug o pump_and_dump.
+
+    Genera una pastilla roja compacta con icono que se muestra junto
+    al badge de senal en las tarjetas de senales y overview.
+
+    Args:
+        label_multi: Etiqueta multiclase del labeler (rug, pump_and_dump, etc.)
+
+    Returns:
+        String HTML con el badge rojo, o cadena vacia si no aplica.
+    """
+    if label_multi == "rug":
+        color = DANGER
+        icon = "&#9760;"  # calavera
+        label = "RUG"
+    elif label_multi == "pump_and_dump":
+        color = "#ff6b35"  # naranja
+        icon = "&#9888;"   # warning
+        label = "P&amp;D"
+    else:
+        return ""
+
+    return (
+        f"<span role='status' aria-label='Alerta: {label}' "
+        f"style='background: {color}20; color: {color}; "
+        f"padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; "
+        f"font-weight: 700; border: 1px solid {color}40; "
+        f"letter-spacing: 0.3px; display: inline-block;'>"
+        f"{icon} {label}</span>"
+    )
+
+
+def rug_warning_card_html(label_multi: str) -> str:
+    """Tarjeta de advertencia prominente para tokens rug/pump_and_dump.
+
+    Se muestra en la pagina de busqueda de token cuando el token
+    tiene un label peligroso. Es informativa, no bloqueante.
+
+    Args:
+        label_multi: Etiqueta multiclase del labeler.
+
+    Returns:
+        String HTML con la tarjeta de advertencia, o cadena vacia si no aplica.
+    """
+    if label_multi == "rug":
+        color = DANGER
+        icon = "&#9760;"
+        title = "RUG PULL DETECTADO"
+        msg = (
+            "Este token fue clasificado como <strong>rug pull</strong>: "
+            "el precio colapso mas del 99% en las primeras horas. "
+            "Es extremadamente probable que los creadores hayan retirado la liquidez."
+        )
+    elif label_multi == "pump_and_dump":
+        color = "#ff6b35"
+        icon = "&#9888;"
+        title = "PUMP &amp; DUMP DETECTADO"
+        msg = (
+            "Este token fue clasificado como <strong>pump &amp; dump</strong>: "
+            "subio significativamente pero no mantuvo el precio. "
+            "Patron tipico de manipulacion coordinada."
+        )
+    else:
+        return ""
+
+    return (
+        f"<div style='background: linear-gradient(135deg, {color}08, {color}04); "
+        f"border: 1px solid {color}30; border-left: 4px solid {color}; "
+        f"border-radius: 12px; padding: 16px 20px; margin: 12px 0;'>"
+        f"<div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>"
+        f"<span style='font-size: 1.3rem;'>{icon}</span>"
+        f"<span style='color: {color}; font-weight: 800; font-size: 0.85rem; "
+        f"letter-spacing: 1px; text-transform: uppercase;'>{title}</span>"
+        f"</div>"
+        f"<p style='color: {TEXT_MUTED}; font-size: 0.82rem; margin: 0; line-height: 1.5;'>"
+        f"{msg}</p>"
         f"</div>"
     )
 

@@ -579,27 +579,29 @@ def _show_alert_history_placeholder():
     """
     Muestra el historial de alertas del usuario.
 
-    Consulta la tabla alert_log en Supabase. Si la tabla no existe
+    Consulta la tabla alert_history en Supabase. Si la tabla no existe
     todavia o no hay alertas, muestra un mensaje informativo.
     """
     try:
         storage = get_storage()
         df = storage.query(
-            "SELECT created_at, type, message, status "
-            "FROM alert_log "
+            "SELECT sent_at, signal, symbol, chain, probability "
+            "FROM alert_history "
             "WHERE user_id = ? "
-            "ORDER BY created_at DESC "
+            "ORDER BY sent_at DESC "
             "LIMIT 10",
             (st.session_state.get("user", {}).get("id", ""),),
         )
         if not df.empty:
-            # Truncar mensajes largos para la tabla
-            df["message"] = df["message"].str[:80] + "..."
-            df.columns = ["Fecha", "Tipo", "Mensaje", "Estado"]
+            # Formatear probabilidad como porcentaje
+            df["probability"] = df["probability"].apply(
+                lambda x: f"{x:.1%}" if x else "—"
+            )
+            df.columns = ["Fecha", "Senal", "Token", "Chain", "Confianza"]
             st.dataframe(df, use_container_width=True, hide_index=True)
             return
     except Exception:
-        pass  # Tabla alert_log no existe todavia
+        pass  # Tabla alert_history no existe todavia
 
     st.info(
         "No hay alertas registradas todavia. Cuando el sistema de alertas "
